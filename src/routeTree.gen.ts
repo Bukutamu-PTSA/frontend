@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as PengaduanRouteImport } from './routes/pengaduan'
 import { Route as SettingRouteImport } from './routes/setting'
+import { Route as SurveiRouteImport } from './routes/survei'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const SettingRoute = SettingRouteImport.update({
   path: '/setting',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SurveiRoute = SurveiRouteImport.update({
+  id: '/survei',
+  path: '/survei',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
+  '/survei': typeof SurveiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
+  '/survei': typeof SurveiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
+  '/survei': typeof SurveiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/pengaduan' | '/setting'
+  fullPaths: '/' | '/chat' | '/pengaduan' | '/setting' | '/survei'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/pengaduan' | '/setting'
-  id: '__root__' | '/' | '/chat' | '/pengaduan' | '/setting'
+  to: '/' | '/chat' | '/pengaduan' | '/setting' | '/survei'
+  id: '__root__' | '/' | '/chat' | '/pengaduan' | '/setting' | '/survei'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   PengaduanRoute: typeof PengaduanRoute
   SettingRoute: typeof SettingRoute
+  SurveiRoute: typeof SurveiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/survei': {
+      id: '/survei'
+      path: '/survei'
+      fullPath: '/survei'
+      preLoaderRoute: typeof SurveiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   PengaduanRoute: PengaduanRoute,
   SettingRoute: SettingRoute,
+  SurveiRoute: SurveiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

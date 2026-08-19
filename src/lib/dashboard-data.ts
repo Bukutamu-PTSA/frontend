@@ -130,3 +130,103 @@ export const settingMenu = [
   { no: 7, nama: "Shortlink URL", desc: "Pemendek tautan publikasi", tone: "warning" },
   { no: 8, nama: "Jenis Pengaduan", desc: "Master kategori pengaduan", tone: "warning" },
 ];
+
+export type SurveiNilai = "Baik" | "Cukup" | "Kurang";
+
+export type SurveiRingkasan = {
+  nilai: SurveiNilai;
+  label: string;
+  total: number;
+  share: number;
+};
+
+export type SurveiResponden = {
+  no: number;
+  tanggal: string;
+  responden: string;
+  komunikasi: SurveiNilai;
+  substansi: SurveiNilai;
+  sarana: SurveiNilai;
+  keterangan: string;
+};
+
+export const surveiRingkasan: SurveiRingkasan[] = [
+  { nilai: "Baik", label: "Puas dengan Layanan", total: 612, share: 68 },
+  { nilai: "Cukup", label: "Cukup Puas", total: 214, share: 24 },
+  { nilai: "Kurang", label: "Perlu Perbaikan", total: 72, share: 8 },
+];
+
+export const surveiResponden: SurveiResponden[] = [
+  {
+    no: 1,
+    tanggal: "12 Agu 2026 · 11:52",
+    responden: "J. Dola Sinulingga",
+    komunikasi: "Baik",
+    substansi: "Baik",
+    sarana: "Cukup",
+    keterangan: "Petugas responsif, ruang tunggu agak sempit saat jam sibuk.",
+  },
+  {
+    no: 2,
+    tanggal: "12 Agu 2026 · 11:30",
+    responden: "Ridhotta Maralam",
+    komunikasi: "Baik",
+    substansi: "Baik",
+    sarana: "Baik",
+    keterangan: "Proses pengaduan cepat dan penjelasan mudah dipahami.",
+  },
+  {
+    no: 3,
+    tanggal: "12 Agu 2026 · 10:55",
+    responden: "Almaria",
+    komunikasi: "Cukup",
+    substansi: "Kurang",
+    sarana: "Cukup",
+    keterangan: "Penjelasan terkait kekurangan data laporan kurang detail.",
+  },
+  {
+    no: 4,
+    tanggal: "12 Agu 2026 · 10:33",
+    responden: "Errin Windasti",
+    komunikasi: "Kurang",
+    substansi: "Cukup",
+    sarana: "Kurang",
+    keterangan: "Menunggu lama untuk konfirmasi pengalihan akun, sistem antrian membingungkan.",
+  },
+  {
+    no: 5,
+    tanggal: "12 Agu 2026 · 10:21",
+    responden: "Ratna Herkristiani",
+    komunikasi: "Baik",
+    substansi: "Baik",
+    sarana: "Baik",
+    keterangan: "Petugas membantu penggantian pengelola akun dengan jelas.",
+  },
+  {
+    no: 6,
+    tanggal: "12 Agu 2026 · 10:10",
+    responden: "Rian Ardian",
+    komunikasi: "Cukup",
+    substansi: "Baik",
+    sarana: "Cukup",
+    keterangan: "Materi cukup jelas, fasilitas ruang tunggu perlu ditambah.",
+  },
+  {
+    no: 7,
+    tanggal: "12 Agu 2026 · 09:58",
+    responden: "E M Titiek",
+    komunikasi: "Baik",
+    substansi: "Cukup",
+    sarana: "Baik",
+    keterangan: "Petugas ramah, namun solusi teknis butuh eskalasi lebih lanjut.",
+  },
+  {
+    no: 8,
+    tanggal: "12 Agu 2026 · 09:41",
+    responden: "Achmad Aminulloh",
+    komunikasi: "Kurang",
+    substansi: "Kurang",
+    sarana: "Cukup",
+    keterangan: "Kendala pelaporan belum terselesaikan setelah dua kali kunjungan.",
+  },
+];

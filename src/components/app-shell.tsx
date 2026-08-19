@@ -23,7 +23,7 @@ const nav = [
     items: [
       { to: "/", icon: Home, name: "Beranda", match: "/" },
       { to: "/pengaduan", icon: Monitor, name: "Report Pengaduan", badge: "10", match: "/pengaduan" },
-      { to: "/pengaduan", icon: Users, name: "Report Survei", match: null },
+      { to: "/survei", icon: Users, name: "Report Survei", match: "/survei" },
     ],
   },
   {
