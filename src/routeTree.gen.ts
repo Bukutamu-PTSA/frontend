@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PengaduanRouteImport } from './routes/pengaduan'
 import { Route as SettingRouteImport } from './routes/setting'
 import { Route as SurveiRouteImport } from './routes/survei'
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PengaduanRoute = PengaduanRouteImport.update({
@@ -44,6 +50,7 @@ const SurveiRoute = SurveiRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
@@ -59,21 +67,30 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
+  '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/pengaduan' | '/setting' | '/survei'
+  fullPaths: '/' | '/chat' | '/login' | '/pengaduan' | '/setting' | '/survei'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/pengaduan' | '/setting' | '/survei'
-  id: '__root__' | '/' | '/chat' | '/pengaduan' | '/setting' | '/survei'
+  to: '/' | '/chat' | '/login' | '/pengaduan' | '/setting' | '/survei'
+  id:
+    | '__root__'
+    | '/'
+    | '/chat'
+    | '/login'
+    | '/pengaduan'
+    | '/setting'
+    | '/survei'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChatRoute: typeof ChatRoute
+  LoginRoute: typeof LoginRoute
   PengaduanRoute: typeof PengaduanRoute
   SettingRoute: typeof SettingRoute
   SurveiRoute: typeof SurveiRoute
@@ -93,6 +110,13 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pengaduan': {
@@ -122,6 +146,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRoute: ChatRoute,
+  LoginRoute: LoginRoute,
   PengaduanRoute: PengaduanRoute,
   SettingRoute: SettingRoute,
   SurveiRoute: SurveiRoute,

@@ -1,223 +1,283 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Building2, FileStack, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+  BadgeCheck,
+  FileText,
+  Twitter,
+  Facebook,
+  MessageSquare,
+  Instagram,
+  MapPin,
+  Mail,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-import { AppShell } from "@/components/app-shell";
-import { kategoriPengaduan, skalaPerusahaan, trenBulanan, wilayah } from "@/lib/dashboard-data";
+// Pastikan file-file aset ini tersedia di src/assets/
+import heroImage from "@/assets/gedung-kemnaker.jpeg";
+import logoKemnaker from "@/assets/kemnaker_logo.png";
+import logoBinwasnaker from "@/assets/binwasnaker_logo.png"; // Tambahkan logo ini jika ada
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard Pengaduan PTSA-KEMNAKER" },
+      { title: "Sistem Pengaduan Tenaga Kerja | Kemnaker RI" },
       {
         name: "description",
         content:
-          "Dashboard modern layanan pengaduan ketenagakerjaan: ringkasan kategori, skala perusahaan, dan sebaran wilayah.",
+          "Portal resmi pelaporan pelanggaran norma kerja, perselisihan hubungan industrial, dan masalah ketenagakerjaan secara aman dan terpantau.",
       },
-      { property: "og:title", content: "Dashboard Pengaduan PTSA-KEMNAKER" },
+      { property: "og:title", content: "Sistem Pengaduan Tenaga Kerja | Kemnaker RI" },
       {
         property: "og:description",
-        content: "Pantau pengaduan ketenagakerjaan per kategori, skala perusahaan, dan provinsi.",
+        content:
+          "Laporkan masalah ketenagakerjaan Anda melalui portal resmi. Data pelapor dijaga kerahasiaannya.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Index,
 });
 
-const totalPengaduan = kategoriPengaduan.reduce((a, b) => a + b.total, 0);
-const totalPerusahaan = skalaPerusahaan.reduce((a, b) => a + b.total, 0);
+const navItems = ["Beranda", "Pengaduan", "Survei"];
 
 const stats = [
-  { label: "Total Pengaduan", value: totalPengaduan, icon: FileStack, delta: "+8,2%" },
-  { label: "Perusahaan Terlapor", value: totalPerusahaan, icon: Building2, delta: "+3,1%" },
-  { label: "Pelapor Aktif", value: 2481, icon: Users, delta: "+5,6%" },
-  { label: "Provinsi Terpantau", value: 33, icon: ArrowUpRight, delta: "stabil" },
+  { icon: BadgeCheck, value: "12.450+", label: "Laporan Diselesaikan" },
 ];
 
-const nf = new Intl.NumberFormat("id-ID");
+const steps = [
+  {
+    title: "Siapkan Data & Bukti",
+    body: "Kumpulkan dokumen pendukung seperti slip gaji, kontrak kerja, atau bukti komunikasi yang relevan dengan aduan Anda.",
+  },
+  {
+    title: "Isi Formulir Pengaduan",
+    body: "Lengkapi formulir secara online dengan detail kronologi kejadian secara jelas dan faktual pada portal ini.",
+  },
+];
+
+const socials = [
+  { icon: Twitter, href: "#" },
+  { icon: Facebook, href: "#" },
+  { icon: MessageSquare, href: "#" },
+  { icon: Instagram, href: "#" },
+];
 
 function Index() {
-  const max = Math.max(...kategoriPengaduan.map((k) => k.total));
+  const navigate = useNavigate();
 
   return (
-    <AppShell title="Dashboard" breadcrumb="Dashboard">
-      <div className="space-y-8">
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="card-surface p-5 transition-shadow hover:shadow-lift">
-              <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 text-sm text-muted-foreground">{s.label}</p>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-accent-foreground">
-                  <s.icon className="h-4 w-4" />
-                </span>
-              </div>
-              <p className="mt-3 font-display text-3xl font-bold">{nf.format(s.value)}</p>
-              <p className="mt-1 text-xs font-medium text-success">{s.delta} vs bulan lalu</p>
-            </div>
-          ))}
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-          <div className="card-surface p-5">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <h2 className="truncate text-base font-semibold">Tren Pengaduan Bulanan</h2>
-              <span className="shrink-0 rounded-full bg-accent px-3 py-1 text-xs text-accent-foreground">
-                7 bulan
-              </span>
-            </div>
-            <div className="mt-4 h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trenBulanan} margin={{ left: -20, right: 8, top: 8 }}>
-                  <defs>
-                    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
-                  <XAxis
-                    dataKey="bulan"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 12, fill: "var(--color-muted-foreground)" }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: 12,
-                      border: "1px solid var(--color-border)",
-                      background: "var(--color-surface)",
-                      fontSize: 12,
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="pengaduan"
-                    stroke="var(--color-primary)"
-                    strokeWidth={2.5}
-                    fill="url(#area)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+    <div className="min-h-screen flex flex-col bg-[#F4F7FB] font-sans">
+      {/* --- HEADER --- */}
+      <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-30">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
+          {/* Logo & Judul Brand */}
+          <div className="flex items-center gap-3">
+            <img
+              src={logoKemnaker}
+              alt="Logo Kemnaker"
+              className="h-8 w-8 object-contain"
+            />
+            <span className="text-xl font-bold text-[#032749]">
+              Kementerian Ketenagakerjaan
+            </span>
           </div>
 
-          <div className="card-surface p-5">
-            <h2 className="text-base font-semibold">Skala Perusahaan</h2>
-            <ul className="mt-4 space-y-4">
-              {skalaPerusahaan.map((s) => (
-                <li key={s.nama}>
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                    <p className="truncate text-sm font-medium">{s.nama}</p>
-                    <p className="shrink-0 text-sm font-semibold text-primary">
-                      {nf.format(s.total)}
-                    </p>
-                  </div>
-                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className="h-full rounded-full bg-gradient-brand"
-                      style={{ width: `${(s.total / totalPerusahaan) * 100}%` }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        <section>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-            <h2 className="truncate text-base font-semibold">Pengaduan Berdasarkan Kategori</h2>
-            <Link
-              to="/pengaduan"
-              className="shrink-0 text-sm font-medium text-primary hover:underline"
-            >
-              Lihat semua
-            </Link>
-          </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {kategoriPengaduan.map((k) => (
-              <div key={k.nama} className="card-surface flex flex-col p-5 hover:shadow-lift">
-                <p className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold">{k.nama}</p>
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <p className="font-display text-2xl font-bold">{nf.format(k.total)}</p>
-                  <span
-                    className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
-                      k.trend < 0 ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
-                    }`}
-                  >
-                    {k.trend < 0 ? (
-                      <TrendingDown className="h-3 w-3" />
-                    ) : (
-                      <TrendingUp className="h-3 w-3" />
-                    )}
-                    {k.trend === 0 ? "0%" : `${Math.abs(k.trend)}%`}
-                  </span>
-                </div>
-                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className="h-full rounded-full bg-primary/70"
-                    style={{ width: `${Math.max((k.total / max) * 100, 2)}%` }}
-                  />
-                </div>
-                <Link
-                  to="/pengaduan"
-                  className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:gap-2 transition-all"
+          {/* Menu Navigasi & Tombol Masuk */}
+          <div className="flex items-center gap-8">
+            <nav aria-label="Navigasi utama" className="hidden items-center gap-8 md:flex text-[15px]">
+              {navItems.map((item, i) => (
+                <a
+                  key={item}
+                  href="#"
+                  className={
+                    i === 0
+                      ? "text-[#032749] font-bold border-b-2 border-[#032749] pb-1"
+                      : "text-gray-600 hover:text-[#032749] pb-1 transition-colors font-medium"
+                  }
                 >
-                  Detail <ArrowUpRight className="h-4 w-4" />
-                </Link>
+                  {item}
+                </a>
+              ))}
+            </nav>
+
+            <Button
+              size="sm"
+              onClick={() => navigate({ to: "/login" })}
+              className="bg-[#032749] hover:bg-blue-950 text-white rounded-md px-6 py-2 font-semibold shadow-sm transition-all"
+            >
+              Masuk
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* --- MAIN CONTENT --- */}
+      <main className="flex-1">
+        {/* --- HERO SECTION FULL BACKGROUND --- */}
+        <section className="relative w-full min-h-[560px] md:min-h-[620px] flex items-center justify-center overflow-hidden px-8 py-16">
+          {/* 1. Gambar Gedung Kemnaker sebagai Background */}
+          <img
+            src={heroImage}
+            alt="Gedung Kemnaker RI"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+
+          {/* 2. Overlay Putih Semi-Transparan */}
+          <div className="absolute inset-0 bg-white/75 backdrop-blur-[1px]" />
+
+          {/* 3. Konten Teks dan Logo */}
+          <div className="relative z-10 mx-auto w-full max-w-7xl grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
+            {/* Kolom Kiri: Teks & Tombol */}
+            <div className="md:col-span-7 space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/90 border border-gray-300 px-3.5 py-1.5 text-xs font-semibold text-[#032749] shadow-sm">
+                <BadgeCheck className="size-4 text-blue-600 fill-blue-600 text-white" />
+                <span>Pelayanan Terpadu Satu Atap</span>
+              </div>
+
+              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#032749] leading-tight">
+                Sistem Pengaduan Tenaga Kerja
+              </h1>
+
+              <p className="text-base sm:text-lg text-slate-700 font-medium leading-relaxed max-w-xl">
+                Platform resmi untuk melaporkan pelanggaran norma kerja, perselisihan hubungan
+                industrial, dan masalah ketenagakerjaan lainnya secara aman dan terpantau.
+              </p>
+
+              <div>
+                <Button
+                  size="lg"
+                  className="bg-[#032749] hover:bg-blue-950 text-white font-semibold rounded-lg px-6 py-3.5 shadow-md flex items-center gap-2.5 transition-all"
+                >
+                  <FileText className="size-4" />
+                  Formulir Pengaduan
+                </Button>
+              </div>
+            </div>
+
+            {/* Kolom Kanan: Logo Kemnaker & Binwasnaker */}
+            <div className="md:col-span-5 flex items-center justify-center md:justify-end gap-6 sm:gap-10">
+              <img
+                src={logoKemnaker}
+                alt="Logo Kemnaker"
+                className="w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-md"
+              />
+              <img
+                src={logoBinwasnaker}
+                alt="Logo Binwasnaker"
+                className="w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-md"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* --- STATS SECTION --- */}
+        <section className="bg-white border-y border-gray-200">
+          <div className="mx-auto max-w-6xl px-6 py-10">
+            {stats.map(({ icon: Icon, value, label }) => (
+              <div key={label} className="text-center">
+                <Icon className="mx-auto size-7 text-[#032749]" aria-hidden="true" />
+                <p className="mt-3 text-3xl font-bold text-[#032749]">{value}</p>
+                <p className="mt-1 text-sm text-gray-500 font-medium">{label}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="card-surface overflow-hidden">
-          <div className="border-b border-border px-5 py-4">
-            <h2 className="text-base font-semibold">Sebaran Pengaduan per Provinsi</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Menampilkan 10 dari 33 provinsi</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead className="bg-secondary/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Provinsi</th>
-                  <th className="px-5 py-3 text-right font-semibold">Total</th>
-                  <th className="px-5 py-3 text-right font-semibold">WLKP</th>
-                  <th className="px-5 py-3 text-right font-semibold">Upah</th>
-                  <th className="px-5 py-3 text-right font-semibold">Jamsos</th>
-                  <th className="px-5 py-3 text-right font-semibold">Hub. Kerja</th>
-                </tr>
-              </thead>
-              <tbody>
-                {wilayah.map((w) => (
-                  <tr key={w.provinsi} className="border-t border-border hover:bg-secondary/40">
-                    <td className="px-5 py-3 font-medium">{w.provinsi}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-primary">
-                      {nf.format(w.total)}
-                    </td>
-                    <td className="px-5 py-3 text-right text-muted-foreground">{w.wlkp}</td>
-                    <td className="px-5 py-3 text-right text-muted-foreground">{w.upah}</td>
-                    <td className="px-5 py-3 text-right text-muted-foreground">{w.jamsos}</td>
-                    <td className="px-5 py-3 text-right text-muted-foreground">{w.hubker}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {/* --- STEPS SECTION --- */}
+        <section className="mx-auto max-w-6xl px-6 py-16">
+          <h2 className="text-center text-2xl font-bold text-[#032749] md:text-3xl">
+            Proses Pelaporan yang Transparan
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-center text-sm leading-relaxed text-gray-600">
+            Ikuti langkah mudah ini untuk melaporkan masalah ketenagakerjaan Anda. Kami menjamin
+            kerahasiaan data pelapor.
+          </p>
+          <ol className="mt-10 grid gap-6 md:grid-cols-2">
+            {steps.map((step, i) => (
+              <li
+                key={step.title}
+                className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm"
+              >
+                <span className="inline-flex size-10 items-center justify-center rounded-full bg-[#032749] text-sm font-bold text-white mb-4">
+                  {i + 1}
+                </span>
+                <h3 className="text-base font-bold text-[#032749]">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600">{step.body}</p>
+              </li>
+            ))}
+          </ol>
         </section>
-      </div>
-    </AppShell>
+      </main>
+
+      {/* --- FOOTER --- */}
+      <footer className="bg-[#032749] text-white">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
+            {/* Kolom 1: Binwasnaker Info */}
+            <div>
+              <h3 className="text-xl font-bold">
+                BINWASNAKER <span className="text-emerald-400">&amp; K3</span>
+              </h3>
+              <p className="mt-4 text-sm leading-relaxed text-gray-300">
+                Ditjen Binwasnaker &amp; K3 adalah unsur pelaksana yang berada di bawah
+                dan bertanggung jawab kepada Menteri Ketenagakerjaan.
+              </p>
+              <div className="mt-6 flex gap-3">
+                {socials.map(({ icon: Icon, href }, i) => (
+                  <a
+                    key={i}
+                    href={href}
+                    className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
+                  >
+                    <Icon className="size-4" />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Kolom 2: Customer Support */}
+            <div>
+              <h4 className="text-lg font-semibold">Customer Support</h4>
+              <hr className="mt-4 border-white/15" />
+              <ul className="mt-5 space-y-3 text-sm text-gray-300">
+                <li className="flex items-center gap-2">
+                  <span className="text-emerald-400">›</span>
+                  <a href="#" className="hover:text-emerald-400 transition-colors">FAQ</a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-emerald-400">›</span>
+                  <a href="#" className="hover:text-emerald-400 transition-colors">Hubungi Kami</a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Kolom 3: Kontak & Alamat */}
+            <div>
+              <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
+              <hr className="mt-4 border-white/15" />
+              <div className="mt-5 flex gap-3 text-sm text-gray-300">
+                <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
+                <p className="leading-relaxed">
+                  Jl. Jend. Gatot Subroto Kav. 51, RT.5/RW.4, Kuningan Timur,
+                  Kecamatan Setiabudi, Kota Jakarta Selatan, DKI Jakarta 12950
+                </p>
+              </div>
+              <div className="mt-4 flex items-center gap-3 text-sm">
+                <Mail className="size-5 text-emerald-400" />
+                <a href="#" className="text-gray-300 hover:text-emerald-400 transition-colors">
+                  Pengaduan WLKP
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <hr className="mt-10 border-white/15" />
+
+          <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
+            <p>© 2024–2026 Kementerian Ketenagakerjaan RI. Seluruh Hak Cipta Dilindungi.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
