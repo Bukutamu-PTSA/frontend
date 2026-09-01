@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import {
   BadgeCheck,
   FileText,
@@ -11,10 +11,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Pastikan file-file aset ini tersedia di src/assets/
-import heroImage from "@/assets/gedung-kemnaker.jpeg";
+import heroImage from "@/assets/gedung-kemnaker.jpg";
 import logoKemnaker from "@/assets/kemnaker_logo.png";
-import logoBinwasnaker from "@/assets/binwasnaker_logo.png"; // Tambahkan logo ini jika ada
+import logoBinwasnaker from "@/assets/binwasnaker_logo.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,7 +37,11 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const navItems = ["Beranda", "Pengaduan", "Survei"];
+const navLinks = [
+  { label: "Beranda", to: "/" },
+  { label: "Pengaduan", to: "/pengaduan" },
+  { label: "Survei", to: "/survei" },
+];
 
 const stats = [
   { icon: BadgeCheck, value: "12.450+", label: "Laporan Diselesaikan" },
@@ -71,7 +74,7 @@ function Index() {
       <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-30">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
           {/* Logo & Judul Brand */}
-          <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3">
             <img
               src={logoKemnaker}
               alt="Logo Kemnaker"
@@ -80,23 +83,23 @@ function Index() {
             <span className="text-xl font-bold text-[#032749]">
               Kementerian Ketenagakerjaan
             </span>
-          </div>
+          </Link>
 
           {/* Menu Navigasi & Tombol Masuk */}
           <div className="flex items-center gap-8">
             <nav aria-label="Navigasi utama" className="hidden items-center gap-8 md:flex text-[15px]">
-              {navItems.map((item, i) => (
-                <a
-                  key={item}
-                  href="#"
-                  className={
-                    i === 0
-                      ? "text-[#032749] font-bold border-b-2 border-[#032749] pb-1"
-                      : "text-gray-600 hover:text-[#032749] pb-1 transition-colors font-medium"
-                  }
+              {navLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className="pb-1 transition-colors font-medium text-gray-600 hover:text-[#032749]"
+                  activeProps={{
+                    className: "text-[#032749] font-bold border-b-2 border-[#032749]",
+                  }}
+                  activeOptions={{ exact: link.to === "/" }}
                 >
-                  {item}
-                </a>
+                  {link.label}
+                </Link>
               ))}
             </nav>
 
@@ -115,19 +118,19 @@ function Index() {
       <main className="flex-1">
         {/* --- HERO SECTION FULL BACKGROUND --- */}
         <section className="relative w-full min-h-[560px] md:min-h-[620px] flex items-center justify-center overflow-hidden px-8 py-16">
-          {/* 1. Gambar Gedung Kemnaker sebagai Background */}
+          {/* Background Gedung */}
           <img
             src={heroImage}
             alt="Gedung Kemnaker RI"
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
 
-          {/* 2. Overlay Putih Semi-Transparan */}
+          {/* Overlay Putih Semi-Transparan */}
           <div className="absolute inset-0 bg-white/75 backdrop-blur-[1px]" />
 
-          {/* 3. Konten Teks dan Logo */}
+          {/* Konten Hero */}
           <div className="relative z-10 mx-auto w-full max-w-7xl grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
-            {/* Kolom Kiri: Teks & Tombol */}
+            {/* Kolom Kiri: Teks & Tombol Aksi */}
             <div className="md:col-span-7 space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/90 border border-gray-300 px-3.5 py-1.5 text-xs font-semibold text-[#032749] shadow-sm">
                 <BadgeCheck className="size-4 text-blue-600 fill-blue-600 text-white" />
@@ -146,6 +149,7 @@ function Index() {
               <div>
                 <Button
                   size="lg"
+                  onClick={() => navigate({ to: "/pengaduan" })}
                   className="bg-[#032749] hover:bg-blue-950 text-white font-semibold rounded-lg px-6 py-3.5 shadow-md flex items-center gap-2.5 transition-all"
                 >
                   <FileText className="size-4" />
@@ -213,7 +217,7 @@ function Index() {
       <footer className="bg-[#032749] text-white">
         <div className="mx-auto max-w-6xl px-6 py-14">
           <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
-            {/* Kolom 1: Binwasnaker Info */}
+            {/* Kolom 1 */}
             <div>
               <h3 className="text-xl font-bold">
                 BINWASNAKER <span className="text-emerald-400">&amp; K3</span>
@@ -235,7 +239,7 @@ function Index() {
               </div>
             </div>
 
-            {/* Kolom 2: Customer Support */}
+            {/* Kolom 2 */}
             <div>
               <h4 className="text-lg font-semibold">Customer Support</h4>
               <hr className="mt-4 border-white/15" />
@@ -251,7 +255,7 @@ function Index() {
               </ul>
             </div>
 
-            {/* Kolom 3: Kontak & Alamat */}
+            {/* Kolom 3 */}
             <div>
               <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
               <hr className="mt-4 border-white/15" />

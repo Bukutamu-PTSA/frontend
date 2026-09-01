@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as Bukti_pendukungRouteImport } from './routes/bukti_pendukung'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PengaduanRouteImport } from './routes/pengaduan'
@@ -19,6 +20,11 @@ import { Route as SurveiRouteImport } from './routes/survei'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Bukti_pendukungRoute = Bukti_pendukungRouteImport.update({
+  id: '/bukti_pendukung',
+  path: '/bukti_pendukung',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatRoute = ChatRouteImport.update({
@@ -49,6 +55,7 @@ const SurveiRoute = SurveiRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
@@ -74,12 +83,27 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/login' | '/pengaduan' | '/setting' | '/survei'
+  fullPaths:
+    | '/'
+    | '/bukti_pendukung'
+    | '/chat'
+    | '/login'
+    | '/pengaduan'
+    | '/setting'
+    | '/survei'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/login' | '/pengaduan' | '/setting' | '/survei'
+  to:
+    | '/'
+    | '/bukti_pendukung'
+    | '/chat'
+    | '/login'
+    | '/pengaduan'
+    | '/setting'
+    | '/survei'
   id:
     | '__root__'
     | '/'
+    | '/bukti_pendukung'
     | '/chat'
     | '/login'
     | '/pengaduan'
@@ -89,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  Bukti_pendukungRoute: typeof Bukti_pendukungRoute
   ChatRoute: typeof ChatRoute
   LoginRoute: typeof LoginRoute
   PengaduanRoute: typeof PengaduanRoute
@@ -103,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bukti_pendukung': {
+      id: '/bukti_pendukung'
+      path: '/bukti_pendukung'
+      fullPath: '/bukti_pendukung'
+      preLoaderRoute: typeof Bukti_pendukungRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat': {
@@ -145,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  Bukti_pendukungRoute: Bukti_pendukungRoute,
   ChatRoute: ChatRoute,
   LoginRoute: LoginRoute,
   PengaduanRoute: PengaduanRoute,
