@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import { AtSign, Eye, EyeOff, Building2, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import logo from '../assets/kemnaker_logo.png';
 
-const BASE_API_URL = "http://192.168.147.199:8000/api/v1/auth";
+const BASE_API_URL = "http://192.168.147.199:8000/api/auth";
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -68,7 +68,7 @@ function LoginPage() {
 
       // Redirect ke /dashboard setelah notifikasi muncul
       setTimeout(() => {
-        navigate({ to: '/dashboard' });
+        navigate({ to: '/admin/dashboard' });
       }, 800);
     } catch (err: any) {
       console.error('Login error:', err);

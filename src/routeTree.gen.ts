@@ -12,11 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as Bukti_pendukungRouteImport } from './routes/bukti_pendukung'
 import { Route as ChatRouteImport } from './routes/chat'
-import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PengaduanRouteImport } from './routes/pengaduan'
 import { Route as SettingRouteImport } from './routes/setting'
 import { Route as SurveiRouteImport } from './routes/survei'
+import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as AdminKategori_pelayananRouteImport } from './routes/admin/kategori_pelayanan'
+import { Route as AdminWilayahRouteImport } from './routes/admin/wilayah'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -31,11 +33,6 @@ const Bukti_pendukungRoute = Bukti_pendukungRouteImport.update({
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -58,37 +55,58 @@ const SurveiRoute = SurveiRouteImport.update({
   path: '/survei',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/admin/dashboard',
+  path: '/admin/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminKategori_pelayananRoute = AdminKategori_pelayananRouteImport.update({
+  id: '/admin/kategori_pelayanan',
+  path: '/admin/kategori_pelayanan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminWilayahRoute = AdminWilayahRouteImport.update({
+  id: '/admin/wilayah',
+  path: '/admin/wilayah',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
-  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
+  '/admin/wilayah': typeof AdminWilayahRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
-  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
+  '/admin/wilayah': typeof AdminWilayahRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
-  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
+  '/admin/wilayah': typeof AdminWilayahRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -96,42 +114,50 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
-    | '/dashboard'
     | '/login'
     | '/pengaduan'
     | '/setting'
     | '/survei'
+    | '/admin/dashboard'
+    | '/admin/kategori_pelayanan'
+    | '/admin/wilayah'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/bukti_pendukung'
     | '/chat'
-    | '/dashboard'
     | '/login'
     | '/pengaduan'
     | '/setting'
     | '/survei'
+    | '/admin/dashboard'
+    | '/admin/kategori_pelayanan'
+    | '/admin/wilayah'
   id:
     | '__root__'
     | '/'
     | '/bukti_pendukung'
     | '/chat'
-    | '/dashboard'
     | '/login'
     | '/pengaduan'
     | '/setting'
     | '/survei'
+    | '/admin/dashboard'
+    | '/admin/kategori_pelayanan'
+    | '/admin/wilayah'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   Bukti_pendukungRoute: typeof Bukti_pendukungRoute
   ChatRoute: typeof ChatRoute
-  DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   PengaduanRoute: typeof PengaduanRoute
   SettingRoute: typeof SettingRoute
   SurveiRoute: typeof SurveiRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminKategori_pelayananRoute: typeof AdminKategori_pelayananRoute
+  AdminWilayahRoute: typeof AdminWilayahRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -155,13 +181,6 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -192,6 +211,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SurveiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/admin/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/kategori_pelayanan': {
+      id: '/admin/kategori_pelayanan'
+      path: '/admin/kategori_pelayanan'
+      fullPath: '/admin/kategori_pelayanan'
+      preLoaderRoute: typeof AdminKategori_pelayananRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/wilayah': {
+      id: '/admin/wilayah'
+      path: '/admin/wilayah'
+      fullPath: '/admin/wilayah'
+      preLoaderRoute: typeof AdminWilayahRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -199,11 +239,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   Bukti_pendukungRoute: Bukti_pendukungRoute,
   ChatRoute: ChatRoute,
-  DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   PengaduanRoute: PengaduanRoute,
   SettingRoute: SettingRoute,
   SurveiRoute: SurveiRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
+  AdminKategori_pelayananRoute: AdminKategori_pelayananRoute,
+  AdminWilayahRoute: AdminWilayahRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

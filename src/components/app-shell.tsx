@@ -1,75 +1,88 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  BarChart3,
-  ChevronRight,
   Home,
-  Loader2,
-  LogOut,
-  Menu,
-  MessageSquare,
-  Monitor,
-  PieChart,
-  Search,
+  Network,
+  AlertCircle,
+  FileText,
+  BarChart2,
+  Eye,
   Settings,
-  Users,
+  LogOut,
+  Search,
+  Bell,
+  Menu,
   X,
+  Loader2,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
+// Pastikan aset logo sesuai di foldermu
+import logokemnaker from "@/assets/kemnaker_logo.png";
 
 const BASE_API_URL = "http://192.168.147.199:8000/api/v1/auth";
 
-const nav = [
+// Definisi menu sidebar presisi (tanpa prefix liar yang bikin bentrok)
+const sidebarNav = [
   {
-    label: "Utama",
-    items: [
-      { to: "/", icon: Home, name: "Beranda", match: "/" },
-      { to: "/pengaduan", icon: Monitor, name: "Report Pengaduan", badge: "10", match: "/pengaduan" },
-      { to: "/survei", icon: Users, name: "Report Survei", match: "/survei" },
-    ],
+    to: "/admin/dashboard",
+    icon: Home,
+    name: "Beranda",
+    exactPaths: ["/admin/dashboard", "/dashboard", "/admin"],
   },
   {
-    label: "Chart & Pie",
-    items: [
-      { to: "/", icon: BarChart3, name: "Grafik", match: null },
-      { to: "/", icon: PieChart, name: "Pie", match: null },
-    ],
+    to: "/admin/kategori_laporan",
+    icon: Network,
+    name: "Pelayanan",
+    exactPaths: ["/admin/kategori_laporan", "/dashboard/kategori_laporan", "/admin/pelayanan"],
   },
   {
-    label: "Tools",
-    items: [
-      { to: "/chat", icon: MessageSquare, name: "Chat", match: null },
-      { to: "/setting", icon: Settings, name: "Setting", badge: "New", match: "/setting" },
-    ],
+    to: "/pengaduan",
+    icon: AlertCircle,
+    name: "Report Pengaduan",
+    exactPaths: ["/pengaduan", "/admin/pengaduan"],
+  },
+  {
+    to: "/survei",
+    icon: FileText,
+    name: "Report Survei",
+    exactPaths: ["/survei", "/admin/survei"],
+  },
+  {
+    to: "/admin/dashboard",
+    icon: BarChart2,
+    name: "Grafik & Statistik",
+    exactPaths: ["/admin/grafik"],
+  },
+  {
+    to: "/admin/dashboard",
+    icon: Eye,
+    name: "Pengawas",
+    exactPaths: ["/admin/pengawas"],
+  },
+  {
+    to: "/admin/dashboard",
+    icon: Settings,
+    name: "Pengaturan",
+    exactPaths: ["/setting", "/admin/pengaturan"],
   },
 ];
 
 export function AppShell({
-  title,
-  breadcrumb,
   children,
 }: {
-  title: string;
-  breadcrumb: string;
   children: ReactNode;
+  title?: string;
+  breadcrumb?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const handleLogout = async () => {
     setLoggingOut(true);
-
     const token =
-      localStorage.getItem("auth_token") ||
-      sessionStorage.getItem("auth_token");
-
-    // Langsung hapus sesi lokal
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
-    sessionStorage.removeItem("auth_token");
-    sessionStorage.removeItem("auth_user");
+      localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     try {
       if (token) {
@@ -89,162 +102,181 @@ export function AppShell({
         clearTimeout(timeoutId);
       }
     } catch (err) {
-      console.warn("Logout backend notice:", err);
+      console.warn("Logout notice:", err);
     } finally {
-      // Hard redirect kembali ke halaman utama
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("auth_user");
+      sessionStorage.removeItem("auth_token");
+      sessionStorage.removeItem("auth_user");
       window.location.href = "/";
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {open && (
+    <div className="min-h-screen bg-[#F8FAFC] flex font-sans antialiased text-[#1E293B]">
+      {/* Backdrop Mobile */}
+      {mobileOpen && (
         <button
-          aria-label="Tutup menu"
-          onClick={() => setOpen(false)}
-          className="fixed inset-0 z-30 bg-foreground/50 backdrop-blur-sm lg:hidden"
+          aria-label="Tutup Navigasi"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-xs lg:hidden"
         />
       )}
 
+      {/* ================= SIDEBAR ================= */}
       <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-72 flex-col text-sidebar-foreground transition-transform duration-300 lg:translate-x-0",
-          open ? "translate-x-0" : "-translate-x-full",
-        )}
-        style={{ backgroundImage: "var(--gradient-sidebar)" }}
+        className={`
+          fixed inset-y-0 left-0 z-40 flex w-[218px] flex-col bg-[#0F2137] text-white transition-transform duration-200 ease-in-out
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        `}
       >
-        <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-5">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-brand text-sm font-bold text-primary-foreground">
-            PT
+        {/* Header Logo PTSA Kemnaker (Kotak Putih Atas) */}
+        <div className="flex h-16 items-center gap-3 bg-white px-4 border-b border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+          <div className="flex h-9 w-9 items-center justify-center shrink-0">
+            <img
+              src={logokemnaker}
+              alt="Logo PTSA Kemnaker"
+              className="h-8 w-8 object-contain"
+            />
           </div>
           <div className="min-w-0">
-            <p className="truncate font-display text-sm font-semibold text-sidebar-accent-foreground">
-              PTSA-KEMNAKER
+            <h1 className="text-[13px] font-black tracking-tight text-[#0B3968] leading-none uppercase">
+              PTSA KEMNAKER
+            </h1>
+            <p className="text-[8px] font-medium tracking-wider text-gray-500 uppercase mt-0.5">
+              PELAYANAN TERPADU
             </p>
-            <p className="truncate text-xs text-sidebar-foreground/60">Layanan Pengaduan</p>
           </div>
           <button
-            onClick={() => setOpen(false)}
-            className="ml-auto rounded-lg p-1.5 text-sidebar-foreground/70 hover:bg-sidebar-accent lg:hidden"
-            aria-label="Tutup"
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            className="ml-auto text-gray-400 hover:text-gray-600 lg:hidden"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="px-5 py-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-sidebar-accent/60 p-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-warning/20 text-xs font-semibold text-warning">
-              IK
+        {/* Profil User (Ikko - Petugas Pelayanan) */}
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-white/5">
+          <div className="relative">
+            <div className="h-9 w-9 rounded-full bg-slate-600 border border-white/20 overflow-hidden flex items-center justify-center text-xs font-semibold text-white">
+              <img
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
+                alt="Ikko"
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = "none";
+                }}
+              />
+              <span>IK</span>
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-sidebar-accent-foreground">ikko</p>
-              <p className="truncate text-xs text-sidebar-foreground/60">Administrator</p>
-            </div>
+            {/* Dot Status Online Hijau */}
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#10B981] ring-2 ring-[#0F2137]" />
           </div>
-          <label className="mt-4 flex items-center gap-2 rounded-xl bg-sidebar-accent/40 px-3 py-2 focus-within:ring-2 focus-within:ring-sidebar-ring">
-            <Search className="h-4 w-4 shrink-0 text-sidebar-foreground/50" />
-            <input
-              placeholder="Cari menu…"
-              className="w-full min-w-0 bg-transparent text-sm text-sidebar-accent-foreground placeholder:text-sidebar-foreground/40 focus:outline-none"
-            />
-          </label>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold text-white truncate">Ikko</p>
+            <p className="text-[9px] text-gray-400 truncate">Petugas Pelayanan</p>
+          </div>
         </div>
 
-        <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
-          {nav.map((group) => (
-            <div key={group.label}>
-              <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/40">
-                {group.label}
-              </p>
-              <ul className="space-y-1">
-                {group.items.map((item) => {
-                  const active = item.match !== null && pathname === item.match;
-                  return (
-                    <li key={item.name}>
-                      <Link
-                        to={item.to}
-                        onClick={() => setOpen(false)}
-                        className={cn(
-                          "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
-                          active
-                            ? "bg-sidebar-primary/20 text-sidebar-accent-foreground"
-                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                        )}
-                      >
-                        <item.icon
-                          className={cn(
-                            "h-4 w-4 shrink-0",
-                            active ? "text-sidebar-primary" : "text-sidebar-foreground/60",
-                          )}
-                        />
-                        <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                        {item.badge && (
-                          <span className="shrink-0 rounded-full bg-sidebar-primary/25 px-2 py-0.5 text-[10px] font-semibold text-sidebar-primary-foreground">
-                            {item.badge}
-                          </span>
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+        {/* Menu Navigasi Samping */}
+        <nav className="flex-1 space-y-1 px-3 py-3 overflow-y-auto">
+          {sidebarNav.map((item) => {
+            // Evaluasi path persis agar tidak tumpang tindih
+            const isActive = item.exactPaths.some((p) => {
+              if (p === "/admin" || p === "/admin/dashboard" || p === "/dashboard") {
+                return (
+                  pathname === "/admin" ||
+                  pathname === "/admin/dashboard" ||
+                  pathname === "/dashboard"
+                );
+              }
+              return pathname === p || pathname.startsWith(p + "/");
+            });
 
-          {/* Tombol Logout Aktif */}
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.name}
+                to={item.to}
+                onClick={() => setMobileOpen(false)}
+                className={`
+                  flex items-center gap-3 rounded-lg px-3 py-2.5 text-[11px] font-medium transition-colors
+                  ${
+                    isActive
+                      ? "bg-[#007A64] text-white shadow-xs font-semibold"
+                      : "text-gray-300/80 hover:bg-white/5 hover:text-white"
+                  }
+                `}
+              >
+                <Icon
+                  className={`h-4 w-4 shrink-0 ${
+                    isActive ? "text-white" : "text-gray-400"
+                  }`}
+                />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Logout / Keluar Sistem di Bawah */}
+        <div className="p-3 border-t border-white/5">
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground/70 transition-colors hover:bg-destructive/20 hover:text-sidebar-accent-foreground cursor-pointer disabled:opacity-60"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[11px] font-medium text-gray-300/80 transition-colors hover:bg-white/5 hover:text-red-400 cursor-pointer disabled:opacity-50"
           >
             {loggingOut ? (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
             ) : (
-              <LogOut className="h-4 w-4 shrink-0" />
+              <LogOut className="h-4 w-4 text-gray-400" />
             )}
-            {loggingOut ? "Mengeluarkan..." : "Logout"}
+            <span>{loggingOut ? "Keluar..." : "Keluar Sistem"}</span>
           </button>
-        </nav>
+        </div>
       </aside>
 
-      <div className="lg:pl-72">
-        <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-xl">
-          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
-            <button
-              onClick={() => setOpen(true)}
-              className="rounded-xl border border-border bg-surface p-2 text-muted-foreground shadow-soft lg:hidden"
-              aria-label="Buka menu"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-            <div className="min-w-0">
-              <p className="hidden text-xs text-muted-foreground sm:block">
-                Home <ChevronRight className="inline h-3 w-3" /> {breadcrumb}
-              </p>
-              <h1 className="truncate text-lg font-semibold sm:text-xl">{title}</h1>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button className="hidden rounded-xl border border-border bg-surface p-2 text-muted-foreground shadow-soft transition-colors hover:text-primary sm:block">
-                <Search className="h-4 w-4" />
-              </button>
-              <span className="rounded-xl bg-accent px-3 py-2 text-xs font-medium text-accent-foreground">
-                v1.0.0
-              </span>
+      {/* ================= MAIN CONTENT WRAPPER ================= */}
+      <div className="flex-1 lg:pl-[218px] flex flex-col min-w-0">
+        {/* Header Bar */}
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-gray-100 bg-white px-6">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="text-gray-600 lg:hidden mr-3 p-1"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+
+          {/* Search Bar Tengah (Pill Shape) */}
+          <div className="flex-1 flex justify-center max-w-xl mx-auto">
+            <div className="relative w-full max-w-[340px]">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search Bar (Ctrl+K)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-full bg-[#EEF2F6] pl-9 pr-4 py-1.5 text-[10px] text-gray-700 placeholder:text-gray-400 focus:outline-hidden focus:ring-1 focus:ring-[#007A64]"
+              />
             </div>
           </div>
+
+          {/* Lonceng Notifikasi */}
+          <button
+            type="button"
+            className="relative p-1.5 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+          >
+            <Bell className="h-4 w-4" />
+            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+          </button>
         </header>
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
-
-        <footer className="grid gap-2 border-t border-border px-4 py-6 text-xs text-muted-foreground sm:flex sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <p>
-            BINWASNAKER © 2024–2026 <span className="font-semibold text-primary">TUBSPK.</span>{" "}
-            BINSIS
-          </p>
-          <p>Bangga Melayani Bangsa · BerAKHLAK</p>
-        </footer>
+        {/* Isi Halaman */}
+        <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
   );
