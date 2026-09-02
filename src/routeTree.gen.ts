@@ -18,6 +18,7 @@ import { Route as SettingRouteImport } from './routes/setting'
 import { Route as SurveiRouteImport } from './routes/survei'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as AdminKategori_pelayananRouteImport } from './routes/admin/kategori_pelayanan'
+import { Route as AdminReportpengaduanRouteImport } from './routes/admin/reportpengaduan'
 import { Route as AdminWilayahRouteImport } from './routes/admin/wilayah'
 
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +66,11 @@ const AdminKategori_pelayananRoute = AdminKategori_pelayananRouteImport.update({
   path: '/admin/kategori_pelayanan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminReportpengaduanRoute = AdminReportpengaduanRouteImport.update({
+  id: '/admin/reportpengaduan',
+  path: '/admin/reportpengaduan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminWilayahRoute = AdminWilayahRouteImport.update({
   id: '/admin/wilayah',
   path: '/admin/wilayah',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/survei': typeof SurveiRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
+  '/admin/reportpengaduan': typeof AdminReportpengaduanRoute
   '/admin/wilayah': typeof AdminWilayahRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/survei': typeof SurveiRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
+  '/admin/reportpengaduan': typeof AdminReportpengaduanRoute
   '/admin/wilayah': typeof AdminWilayahRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/survei': typeof SurveiRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
+  '/admin/reportpengaduan': typeof AdminReportpengaduanRoute
   '/admin/wilayah': typeof AdminWilayahRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/survei'
     | '/admin/dashboard'
     | '/admin/kategori_pelayanan'
+    | '/admin/reportpengaduan'
     | '/admin/wilayah'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/survei'
     | '/admin/dashboard'
     | '/admin/kategori_pelayanan'
+    | '/admin/reportpengaduan'
     | '/admin/wilayah'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/survei'
     | '/admin/dashboard'
     | '/admin/kategori_pelayanan'
+    | '/admin/reportpengaduan'
     | '/admin/wilayah'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   SurveiRoute: typeof SurveiRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminKategori_pelayananRoute: typeof AdminKategori_pelayananRoute
+  AdminReportpengaduanRoute: typeof AdminReportpengaduanRoute
   AdminWilayahRoute: typeof AdminWilayahRoute
 }
 
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminKategori_pelayananRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/reportpengaduan': {
+      id: '/admin/reportpengaduan'
+      path: '/admin/reportpengaduan'
+      fullPath: '/admin/reportpengaduan'
+      preLoaderRoute: typeof AdminReportpengaduanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/wilayah': {
       id: '/admin/wilayah'
       path: '/admin/wilayah'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   SurveiRoute: SurveiRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminKategori_pelayananRoute: AdminKategori_pelayananRoute,
+  AdminReportpengaduanRoute: AdminReportpengaduanRoute,
   AdminWilayahRoute: AdminWilayahRoute,
 }
 export const routeTree = rootRouteImport

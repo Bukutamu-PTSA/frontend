@@ -33,13 +33,13 @@ const sidebarNav = [
     to: "/admin/kategori_laporan",
     icon: Network,
     name: "Pelayanan",
-    exactPaths: ["/admin/kategori_laporan", "/dashboard/kategori_laporan", "/admin/pelayanan"],
+    exactPaths: ["/admin/kategori_laporan", "/admin/kategori_laporan", "/admin/pelayanan"],
   },
   {
-    to: "/pengaduan",
+    to: "/admin/reportpengaduan",
     icon: AlertCircle,
     name: "Report Pengaduan",
-    exactPaths: ["/pengaduan", "/admin/pengaduan"],
+    exactPaths: ["/admin/reportpengaduan", "/admin/reportpengaduan"],
   },
   {
     to: "/survei",
