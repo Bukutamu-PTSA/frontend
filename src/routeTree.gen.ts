@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as Bukti_pendukungRouteImport } from './routes/bukti_pendukung'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PengaduanRouteImport } from './routes/pengaduan'
 import { Route as SettingRouteImport } from './routes/setting'
@@ -30,6 +31,11 @@ const Bukti_pendukungRoute = Bukti_pendukungRouteImport.update({
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
+  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
+  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
+  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/setting': typeof SettingRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
+    | '/dashboard'
     | '/login'
     | '/pengaduan'
     | '/setting'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
+    | '/dashboard'
     | '/login'
     | '/pengaduan'
     | '/setting'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
+    | '/dashboard'
     | '/login'
     | '/pengaduan'
     | '/setting'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   Bukti_pendukungRoute: typeof Bukti_pendukungRoute
   ChatRoute: typeof ChatRoute
+  DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   PengaduanRoute: typeof PengaduanRoute
   SettingRoute: typeof SettingRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   Bukti_pendukungRoute: Bukti_pendukungRoute,
   ChatRoute: ChatRoute,
+  DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   PengaduanRoute: PengaduanRoute,
   SettingRoute: SettingRoute,

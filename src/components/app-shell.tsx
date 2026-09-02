@@ -3,6 +3,7 @@ import {
   BarChart3,
   ChevronRight,
   Home,
+  Loader2,
   LogOut,
   Menu,
   MessageSquare,
@@ -16,6 +17,8 @@ import {
 import { useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+
+const BASE_API_URL = "http://192.168.147.199:8000/api/v1/auth";
 
 const nav = [
   {
@@ -52,7 +55,46 @@ export function AppShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+
+    const token =
+      localStorage.getItem("auth_token") ||
+      sessionStorage.getItem("auth_token");
+
+    // Langsung hapus sesi lokal
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    sessionStorage.removeItem("auth_token");
+    sessionStorage.removeItem("auth_user");
+
+    try {
+      if (token) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
+
+        await fetch(`${BASE_API_URL}/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+      }
+    } catch (err) {
+      console.warn("Logout backend notice:", err);
+    } finally {
+      // Hard redirect kembali ke halaman utama
+      window.location.href = "/";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -150,9 +192,19 @@ export function AppShell({
             </div>
           ))}
 
-          <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground/70 transition-colors hover:bg-destructive/20 hover:text-sidebar-accent-foreground">
-            <LogOut className="h-4 w-4 shrink-0" />
-            Logout
+          {/* Tombol Logout Aktif */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-foreground/70 transition-colors hover:bg-destructive/20 hover:text-sidebar-accent-foreground cursor-pointer disabled:opacity-60"
+          >
+            {loggingOut ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4 shrink-0" />
+            )}
+            {loggingOut ? "Mengeluarkan..." : "Logout"}
           </button>
         </nav>
       </aside>

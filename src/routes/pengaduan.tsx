@@ -339,7 +339,7 @@ function FormulirPengaduanPage() {
                     name="nama_lengkap"
                     value={formData.nama_lengkap}
                     onChange={handleChange}
-                    placeholder="Ikko"
+                    placeholder="Masukkan nama lengkap"
                     required
                     suppressHydrationWarning
                     className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"

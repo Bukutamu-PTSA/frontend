@@ -1,263 +1,459 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Download, Eye, Filter, Search, Star, ThumbsDown, ThumbsUp } from "lucide-react";
-import { useMemo, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import {
+  Send,
+  Building2,
+  Twitter,
+  Facebook,
+  MessageSquare,
+  Instagram,
+  MapPin,
+  Mail,
+  Loader2,
+} from "lucide-react";
+import logoKemnaker from "@/assets/kemnaker_logo.png";
 
-import { AppShell } from "@/components/app-shell";
-import { surveiRingkasan, surveiResponden, type SurveiNilai } from "@/lib/dashboard-data";
+const BASE_API_URL = "http://192.168.147.199:8000/api";
 
 export const Route = createFileRoute("/survei")({
   head: () => ({
-    meta: [
-      { title: "Report Survei Pelayanan · PTSA-KEMNAKER" },
-      {
-        name: "description",
-        content:
-          "Hasil survei kepuasan pelayanan pengaduan: komunikasi petugas, substansi materi, dan sarana prasarana.",
-      },
-      { property: "og:title", content: "Report Survei Pelayanan · PTSA-KEMNAKER" },
-      {
-        property: "og:description",
-        content: "Rekap responden survei kepuasan layanan pengaduan ketenagakerjaan.",
-      },
-    ],
+    meta: [{ title: "Form Survei Layanan PTSA | Kemnaker RI" }],
   }),
-  component: SurveiPage,
+  component: FormSurveiPage,
 });
 
-const nilaiTone: Record<SurveiNilai, string> = {
-  Baik: "bg-success/15 text-success",
-  Cukup: "bg-warning/20 text-warning",
-  Kurang: "bg-destructive/15 text-destructive",
+interface OfficerItem {
+  id: string | number;
+  name: string;
+}
+
+const navLinks = [
+  { label: "Beranda", to: "/" },
+  { label: "Pengaduan", to: "/pengaduan" },
+  { label: "Survei", to: "/survei" },
+];
+
+const socials = [
+  { icon: Twitter, href: "#" },
+  { icon: Facebook, href: "#" },
+  { icon: MessageSquare, href: "#" },
+  { icon: Instagram, href: "#" },
+];
+
+const ratingOptions = ["Baik", "Cukup", "Kurang"];
+
+// Helper parser fleksibel untuk list petugas dari backend
+const parseOfficerData = (res: any): OfficerItem[] => {
+  if (!res) return [];
+  const rawData = res.data ? res.data : res;
+
+  if (typeof rawData === "object" && !Array.isArray(rawData)) {
+    return Object.entries(rawData).map(([id, name]) => ({
+      id: String(id),
+      name: String(name),
+    }));
+  }
+
+  if (Array.isArray(rawData)) {
+    return rawData.map((item: any) => ({
+      id: String(item.id ?? item.code ?? item.officer_id ?? ""),
+      name: String(item.name ?? item.nama ?? item.officer_name ?? item.nama_petugas ?? item),
+    }));
+  }
+
+  return [];
 };
 
-const cardTone: Record<SurveiNilai, { bar: string; icon: typeof ThumbsUp; text: string }> = {
-  Baik: { bar: "bg-success", icon: ThumbsUp, text: "text-success" },
-  Cukup: { bar: "bg-warning", icon: Star, text: "text-warning" },
-  Kurang: { bar: "bg-destructive", icon: ThumbsDown, text: "text-destructive" },
-};
+function FormSurveiPage() {
+  const navigate = useNavigate();
 
-function SurveiPage() {
-  const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"Semua" | SurveiNilai>("Semua");
+  // State Form Survei
+  const [officers, setOfficers] = useState<OfficerItem[]>([]);
+  const [loadingOfficers, setLoadingOfficers] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const rows = useMemo(() => {
-    const s = q.toLowerCase().trim();
-    return surveiResponden.filter((r) => {
-      const cocokFilter =
-        filter === "Semua" ||
-        r.komunikasi === filter ||
-        r.substansi === filter ||
-        r.sarana === filter;
-      const cocokCari =
-        !s || [r.responden, r.keterangan, r.tanggal].join(" ").toLowerCase().includes(s);
-      return cocokFilter && cocokCari;
-    });
-  }, [q, filter]);
+  const [formData, setFormData] = useState({
+    officer_id: "",
+    officer_name: "",
+    komunikasi_petugas: "",
+    penjelasan_materi: "",
+    sarana_prasarana: "",
+    catatan: "",
+  });
 
-  const totalResponden = surveiRingkasan.reduce((a, b) => a + b.total, 0);
+  // Fetch daftar nama petugas dari backend
+  useEffect(() => {
+    const fetchOfficers = async () => {
+      setLoadingOfficers(true);
+      try {
+        // Endpoint petugas (sesuaikan dengan route backend jika ada nama route spesifik)
+        const res = await fetch(`${BASE_API_URL}/officers`).catch(() =>
+          fetch(`${BASE_API_URL}/petugas`)
+        );
+
+        if (res && res.ok) {
+          const data = await res.json();
+          setOfficers(parseOfficerData(data));
+        } else {
+          // Mock data fallback jika endpoint belum dibuat di backend
+          setOfficers([
+            { id: "1", name: "Ahmad Fauzi - Petugas PTSA 1" },
+            { id: "2", name: "Siti Rahmawati - Petugas PTSA 2" },
+            { id: "3", name: "Budi Santoso - Petugas PTSA 3" },
+          ]);
+        }
+      } catch (error) {
+        console.error("Gagal memuat petugas:", error);
+      } finally {
+        setLoadingOfficers(false);
+      }
+    };
+
+    fetchOfficers();
+  }, []);
+
+  const handleOfficerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = e.target.value;
+    const selectedObj = officers.find((o) => String(o.id) === selectedId);
+    setFormData((prev) => ({
+      ...prev,
+      officer_id: selectedId,
+      officer_name: selectedObj ? selectedObj.name : "",
+    }));
+  };
+
+  const handleRatingSelect = (field: "komunikasi_petugas" | "penjelasan_materi" | "sarana_prasarana", value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.officer_id) {
+      alert("Silakan pilih nama petugas terlebih dahulu.");
+      return;
+    }
+    if (!formData.komunikasi_petugas || !formData.penjelasan_materi || !formData.sarana_prasarana) {
+      alert("Silakan lengkapi seluruh penilaian survei.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${BASE_API_URL}/surveys`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal mengirim survei");
+      }
+
+      alert("Terima kasih! Survei kepuasan layanan Anda berhasil dikirim.");
+      navigate({ to: "/" });
+    } catch (error) {
+      console.error(error);
+      alert("Terjadi kendala saat mengirim survei. Silakan coba kembali.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <AppShell title="Report Survei Pelayanan" breadcrumb="Report Survei">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {surveiRingkasan.map((s) => {
-          const tone = cardTone[s.nilai];
-          const Icon = tone.icon;
-          return (
-            <article key={s.nilai} className="card-surface relative overflow-hidden p-5">
-              <span className={`absolute inset-x-0 top-0 h-1 ${tone.bar}`} />
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-display font-semibold">{s.label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Komunikasi, Materi, Sarpras
-                  </p>
-                </div>
-                <span
-                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary ${tone.text}`}
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
-              </div>
-              <p className="mt-4 font-display text-3xl font-bold">
-                {s.total.toLocaleString("id-ID")}
-                <span className="ml-2 text-sm font-medium text-muted-foreground">Responden</span>
-              </p>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
-                <span
-                  className={`block h-full rounded-full ${tone.bar}`}
-                  style={{ width: `${s.share}%` }}
-                />
-              </div>
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <p className="text-xs text-muted-foreground">{s.share}% dari total</p>
-                <button
-                  onClick={() => setFilter(s.nilai)}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  View
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </section>
+    <div className="min-h-screen flex flex-col bg-[#F4F7FB] font-sans">
+      {/* --- HEADER --- */}
+      <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-30">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
+          <Link to="/" className="flex items-center gap-3">
+            <img src={logoKemnaker} alt="Logo Kemnaker" className="h-8 w-8 object-contain" />
+            <span className="text-xl font-bold text-[#032749]">
+              Kementerian Ketenagakerjaan
+            </span>
+          </Link>
 
-      <div className="card-surface mt-6 overflow-hidden">
-        <div className="grid gap-3 border-b border-border px-5 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold">Survei Responden Pelayanan</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Menampilkan {rows.length} dari {totalResponden.toLocaleString("id-ID")} responden
+          <nav aria-label="Navigasi utama" className="hidden items-center gap-8 md:flex text-[15px]">
+            {navLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="pb-1 transition-colors font-medium text-gray-600 hover:text-[#032749]"
+                activeProps={{
+                  className: "text-[#032749] font-bold border-b-2 border-[#032749]",
+                }}
+                activeOptions={{ exact: link.to === "/" }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      {/* --- MAIN CONTENT --- */}
+      <main className="flex-1 py-12 px-4 sm:px-6">
+        <div className="mx-auto max-w-3xl">
+          {/* Header Section */}
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-1.5 rounded-md bg-[#EDF3FA] px-3 py-1 text-xs font-bold text-[#032749] mb-4">
+              <Building2 className="size-3.5" />
+              <span>KEMNAKER</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#032749]">
+              FORM SURVEI
+            </h1>
+            <p className="text-sm font-bold text-[#032749]/80 mt-1">
+              #SURVEI LAYANAN PTSA
+            </p>
+            <p className="text-xs sm:text-sm text-gray-500 max-w-lg mx-auto mt-2 leading-relaxed">
+              Partisipasi Anda sangat berarti bagi kami untuk meningkatkan kualitas layanan Pelayanan Terpadu Satu Atap (PTSA) Kementerian Ketenagakerjaan.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {["Copy", "CSV", "Excel", "PDF"].map((a) => (
-              <button
-                key={a}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-              >
-                <Download className="h-3.5 w-3.5" />
-                {a}
-              </button>
-            ))}
-            <button className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-brand px-3 py-2 text-xs font-semibold text-primary-foreground shadow-soft">
-              <Filter className="h-3.5 w-3.5" />
-              Filter
-            </button>
-          </div>
-        </div>
 
-        <div className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,20rem)_auto] sm:items-center">
-          <label className="flex items-center gap-2 rounded-xl border border-border bg-secondary/50 px-3 py-2 focus-within:ring-2 focus-within:ring-ring/40">
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Cari responden atau keterangan…"
-              className="w-full min-w-0 bg-transparent text-sm focus:outline-none"
-            />
-          </label>
-          <div className="flex flex-wrap gap-1.5 sm:justify-end">
-            {(["Semua", "Baik", "Cukup", "Kurang"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`rounded-xl px-3 py-1.5 text-xs font-medium transition-colors ${
-                  filter === f
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-border text-muted-foreground hover:bg-secondary"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Mobile cards */}
-        <ul className="space-y-3 px-4 pb-5 lg:hidden">
-          {rows.map((r) => (
-            <li key={r.no} className="rounded-2xl border border-border bg-surface p-4">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-                <p className="truncate text-sm font-semibold">{r.responden}</p>
-                <span className="shrink-0 text-xs text-muted-foreground">#{r.no}</span>
+          {/* Form Card */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-8 sm:p-12 shadow-sm">
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* 1. Masukkan Nama Petugas */}
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
+                    1
+                  </span>
+                  <label className="text-sm font-bold text-gray-900">
+                    Masukkan Nama Petugas:
+                  </label>
+                </div>
+                <select
+                  value={formData.officer_id}
+                  onChange={handleOfficerChange}
+                  required
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm bg-white text-gray-700 focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
+                >
+                  <option value="">
+                    {loadingOfficers ? "Memuat petugas..." : "Pilih"}
+                  </option>
+                  {officers.map((officer) => (
+                    <option key={officer.id} value={officer.id}>
+                      {officer.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{r.tanggal}</p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <Nilai label="Komunikasi" value={r.komunikasi} />
-                <Nilai label="Materi" value={r.substansi} />
-                <Nilai label="Sarpras" value={r.sarana} />
+
+              {/* 2. Komunikasi Petugas */}
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
+                    2
+                  </span>
+                  <label className="text-sm font-bold text-gray-900">
+                    Bagaimana Komunikasi Petugas Dalam Memberikan Layanan:
+                  </label>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {ratingOptions.map((option) => {
+                    const isSelected = formData.komunikasi_petugas === option;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => handleRatingSelect("komunikasi_petugas", option)}
+                        className={`py-3 px-4 rounded-full text-xs sm:text-sm font-semibold border transition-all text-center ${
+                          isSelected
+                            ? "bg-[#032749] text-white border-[#032749] shadow-sm"
+                            : "bg-white text-gray-700 border-gray-300 hover:border-[#032749] hover:bg-gray-50"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <p className="mt-3 text-sm text-foreground/80">{r.keterangan}</p>
-            </li>
-          ))}
-          {rows.length === 0 && (
-            <li className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              Tidak ada data survei.
-            </li>
-          )}
-        </ul>
 
-        {/* Desktop table */}
-        <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-secondary/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-5 py-3 font-semibold">No</th>
-                <th className="px-5 py-3 font-semibold">Tanggal Survei</th>
-                <th className="px-5 py-3 font-semibold">Responden</th>
-                <th className="px-5 py-3 font-semibold">Komunikasi Petugas</th>
-                <th className="px-5 py-3 font-semibold">Substansi Materi</th>
-                <th className="px-5 py-3 font-semibold">Sarana Prasarana</th>
-                <th className="px-5 py-3 font-semibold">Keterangan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.no} className="border-t border-border align-top hover:bg-secondary/40">
-                  <td className="px-5 py-4 text-muted-foreground">{r.no}</td>
-                  <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">{r.tanggal}</td>
-                  <td className="px-5 py-4 font-medium">{r.responden}</td>
-                  <td className="px-5 py-4">
-                    <Badge value={r.komunikasi} />
-                  </td>
-                  <td className="px-5 py-4">
-                    <Badge value={r.substansi} />
-                  </td>
-                  <td className="px-5 py-4">
-                    <Badge value={r.sarana} />
-                  </td>
-                  <td className="max-w-xs px-5 py-4 text-muted-foreground">{r.keterangan}</td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr className="border-t border-border">
-                  <td colSpan={7} className="px-5 py-10 text-center text-muted-foreground">
-                    Tidak ada data survei.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              {/* 3. Penjelasan Materi */}
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
+                    3
+                  </span>
+                  <label className="text-sm font-bold text-gray-900">
+                    Bagaimana Penjelasan Materi yang Diberikan oleh Petugas:
+                  </label>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {ratingOptions.map((option) => {
+                    const isSelected = formData.penjelasan_materi === option;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => handleRatingSelect("penjelasan_materi", option)}
+                        className={`py-3 px-4 rounded-full text-xs sm:text-sm font-semibold border transition-all text-center ${
+                          isSelected
+                            ? "bg-[#032749] text-white border-[#032749] shadow-sm"
+                            : "bg-white text-gray-700 border-gray-300 hover:border-[#032749] hover:bg-gray-50"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-        <div className="grid gap-3 border-t border-border px-5 py-4 sm:flex sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            Menampilkan {rows.length} entri · periode Agustus 2026
-          </p>
-          <div className="flex flex-wrap items-center gap-1">
-            {["Prev", "1", "2", "3", "Next"].map((p) => (
-              <button
-                key={p}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                  p === "1"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-secondary"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
+              {/* 4. Sarana dan Prasarana */}
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
+                    4
+                  </span>
+                  <label className="text-sm font-bold text-gray-900">
+                    Bagaimana Sarana dan Prasarana Layanan PTSA:
+                  </label>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {ratingOptions.map((option) => {
+                    const isSelected = formData.sarana_prasarana === option;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => handleRatingSelect("sarana_prasarana", option)}
+                        className={`py-3 px-4 rounded-full text-xs sm:text-sm font-semibold border transition-all text-center ${
+                          isSelected
+                            ? "bg-[#032749] text-white border-[#032749] shadow-sm"
+                            : "bg-white text-gray-700 border-gray-300 hover:border-[#032749] hover:bg-gray-50"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 5. Catatan */}
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
+                    5
+                  </span>
+                  <label className="text-sm font-bold text-gray-900">
+                    Catatan:
+                  </label>
+                </div>
+                <textarea
+                  rows={4}
+                  value={formData.catatan}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, catatan: e.target.value }))}
+                  placeholder="isi dengan singkat catatan untuk perbaikan pelayanan"
+                  className="w-full rounded-2xl border border-gray-300 p-4 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749] resize-none"
+                />
+              </div>
+
+              {/* Tombol Kirim Survei */}
+              <div className="flex justify-end pt-4">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#032749] px-7 py-3 text-sm font-semibold text-white hover:bg-blue-950 active:scale-95 disabled:opacity-70 transition-all shadow-md"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Mengirim...
+                    </>
+                  ) : (
+                    <>
+                      Kirim Survei
+                      <Send className="size-4" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
-    </AppShell>
-  );
-}
+      </main>
 
-function Badge({ value }: { value: SurveiNilai }) {
-  return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${nilaiTone[value]}`}>
-      {value}
-    </span>
-  );
-}
+      {/* --- FOOTER --- */}
+      <footer className="bg-[#032749] text-white mt-16">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
+            <div>
+              <h3 className="text-xl font-bold">
+                BINWASNAKER <span className="text-emerald-400">&amp; K3</span>
+              </h3>
+              <p className="mt-4 text-sm leading-relaxed text-gray-300">
+                Ditjen Binwasnaker &amp; K3 adalah unsur pelaksana yang berada di bawah
+                dan bertanggung jawab kepada Menteri Ketenagakerjaan.
+              </p>
+              <div className="mt-6 flex gap-3">
+                {socials.map(({ icon: Icon, href }, i) => (
+                  <a
+                    key={i}
+                    href={href}
+                    className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
+                  >
+                    <Icon className="size-4" />
+                  </a>
+                ))}
+              </div>
+            </div>
 
-function Nilai({ label, value }: { label: string; value: SurveiNilai }) {
-  return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${nilaiTone[value]}`}>
-      {label}: {value}
-    </span>
+            <div>
+              <h4 className="text-lg font-semibold">Customer Support</h4>
+              <hr className="mt-4 border-white/15" />
+              <ul className="mt-5 space-y-3 text-sm text-gray-300">
+                <li className="flex items-center gap-2">
+                  <span className="text-emerald-400">›</span>
+                  <a href="#" className="hover:text-emerald-400 transition-colors">FAQ</a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-emerald-400">›</span>
+                  <a href="#" className="hover:text-emerald-400 transition-colors">Contact Us</a>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-lg font-semibold">Have a Questions?</h4>
+              <hr className="mt-4 border-white/15" />
+              <div className="mt-5 flex gap-3 text-sm text-gray-300">
+                <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
+                <p className="leading-relaxed">
+                  Jl. Gatot Subroto No.51, RT.5/RW.4, Kuningan Timur.
+                  Kecamatan Setiabudi, Kota Jakarta Selatan, Daerah Khusus
+                  Jakarta - 12950 Jakarta - Indonesia
+                </p>
+              </div>
+              <div className="mt-4 flex items-center gap-3 text-sm">
+                <Mail className="size-5 text-emerald-400" />
+                <a href="#" className="text-gray-300 hover:text-emerald-400 transition-colors">
+                  Pengaduan WLKP
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <hr className="mt-10 border-white/15" />
+
+          <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
+            <p>Copyright © BINSIS || 2024 – 2026</p>
+            <p>
+              Designed by <span className="text-emerald-400">TUBSPK</span>
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
