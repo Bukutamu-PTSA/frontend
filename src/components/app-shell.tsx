@@ -30,10 +30,10 @@ const sidebarNav = [
     exactPaths: ["/admin/dashboard", "/dashboard", "/admin"],
   },
   {
-    to: "/admin/kategori_laporan",
+    to: "/admin/kategori_pelayanan",
     icon: Network,
     name: "Pelayanan",
-    exactPaths: ["/admin/kategori_laporan", "/admin/kategori_laporan", "/admin/pelayanan"],
+    exactPaths: ["/admin/kategori_pelayanan", "/admin/pelayanan"],
   },
   {
     to: "/admin/reportpengaduan",
@@ -48,16 +48,10 @@ const sidebarNav = [
     exactPaths: ["/survei", "/admin/survei"],
   },
   {
-    to: "/admin/dashboard",
-    icon: BarChart2,
-    name: "Grafik & Statistik",
-    exactPaths: ["/admin/grafik"],
-  },
-  {
-    to: "/admin/dashboard",
-    icon: Eye,
-    name: "Pengawas",
-    exactPaths: ["/admin/pengawas"],
+  to: "/admin/grafik",
+  icon: BarChart2,
+  name: "Grafik & Statistik",
+  exactPaths: ["/admin/grafik"],
   },
   {
     to: "/admin/dashboard",

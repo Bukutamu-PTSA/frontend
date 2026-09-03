@@ -15,6 +15,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 
 const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api/complaints";
+const SUMMARY_API_URL = "http://192.168.147.199:8000/api/dashboard/complaint-summary";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({
@@ -40,24 +41,31 @@ const WILAYAH_DATA = [
   { no: 8, provinsi: "Bali", total: 180 },
 ];
 
+function extractTotal(json: any): number {
+  if (!json) return 0;
+  if (typeof json.total === "number") return json.total;
+  if (typeof json.meta?.total === "number") return json.meta.total;
+  if (typeof json.data?.total === "number") return json.data.total;
+  if (typeof json.pagination?.total === "number") return json.pagination.total;
+  if (Array.isArray(json.data)) return json.data.length;
+  if (Array.isArray(json)) return json.length;
+  return 0;
+}
+
 function DashboardExecutive() {
-  // State Tanggal (null = Semua Waktu)
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
 
-  // Drag Scroll State untuk Card Kategori
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
-  // Pagination Table Wilayah
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 4;
   const totalItems = 128;
   const totalPages = Math.ceil(WILAYAH_DATA.length / itemsPerPage);
 
-  // Statistik Real-Time Complaints
   const [stats, setStats] = useState({
     activeCount: 0,
     resolvedCount: 0,
@@ -66,7 +74,6 @@ function DashboardExecutive() {
     ikmLabel: "Sangat Baik",
   });
 
-  // Hitungan Kategori Dinamis
   const [categoryCounts, setCategoryCounts] = useState({
     wlkp: 0,
     upah: 0,
@@ -76,14 +83,12 @@ function DashboardExecutive() {
 
   const formatDisplayDate = (dateStr: string | null) => {
     if (!dateStr) return "Semua Waktu";
-
     const parts = dateStr.split("-").map(Number);
     const year = parts[0] ?? new Date().getFullYear();
     const month = (parts[1] ?? 1) - 1;
     const day = parts[2] ?? 1;
 
-    const dateObj = new Date(year, month, day);
-    return dateObj.toLocaleDateString("id-ID", {
+    return new Date(year, month, day).toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -103,12 +108,9 @@ function DashboardExecutive() {
   const handleClearDate = (e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedDate(null);
-    if (dateInputRef.current) {
-      dateInputRef.current.value = "";
-    }
+    if (dateInputRef.current) dateInputRef.current.value = "";
   };
 
-  // Mouse Drag Logic
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollContainerRef.current) return;
     setIsDragging(true);
@@ -116,13 +118,8 @@ function DashboardExecutive() {
     setScrollLeft(scrollContainerRef.current.scrollLeft);
   };
 
-  const handleMouseLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  const handleMouseLeave = () => setIsDragging(false);
+  const handleMouseUp = () => setIsDragging(false);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !scrollContainerRef.current) return;
@@ -140,126 +137,58 @@ function DashboardExecutive() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `Laporan_PTSA_${selectedDate ?? "Semua_Waktu"}.csv`
-    );
+    link.setAttribute("download", `Laporan_PTSA_${selectedDate ?? "Semua_Waktu"}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   useEffect(() => {
-    const fetchComplaintsData = async () => {
+    const fetchDashboardData = async () => {
       const token =
         localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
+      const authHeaders = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
       try {
-        const response = await fetch(COMPLAINTS_API_URL, {
+        const summaryUrl = selectedDate
+          ? `${SUMMARY_API_URL}?date=${selectedDate}`
+          : SUMMARY_API_URL;
+
+        const summaryRes = await fetch(summaryUrl, {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers: authHeaders,
         });
 
-        if (response.ok) {
-          const resData = await response.json();
+        let summaryTotalAccumulated = 0;
+        let countWlkp = 0;
+        let countUpah = 0;
+        let countJamsos = 0;
+        let countHubKerja = 0;
 
-          let rawList: any[] = [];
-          if (Array.isArray(resData)) {
-            rawList = resData;
-          } else if (Array.isArray(resData?.data?.data)) {
-            rawList = resData.data.data;
-          } else if (Array.isArray(resData?.data)) {
-            rawList = resData.data;
-          } else if (Array.isArray(resData?.complaints)) {
-            rawList = resData.complaints;
-          }
+        if (summaryRes.ok) {
+          const summaryJson = await summaryRes.json();
+          const summaryList: any[] = Array.isArray(summaryJson?.data)
+            ? summaryJson.data
+            : Array.isArray(summaryJson)
+            ? summaryJson
+            : [];
 
-          // Filter Tanggal
-          const list = selectedDate
-            ? rawList.filter((item: any) => {
-                const itemDateStr = String(
-                  item.complaint_date ?? item.created_at ?? ""
-                );
-                return itemDateStr.startsWith(selectedDate);
-              })
-            : rawList;
+          summaryList.forEach((item: any) => {
+            const id = Number(item.id);
+            const code = String(item.category_code ?? "").toUpperCase();
+            const total = Number(item.count ?? 0);
 
-          // 1. Status Aktif & Selesai
-          const active = list.filter((item: any) => {
-            const s = String(item.status ?? "").toUpperCase();
-            return (
-              s === "DIPROSES" ||
-              s === "PENDING" ||
-              s === "OPEN" ||
-              s.includes("PROSES")
-            );
-          }).length;
+            summaryTotalAccumulated += total;
 
-          const resolved = list.filter((item: any) => {
-            const s = String(item.status ?? "").toUpperCase();
-            return s === "SELESAI" || s === "RESOLVED" || s === "CLOSED";
-          }).length;
-
-          const total = active + resolved;
-          const rate =
-            total > 0 ? Number(((resolved / total) * 100).toFixed(1)) : 100;
-
-          setStats({
-            activeCount: active,
-            resolvedCount: resolved,
-            resolutionRate: rate,
-            ikmScore: 4.85,
-            ikmLabel: "Sangat Baik",
-          });
-
-          // 2. Hitung Rekapitulasi per Kategori
-          let countWlkp = 0;
-          let countUpah = 0;
-          let countJamsos = 0;
-          let countHubKerja = 0;
-
-          list.forEach((item: any) => {
-            const catId = Number(item.category?.id ?? item.category_id);
-            const catCode = String(
-              item.category?.category_code ?? ""
-            ).toUpperCase();
-            const catName = String(
-              item.category?.category_name ?? item.kategori ?? ""
-            ).toUpperCase();
-
-            if (
-              catId === 1 ||
-              catCode.includes("WAJIB") ||
-              catName.includes("WAJIB")
-            ) {
-              countWlkp++;
-            } else if (
-              catId === 2 ||
-              catCode.includes("UPAH") ||
-              catName.includes("UPAH") ||
-              catName.includes("GAJI")
-            ) {
-              countUpah++;
-            } else if (
-              catId === 3 ||
-              catCode.includes("JAMSOS") ||
-              catCode.includes("SOSIAL") ||
-              catName.includes("SOSIAL") ||
-              catName.includes("BPJS")
-            ) {
-              countJamsos++;
-            } else if (
-              catId === 4 ||
-              catCode.includes("HUBUNGAN") ||
-              catName.includes("HUBUNGAN") ||
-              catName.includes("PHK")
-            ) {
-              countHubKerja++;
-            }
+            if (id === 1 || code.includes("WAJIB")) countWlkp = total;
+            else if (id === 2 || code.includes("UPAH")) countUpah = total;
+            else if (id === 3 || code.includes("JAMSOS") || code.includes("SOSIAL")) countJamsos = total;
+            else if (id === 4 || code.includes("HUBUNGAN")) countHubKerja = total;
           });
 
           setCategoryCounts({
@@ -269,12 +198,79 @@ function DashboardExecutive() {
             hubKerja: countHubKerja,
           });
         }
-      } catch (e) {
-        console.error("Gagal menarik data pengaduan:", e);
+
+        const totalUrl = selectedDate
+          ? `${COMPLAINTS_API_URL}?date=${selectedDate}`
+          : COMPLAINTS_API_URL;
+
+        const totalRes = await fetch(totalUrl, {
+          method: "GET",
+          headers: authHeaders,
+        });
+
+        let totalRecords = 0;
+        let rawItemsList: any[] = [];
+
+        if (totalRes.ok) {
+          const totalJson = await totalRes.json();
+          totalRecords = extractTotal(totalJson);
+          rawItemsList = Array.isArray(totalJson?.data)
+            ? totalJson.data
+            : Array.isArray(totalJson?.data?.data)
+            ? totalJson.data.data
+            : Array.isArray(totalJson)
+            ? totalJson
+            : [];
+        }
+
+        if (totalRecords === 0 && summaryTotalAccumulated > 0) {
+          totalRecords = summaryTotalAccumulated;
+        }
+
+        const resolvedUrl = selectedDate
+          ? `${COMPLAINTS_API_URL}?status=SELESAI&date=${selectedDate}`
+          : `${COMPLAINTS_API_URL}?status=SELESAI`;
+
+        let resolvedCount = 0;
+        try {
+          const resolvedRes = await fetch(resolvedUrl, {
+            method: "GET",
+            headers: authHeaders,
+          });
+
+          if (resolvedRes.ok) {
+            const resolvedJson = await resolvedRes.json();
+            resolvedCount = extractTotal(resolvedJson);
+          }
+        } catch (e) {
+          console.warn("Gagal query status SELESAI:", e);
+        }
+
+        if (resolvedCount === 0 && rawItemsList.length > 0) {
+          resolvedCount = rawItemsList.filter((item: any) => {
+            const s = String(item.status ?? item.status_pengaduan ?? "").toUpperCase();
+            return s.includes("SELESAI") || s.includes("RESOLV") || s.includes("CLOSE") || s.includes("DONE");
+          }).length;
+        }
+
+        const activeCount = Math.max(0, totalRecords - resolvedCount);
+        const rate =
+          totalRecords > 0
+            ? Number(((resolvedCount / totalRecords) * 100).toFixed(1))
+            : 0;
+
+        setStats((prev) => ({
+          ...prev,
+          activeCount,
+          resolvedCount,
+          resolutionRate: rate,
+        }));
+      } catch (err) {
+        console.error("Gagal menarik data dashboard:", err);
       }
     };
 
-    fetchComplaintsData();
+    fetchDashboardData();
   }, [selectedDate]);
 
   const displayedWilayah = WILAYAH_DATA.slice(
@@ -285,7 +281,7 @@ function DashboardExecutive() {
   return (
     <AppShell>
       <div className="space-y-6">
-        {/* ================= HEADER PAGE ================= */}
+        {/* Header Page */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-[15px] font-bold text-gray-800 tracking-tight">
@@ -297,7 +293,6 @@ function DashboardExecutive() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* Input Kalender */}
             <div className="relative">
               <input
                 ref={dateInputRef}
@@ -329,7 +324,6 @@ function DashboardExecutive() {
               </button>
             </div>
 
-            {/* Export Laporan */}
             <button
               type="button"
               onClick={handleExportLaporan}
@@ -341,7 +335,7 @@ function DashboardExecutive() {
           </div>
         </div>
 
-        {/* ================= 3 TOP STATS ================= */}
+        {/* 3 Top Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
             <div className="flex items-center justify-between">
@@ -352,14 +346,10 @@ function DashboardExecutive() {
                 Sedang Diproses
               </span>
             </div>
-            <p className="mt-4 text-[11px] text-gray-500 font-medium">
-              Aduan Aktif
-            </p>
+            <p className="mt-4 text-[11px] text-gray-500 font-medium">Aduan Aktif</p>
             <p className="mt-1 text-[20px] font-bold text-gray-900 leading-none">
               {stats.activeCount}{" "}
-              <span className="text-[13px] font-medium text-gray-600">
-                Berkas
-              </span>
+              <span className="text-[13px] font-medium text-gray-600">Berkas</span>
             </p>
           </div>
 
@@ -372,14 +362,10 @@ function DashboardExecutive() {
                 {stats.resolutionRate}% Rate
               </span>
             </div>
-            <p className="mt-4 text-[11px] text-gray-500 font-medium">
-              Aduan Selesai Ditangani
-            </p>
+            <p className="mt-4 text-[11px] text-gray-500 font-medium">Aduan Selesai Ditangani</p>
             <p className="mt-1 text-[20px] font-bold text-gray-900 leading-none">
               {nf.format(stats.resolvedCount)}{" "}
-              <span className="text-[13px] font-medium text-gray-600">
-                Kasus
-              </span>
+              <span className="text-[13px] font-medium text-gray-600">Kasus</span>
             </p>
           </div>
 
@@ -392,19 +378,15 @@ function DashboardExecutive() {
                 {stats.ikmLabel}
               </span>
             </div>
-            <p className="mt-4 text-[11px] text-gray-500 font-medium">
-              Indeks Kepuasan Masyarakat
-            </p>
+            <p className="mt-4 text-[11px] text-gray-500 font-medium">Indeks Kepuasan Masyarakat</p>
             <p className="mt-1 text-[20px] font-bold text-gray-900 leading-none">
               {stats.ikmScore.toFixed(2)}{" "}
-              <span className="text-[13px] font-medium text-gray-500">
-                / 5.00
-              </span>
+              <span className="text-[13px] font-medium text-gray-500">/ 5.00</span>
             </p>
           </div>
         </div>
 
-        {/* ================= REKAPITULASI LAYANAN KATEGORI (HORIZONTAL DRAG & SWIPE) ================= */}
+        {/* Rekapitulasi Layanan Kategori (Horizontal Scroll) */}
         <div>
           <div className="flex items-center justify-between mb-3.5">
             <div className="flex items-center gap-2">
@@ -422,7 +404,6 @@ function DashboardExecutive() {
             </Link>
           </div>
 
-          {/* Area Horizontal Scroll Tanpa Scrollbar */}
           <div
             ref={scrollContainerRef}
             onMouseDown={handleMouseDown}
@@ -450,14 +431,19 @@ function DashboardExecutive() {
                   {nf.format(categoryCounts.wlkp)} Pengaduan
                 </p>
               </div>
-              <Link
-                to="/pengaduan"
-                search={{ category_id: 1 }}
-                className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+              <button
+                type="button"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  window.location.assign("/admin/detail_kategori_pelayanan?id=1");
+                }}
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <span>Lihat Detail</span>
                 <ArrowRight className="h-3.5 w-3.5 text-gray-600" />
-              </Link>
+              </button>
             </div>
 
             {/* Card 2: Upah Kerja */}
@@ -475,14 +461,19 @@ function DashboardExecutive() {
                   {nf.format(categoryCounts.upah)} Pengaduan
                 </p>
               </div>
-              <Link
-                to="/pengaduan"
-                search={{ category_id: 2 }}
-                className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+              <button
+                type="button"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  window.location.assign("/admin/detail_kategori_pelayanan?id=2");
+                }}
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <span>Lihat Detail</span>
                 <ArrowRight className="h-3.5 w-3.5 text-gray-600" />
-              </Link>
+              </button>
             </div>
 
             {/* Card 3: Jaminan Sosial */}
@@ -500,14 +491,19 @@ function DashboardExecutive() {
                   {nf.format(categoryCounts.jamsos)} Pengaduan
                 </p>
               </div>
-              <Link
-                to="/pengaduan"
-                search={{ category_id: 3 }}
-                className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+              <button
+                type="button"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  window.location.assign("/admin/detail_kategori_pelayanan?id=3");
+                }}
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <span>Lihat Detail</span>
                 <ArrowRight className="h-3.5 w-3.5 text-gray-600" />
-              </Link>
+              </button>
             </div>
 
             {/* Card 4: Hubungan Kerja */}
@@ -525,19 +521,24 @@ function DashboardExecutive() {
                   {nf.format(categoryCounts.hubKerja)} Pengaduan
                 </p>
               </div>
-              <Link
-                to="/pengaduan"
-                search={{ category_id: 4 }}
-                className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+              <button
+                type="button"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  window.location.assign("/admin/detail_kategori_pelayanan?id=4");
+                }}
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <span>Lihat Detail</span>
                 <ArrowRight className="h-3.5 w-3.5 text-gray-600" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
-
-        {/* ================= TABEL WILAYAH ================= */}
+        
+        {/* Tabel Wilayah */}
         <div>
           <div className="flex items-center justify-between mb-3.5">
             <div className="flex items-center gap-2">
@@ -566,32 +567,20 @@ function DashboardExecutive() {
               </thead>
               <tbody className="divide-y divide-gray-50 text-[12px]">
                 {displayedWilayah.map((row) => (
-                  <tr
-                    key={row.provinsi}
-                    className="hover:bg-gray-50/60 transition-colors"
-                  >
-                    <td className="px-8 py-4 text-gray-600 font-medium">
-                      {row.no}
-                    </td>
-                    <td className="px-8 py-4 text-center text-gray-800 font-medium">
-                      {row.provinsi}
-                    </td>
-                    <td className="px-8 py-4 text-right text-gray-700 font-semibold">
-                      {nf.format(row.total)}
-                    </td>
+                  <tr key={row.provinsi} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-8 py-4 text-gray-600 font-medium">{row.no}</td>
+                    <td className="px-8 py-4 text-center text-gray-800 font-medium">{row.provinsi}</td>
+                    <td className="px-8 py-4 text-right text-gray-700 font-semibold">{nf.format(row.total)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Table Footer */}
           <div className="flex items-center justify-between pt-4 px-2">
             <p className="text-[11px] text-gray-500">
               Menampilkan {displayedWilayah.length} dari {totalItems} data{" "}
-              {selectedDate
-                ? `per ${formatDisplayDate(selectedDate)}`
-                : "keseluruhan"}
+              {selectedDate ? `per ${formatDisplayDate(selectedDate)}` : "keseluruhan"}
             </p>
 
             <div className="flex items-center gap-1.5">
@@ -611,11 +600,7 @@ function DashboardExecutive() {
                   onClick={() => setCurrentPage(page)}
                   className={`
                     grid h-7 w-7 place-items-center rounded-md text-[11px] font-semibold transition-colors cursor-pointer
-                    ${
-                      currentPage === page
-                        ? "bg-[#007A64] text-white"
-                        : "text-gray-600 hover:bg-gray-100"
-                    }
+                    ${currentPage === page ? "bg-[#007A64] text-white" : "text-gray-600 hover:bg-gray-100"}
                   `}
                 >
                   {page}

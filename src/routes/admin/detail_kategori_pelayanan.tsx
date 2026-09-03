@@ -12,18 +12,20 @@ import { AppShell } from "@/components/app-shell";
 
 const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api/complaints";
 
-export const Route = createFileRoute("/admin/reportpengaduan")({
-  head: () => ({
-    meta: [
-      {
-        title: "All Report Pengaduan - PTSA KEMNAKER",
-      },
-    ],
-  }),
-  component: ReportPengaduanPage,
-});
-
-const nf = new Intl.NumberFormat("id-ID");
+const CATEGORY_MAP: Record<number, { title: string; shortName: string }> = {
+  1: { title: "Wajib Lapor Ketenagakerjaan", shortName: "WLKP" },
+  2: { title: "Upah Kerja", shortName: "Upah Kerja" },
+  3: { title: "Jaminan Sosial", shortName: "Jaminan Sosial" },
+  4: { title: "Hubungan Kerja", shortName: "Hubungan Kerja" },
+  5: { title: "Kecelakaan Kerja", shortName: "Kecelakaan Kerja" },
+  6: { title: "Waktu Kerja & Istirahat", shortName: "Waktu Kerja & Waktu Istirahat" },
+  7: { title: "Kader Norma Ketenagakerjaan", shortName: "Kader Norma Ketenagakerjaan" },
+  8: { title: "Penempatan TK Dalam & LN", shortName: "Penempatan TK" },
+  9: { title: "K3", shortName: "K3" },
+  10: { title: "Perempuan & Anak", shortName: "Perempuan & Anak" },
+  11: { title: "Norma K3", shortName: "Norma K3" },
+  12: { title: "SKP", shortName: "SKP" },
+};
 
 const MONTH_OPTIONS = [
   "Semua Bulan",
@@ -73,11 +75,39 @@ function formatDateIndo(dateStr: string | null | undefined): string {
   }
 }
 
-function ReportPengaduanPage() {
+export type DetailSearch = {
+  id?: number;
+};
+
+export const Route = createFileRoute("/admin/detail_kategori_pelayanan")({
+  validateSearch: (search: Record<string, unknown>): DetailSearch => {
+    return {
+      id: search["id"] ? Number(search["id"]) : 1,
+    };
+  },
+  head: () => ({
+    meta: [
+      {
+        title: "Report Pengaduan Kategori - PTSA KEMNAKER",
+      },
+    ],
+  }),
+  component: DetailKategoriPage,
+});
+
+function DetailKategoriPage() {
+  const search = Route.useSearch();
+  const categoryId = Number(search["id"] ?? 1);
+  const currentCategory = CATEGORY_MAP[categoryId] ?? {
+    title: `Kategori #${categoryId}`,
+    shortName: `Kategori #${categoryId}`,
+  };
+
   const [complaints, setComplaints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [month, setMonth] = useState("Semua Bulan");
   const [year, setYear] = useState("2026");
   const [appliedFilters, setAppliedFilters] = useState({
@@ -89,8 +119,7 @@ function ReportPengaduanPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // 1. Fetch seluruh aduan dari API (menghandle pagination backend hingga tuntas)
-  const fetchComplaints = async () => {
+  const fetchCategoryComplaints = async () => {
     setLoading(true);
     const token =
       localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
@@ -103,10 +132,13 @@ function ReportPengaduanPage() {
 
     try {
       let allData: any[] = [];
-      const res = await fetch(`${COMPLAINTS_API_URL}?per_page=100`, {
-        method: "GET",
-        headers: authHeaders,
-      });
+      const res = await fetch(
+        `${COMPLAINTS_API_URL}?category_id=${categoryId}&per_page=100`,
+        {
+          method: "GET",
+          headers: authHeaders,
+        }
+      );
 
       if (res.ok) {
         const json = await res.json();
@@ -120,38 +152,24 @@ function ReportPengaduanPage() {
 
         allData = [...firstPageData];
 
-        const lastPage = Number(json?.last_page ?? json?.data?.last_page ?? 1);
-        if (lastPage > 1 && allData.length < Number(json?.total ?? json?.data?.total ?? 0)) {
-          for (let p = 2; p <= lastPage; p++) {
-            const nextRes = await fetch(`${COMPLAINTS_API_URL}?page=${p}&per_page=100`, {
-              headers: authHeaders,
-            });
-            if (nextRes.ok) {
-              const nextJson = await nextRes.json();
-              const nextItems = Array.isArray(nextJson?.data)
-                ? nextJson.data
-                : Array.isArray(nextJson?.data?.data)
-                ? nextJson.data.data
-                : [];
-              allData = [...allData, ...nextItems];
-            }
-          }
-        }
+        allData = allData.filter((item: any) => {
+          const itemCatId = Number(item.category_id ?? item.category?.id);
+          return itemCatId === categoryId;
+        });
       }
 
       setComplaints(allData);
     } catch (err) {
-      console.error("Gagal mengambil data report pengaduan:", err);
+      console.error("Gagal menarik data pengaduan kategori:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchComplaints();
-  }, []);
+    fetchCategoryComplaints();
+  }, [categoryId]);
 
-  // 2. Filter data berdasarkan pencarian, bulan, dan tahun
   const filteredComplaints = useMemo(() => {
     return complaints.filter((item) => {
       const q = appliedFilters.search.trim().toLowerCase();
@@ -177,7 +195,6 @@ function ReportPengaduanPage() {
       const d = new Date(String(dateStr).replace(" ", "T"));
       if (isNaN(d.getTime())) return true;
 
-      // Filter Tahun
       if (
         appliedFilters.year !== "Semua Tahun" &&
         d.getFullYear() !== Number(appliedFilters.year)
@@ -185,7 +202,6 @@ function ReportPengaduanPage() {
         return false;
       }
 
-      // Filter Bulan
       if (appliedFilters.month !== "Semua Bulan") {
         const targetMonth = MONTH_MAP[appliedFilters.month];
         if (d.getMonth() + 1 !== targetMonth) return false;
@@ -195,34 +211,6 @@ function ReportPengaduanPage() {
     });
   }, [complaints, appliedFilters]);
 
-  // 3. Hitung Stat Skala Usaha dari data terfilter
-  const scaleStats = useMemo(() => {
-    let mikro = 0;
-    let kecil = 0;
-    let menengah = 0;
-    let besar = 0;
-
-    filteredComplaints.forEach((item) => {
-      const naker = Number(
-        item.company?.jumlah_naker ?? item.jumlah_naker ?? 0
-      );
-
-      if (naker > 0 && naker < 10) mikro++;
-      else if (naker >= 10 && naker < 50) kecil++;
-      else if (naker >= 50 && naker < 200) menengah++;
-      else if (naker >= 200) besar++;
-      else mikro++;
-    });
-
-    return [
-      { key: "mikro", label: "MIKRO", total: mikro },
-      { key: "kecil", label: "KECIL", total: kecil },
-      { key: "menengah", label: "MENENGAH", total: menengah },
-      { key: "besar", label: "BESAR", total: besar },
-    ];
-  }, [filteredComplaints]);
-
-  // 4. Pagination
   const totalData = filteredComplaints.length;
   const totalPages = Math.max(1, Math.ceil(totalData / itemsPerPage));
   const displayedRows = useMemo(() => {
@@ -233,27 +221,62 @@ function ReportPengaduanPage() {
   }, [filteredComplaints, currentPage, itemsPerPage]);
 
   const handleFilter = () => {
-    setAppliedFilters({ search, month, year });
+    setAppliedFilters({ search: searchInput, month, year });
     setCurrentPage(1);
   };
 
   const handleReset = () => {
-    setSearch("");
+    setSearchInput("");
     setMonth("Semua Bulan");
     setYear("2026");
     setAppliedFilters({ search: "", month: "Semua Bulan", year: "2026" });
     setCurrentPage(1);
   };
 
-  // 5. Hapus Pengaduan
-  const handleDelete = async (id: number) => {
+  const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
+    try {
+      setDownloadingId(complaintId);
+      const token =
+        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+
+      const response = await fetch(
+        `http://192.168.147.199:8000/api/complaints/${complaintId}/pdf`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/pdf",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error("Gagal mengunduh PDF");
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = `Pengaduan_${ticketNumber ?? complaintId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi kesalahan saat mengunduh PDF pengaduan.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleDelete = async (deleteId: number) => {
     if (!window.confirm("Apakah Anda yakin ingin menghapus pengaduan ini?")) return;
 
     const token =
       localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     try {
-      const res = await fetch(`${COMPLAINTS_API_URL}/${id}`, {
+      const res = await fetch(`${COMPLAINTS_API_URL}/${deleteId}`, {
         method: "DELETE",
         headers: {
           Accept: "application/json",
@@ -262,7 +285,7 @@ function ReportPengaduanPage() {
       });
 
       if (res.ok) {
-        setComplaints((prev) => prev.filter((item) => item.id !== id));
+        setComplaints((prev) => prev.filter((item) => item.id !== deleteId));
       } else {
         alert("Gagal menghapus aduan.");
       }
@@ -274,30 +297,27 @@ function ReportPengaduanPage() {
   return (
     <AppShell>
       <div className="space-y-5">
-        {/* ================= HEADER PAGE ================= */}
         <div>
           <h1 className="text-[15px] font-bold text-gray-800 tracking-tight">
-            All Report Pengaduan
+            Report Pengaduan {currentCategory.shortName}
           </h1>
         </div>
 
-        {/* ================= FILTER BAR ================= */}
+        {/* Filter Bar */}
         <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
           <div className="flex flex-col gap-2.5 md:flex-row md:items-center">
-            {/* Search Input */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input
                 type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilter()}
-                placeholder="Cari pelapor, perusahaan, atau jenis..."
+                placeholder="Cari pengaduan..."
                 className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-4 py-2 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#007A64]"
               />
             </div>
 
-            {/* Month Select */}
             <div className="relative">
               <select
                 value={month}
@@ -315,7 +335,6 @@ function ReportPengaduanPage() {
               </span>
             </div>
 
-            {/* Year Select */}
             <div className="relative">
               <select
                 value={year}
@@ -333,7 +352,6 @@ function ReportPengaduanPage() {
               </span>
             </div>
 
-            {/* Filter Button */}
             <button
               type="button"
               onClick={handleFilter}
@@ -342,7 +360,6 @@ function ReportPengaduanPage() {
               Filter
             </button>
 
-            {/* Reset Button */}
             <button
               type="button"
               onClick={handleReset}
@@ -353,27 +370,7 @@ function ReportPengaduanPage() {
           </div>
         </div>
 
-        {/* ================= STAT SKALA USAHA ================= */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {scaleStats.map((stat) => (
-            <div
-              key={stat.key}
-              className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] text-center"
-            >
-              <p className="text-[10px] font-bold tracking-wider text-gray-400 uppercase">
-                {stat.label}
-              </p>
-              <p className="mt-2 text-[18px] font-bold text-gray-900 leading-none">
-                {nf.format(stat.total)}{" "}
-                <span className="text-[12px] font-medium text-gray-500">
-                  Pengaduan
-                </span>
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* ================= TABEL REPORT ================= */}
+        {/* Tabel Report */}
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -399,11 +396,8 @@ function ReportPengaduanPage() {
                   </tr>
                 ) : displayedRows.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-10 text-center text-gray-400"
-                    >
-                      Tidak ada data pengaduan yang ditemukan.
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400">
+                      Tidak ada data pengaduan untuk kategori ini.
                     </td>
                   </tr>
                 ) : (
@@ -412,8 +406,7 @@ function ReportPengaduanPage() {
                     const jenis =
                       item.category?.category_name ??
                       item.category?.category_code ??
-                      item.kategori ??
-                      "-";
+                      currentCategory.shortName;
                     const pelapor = item.complainant?.nama_lengkap ?? "-";
                     const perusahaan = item.company?.nama_perusahaan ?? "-";
                     const tanggal = formatDateIndo(
@@ -428,64 +421,59 @@ function ReportPengaduanPage() {
                         <td className="px-6 py-3.5 text-gray-600 font-medium">
                           {rowNumber}
                         </td>
-                        <td className="px-6 py-3.5 text-gray-700">
-                          {tanggal}
-                        </td>
+                        <td className="px-6 py-3.5 text-gray-700">{tanggal}</td>
                         <td className="px-6 py-3.5 text-gray-700 font-medium">
                           {jenis}
                         </td>
                         <td className="px-6 py-3.5 text-gray-800 font-medium">
                           {pelapor}
                         </td>
-                        <td className="px-6 py-3.5 text-gray-700">
-                          {perusahaan}
-                        </td>
+                        <td className="px-6 py-3.5 text-gray-700">{perusahaan}</td>
                         <td className="px-6 py-3.5">
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* Unduh */}
                             <button
                               type="button"
-                              title="Unduh"
-                              onClick={() => {
-                                const jsonStr = JSON.stringify(item, null, 2);
-                                const blob = new Blob([jsonStr], { type: "application/json" });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url;
-                                a.download = `Pengaduan_${item.ticket_number ?? item.id}.json`;
-                                a.click();
-                                URL.revokeObjectURL(url);
-                              }}
-                              className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
+                              title="Unduh PDF"
+                              disabled={downloadingId === item.id}
+                              onClick={() =>
+                                handleDownloadPdf(item.id, item.ticket_number)
+                              }
+                              className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer disabled:opacity-50"
                             >
-                              <Download className="h-3.5 w-3.5" />
+                              {downloadingId === item.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Download className="h-3.5 w-3.5" />
+                              )}
                             </button>
 
-                            {/* Detail Berkas */}
                             <button
                               type="button"
                               title="Detail Berkas"
                               onClick={() => {
-                                alert(`Nomor Tiket: ${item.ticket_number}\nStatus: ${item.status}\nDeskripsi: ${item.description || "-"}`);
+                                alert(
+                                  `Nomor Tiket: ${item.ticket_number}\nStatus: ${item.status}\nDeskripsi: ${item.description || "-"}`
+                                );
                               }}
                               className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
                             >
                               <FileText className="h-3.5 w-3.5" />
                             </button>
 
-                            {/* Lihat */}
                             <button
                               type="button"
                               title="Lihat"
                               onClick={() => {
-                                window.open(`/pengaduan?ticket=${item.ticket_number}`, "_blank");
+                                window.open(
+                                  `/pengaduan?ticket=${item.ticket_number}`,
+                                  "_blank"
+                                );
                               }}
                               className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
                             >
                               <Eye className="h-3.5 w-3.5" />
                             </button>
 
-                            {/* Hapus */}
                             <button
                               type="button"
                               title="Hapus"
@@ -505,12 +493,15 @@ function ReportPengaduanPage() {
           </div>
         </div>
 
-        {/* ================= FOOTER PAGINATION ================= */}
+        {/* Footer Pagination */}
         <div className="flex items-center justify-between px-1">
           <p className="text-[11px] text-gray-500">
-            Menampilkan {displayedRows.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to{" "}
-            {(currentPage - 1) * itemsPerPage + displayedRows.length} dari{" "}
-            {nf.format(totalData)} data
+            Menampilkan{" "}
+            {displayedRows.length
+              ? (currentPage - 1) * itemsPerPage + 1
+              : 0}{" "}
+            to {(currentPage - 1) * itemsPerPage + displayedRows.length} dari{" "}
+            {totalData} data
           </p>
 
           <div className="flex items-center gap-1.5">
@@ -523,20 +514,22 @@ function ReportPengaduanPage() {
               ‹
             </button>
 
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                type="button"
-                onClick={() => setCurrentPage(page)}
-                className={`grid h-7 w-7 place-items-center rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                  currentPage === page
-                    ? "bg-[#007A64] text-white"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map(
+              (page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`grid h-7 w-7 place-items-center rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                    currentPage === page
+                      ? "bg-[#007A64] text-white"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {page}
+                </button>
+              )
+            )}
 
             <button
               type="button"
