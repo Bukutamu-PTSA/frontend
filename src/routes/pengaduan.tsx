@@ -1,801 +1,943 @@
 import React, { useState, useEffect } from "react";
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
+  FileText,
   User,
   Building2,
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  Twitter,
-  Facebook,
-  MessageSquare,
-  Instagram,
-  MapPin,
-  Mail,
+  Loader2,
 } from "lucide-react";
-import logoKemnaker from "@/assets/kemnaker_logo.png";
+import kemnakerLogo from "@/assets/kemnaker_logo.png";
 
 const BASE_API_URL = "http://192.168.147.199:8000/api";
 
 export const Route = createFileRoute("/pengaduan")({
   head: () => ({
-    meta: [{ title: "Formulir Pengaduan | Kemnaker RI" }],
+    meta: [
+      {
+        title: "Formulir Pengaduan - Kementerian Ketenagakerjaan",
+      },
+    ],
   }),
   component: FormulirPengaduanPage,
 });
 
-interface OptionItem {
-  code: string | number;
+interface DropdownItem {
+  id: number | string;
+  code?: string | number;
   name: string;
 }
 
-const navLinks = [
-  { label: "Beranda", to: "/" },
-  { label: "Pengaduan", to: "/pengaduan" },
-  { label: "Survei", to: "/survei" },
-];
+// Helper untuk parsing response Key-Value { "11": "ACEH", "31": "DKI JAKARTA" } atau Array biasa [ { id: 31, name: "..." } ]
+function parseLocationResponse(json: any): DropdownItem[] {
+  if (!json) return [];
+  const target = json.data ?? json;
 
-const socials = [
-  { icon: Twitter, href: "#" },
-  { icon: Facebook, href: "#" },
-  { icon: MessageSquare, href: "#" },
-  { icon: Instagram, href: "#" },
-];
-
-const parseDropdownData = (res: any, keyMap?: { codeKey: string; nameKey: string }): OptionItem[] => {
-  if (!res) return [];
-  const rawData = res.data ? res.data : res;
-
-  if (typeof rawData === "object" && !Array.isArray(rawData)) {
-    return Object.entries(rawData).map(([code, name]) => ({
-      code: String(code),
+  if (typeof target === "object" && !Array.isArray(target)) {
+    return Object.entries(target).map(([code, name]) => ({
+      id: code,
+      code: code,
       name: String(name),
     }));
   }
 
-  if (Array.isArray(rawData)) {
-    return rawData.map((item: any) => ({
-      code: String(
-        (keyMap?.codeKey && item[keyMap.codeKey]) ??
-        item.sector_code ??
-        item.id ??
-        item.code ??
-        ""
-      ),
-      name: String(
-        (keyMap?.nameKey && item[keyMap.nameKey]) ??
-        item.sector_name ??
-        item.category_name ??
-        item.name ??
-        item.nama ??
-        item
-      ),
-    }));
+  if (Array.isArray(target)) {
+    return target.map((item: any) => {
+      const code = String(
+        item.code ||
+          item.id ||
+          item.province_code ||
+          item.city_code ||
+          item.district_code ||
+          item.village_code
+      );
+      return {
+        id: item.id ?? code,
+        code: code,
+        name:
+          item.name ||
+          item.province_name ||
+          item.city_name ||
+          item.district_name ||
+          item.village_name ||
+          item.nama ||
+          String(item),
+      };
+    });
   }
 
   return [];
-};
+}
 
 function FormulirPengaduanPage() {
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    category_id: "",
-    nama_lengkap: "",
-    nik: "",
-    alamat_pelapor: "",
-    jenis_kelamin: "laki-laki",
-    jabatan: "",
-    no_telp_pelapor: "",
-    email_pelapor: "",
-    nama_perusahaan: "",
-    sektor_industri: "",
-    alamat_perusahaan: "",
-    jumlah_naker: "",
-    provinsi: "",
-    provinsiCode: "",
-    kota_kab: "",
-    kotaCode: "",
-    kecamatan: "",
-    kecamatanCode: "",
-    kelurahan: "",
-    kelurahanCode: "",
-    no_telp_perusahaan: "",
-    email_perusahaan: "",
-  });
+  // Master Data Dropdown
+  const [kategoriList, setKategoriList] = useState<DropdownItem[]>([]);
+  const [sektorList, setSektorList] = useState<DropdownItem[]>([]);
+  const [provinsiList, setProvinsiList] = useState<DropdownItem[]>([]);
+  const [kabupatenList, setKabupatenList] = useState<DropdownItem[]>([]);
+  const [kecamatanList, setKecamatanList] = useState<DropdownItem[]>([]);
+  const [kelurahanList, setKelurahanList] = useState<DropdownItem[]>([]);
 
-  const [kategoriOptions, setKategoriOptions] = useState<OptionItem[]>([]);
-  const [sektorOptions, setSektorOptions] = useState<OptionItem[]>([]);
-  const [provinsiOptions, setProvinsiOptions] = useState<OptionItem[]>([]);
-  const [kotaOptions, setKotaOptions] = useState<OptionItem[]>([]);
-  const [kecamatanOptions, setKecamatanOptions] = useState<OptionItem[]>([]);
-  const [kelurahanOptions, setKelurahanOptions] = useState<OptionItem[]>([]);
+  // Loading States
+  const [loadingProv, setLoadingProv] = useState(false);
+  const [loadingKab, setLoadingKab] = useState(false);
+  const [loadingKec, setLoadingKec] = useState(false);
+  const [loadingKel, setLoadingKel] = useState(false);
 
-  const [loadingInitial, setLoadingInitial] = useState(false);
-  const [loadingKota, setLoadingKota] = useState(false);
-  const [loadingKecamatan, setLoadingKecamatan] = useState(false);
-  const [loadingKelurahan, setLoadingKelurahan] = useState(false);
+  // Form State
+  const [jenisPengaduan, setJenisPengaduan] = useState("");
+  const [categoryId, setCategoryId] = useState<number | string>("");
+  const [lainnya, setLainnya] = useState("");
+  const [tanggalPelaporan, setTanggalPelaporan] = useState("");
+  const [nomorTiket, setNomorTiket] = useState("");
 
+  const [namaPelapor, setNamaPelapor] = useState("Ikko");
+  const [nik, setNik] = useState("");
+  const [alamatPelapor, setAlamatPelapor] = useState("");
+  const [jenisKelamin, setJenisKelamin] = useState<"Laki-laki" | "Perempuan">("Laki-laki");
+  const [jabatan, setJabatan] = useState("");
+  const [noTelpPelapor, setNoTelpPelapor] = useState("");
+  const [emailPelapor, setEmailPelapor] = useState("");
+
+  const [namaPerusahaan, setNamaPerusahaan] = useState("");
+  const [sektorIndustri, setSektorIndustri] = useState("");
+  const [sectorId, setSectorId] = useState<number | string>("");
+  const [jumlahPekerja, setJumlahPekerja] = useState<number | string>(0);
+
+  // Cascading Wilayah State (Code dipakai untuk query path backend, Name untuk display/payload)
+  const [selectedProvCode, setSelectedProvCode] = useState<string>("");
+  const [provinsiName, setProvinsiName] = useState<string>("");
+
+  const [selectedCityCode, setSelectedCityCode] = useState<string>("");
+  const [kabupatenName, setKabupatenName] = useState<string>("");
+
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState<string>("");
+  const [kecamatanName, setKecamatanName] = useState<string>("");
+
+  const [selectedVillageCode, setSelectedVillageCode] = useState<string>("");
+  const [kelurahanName, setKelurahanName] = useState<string>("");
+
+  const [noTelpPerusahaan, setNoTelpPerusahaan] = useState("");
+  const [emailPerusahaan, setEmailPerusahaan] = useState("");
+  const [alamatPerusahaan, setAlamatPerusahaan] = useState("");
+
+  // Inisialisasi tanggal di browser client untuk menghindari hydration warning
   useEffect(() => {
-    const saved = sessionStorage.getItem("draft_pengaduan");
-    if (saved) {
-      try {
-        setFormData(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
-      }
-    }
+    setTanggalPelaporan(new Date().toISOString().split("T")[0]);
   }, []);
 
+  // 1. Fetch Kategori, Sektor, & Provinsi dari Backend
   useEffect(() => {
     const fetchInitialData = async () => {
-      setLoadingInitial(true);
-      try {
-        const [resKategori, resSektor, resProv] = await Promise.all([
-          fetch(`${BASE_API_URL}/complaint-categories`).then((r) => (r.ok ? r.json() : [])),
-          fetch(`${BASE_API_URL}/industrial-sectors`).then((r) => (r.ok ? r.json() : [])),
-          fetch(`${BASE_API_URL}/provinces`).then((r) => (r.ok ? r.json() : {})),
-        ]);
+      const token =
+        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      const headers = {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
 
-        setKategoriOptions(parseDropdownData(resKategori, { codeKey: "id", nameKey: "category_name" }));
-        setSektorOptions(parseDropdownData(resSektor, { codeKey: "sector_code", nameKey: "sector_name" }));
-        setProvinsiOptions(parseDropdownData(resProv));
-      } catch (error) {
-        console.error("Gagal memuat data awal:", error);
+      // Kategori: GET /api/complaint-categories
+      try {
+        const resCat = await fetch(`${BASE_API_URL}/complaint-categories`, { headers });
+        if (resCat.ok) {
+          const jsonCat = await resCat.json();
+          const items = Array.isArray(jsonCat?.data)
+            ? jsonCat.data
+            : Array.isArray(jsonCat)
+            ? jsonCat
+            : [];
+          setKategoriList(
+            items.map((item: any) => ({
+              id: item.id,
+              name: item.category_name || item.name || item.category_code,
+            }))
+          );
+        }
+      } catch (e) {
+        console.error("Gagal load complaint-categories:", e);
+      }
+
+      // Sektor: GET /api/industrial-sectors
+      try {
+        const resSek = await fetch(`${BASE_API_URL}/industrial-sectors`, { headers });
+        if (resSek.ok) {
+          const jsonSek = await resSek.json();
+          const items = Array.isArray(jsonSek?.data)
+            ? jsonSek.data
+            : Array.isArray(jsonSek)
+            ? jsonSek
+            : [];
+          setSektorList(
+            items.map((item: any) => ({
+              id: item.id,
+              name: item.sector_name || item.name,
+            }))
+          );
+        }
+      } catch (e) {
+        console.error("Gagal load industrial-sectors:", e);
+      }
+
+      // Provinsi: GET /api/provinces (Key-Value Object)
+      try {
+        setLoadingProv(true);
+        const resProv = await fetch(`${BASE_API_URL}/provinces`, { headers });
+        if (resProv.ok) {
+          const jsonProv = await resProv.json();
+          const parsed = parseLocationResponse(jsonProv);
+          setProvinsiList(parsed);
+        }
+      } catch (e) {
+        console.error("Gagal load provinces:", e);
       } finally {
-        setLoadingInitial(false);
+        setLoadingProv(false);
       }
     };
 
     fetchInitialData();
   }, []);
 
+  // 2. Fetch Kota/Kabupaten: GET /api/cities/{province_code}
   useEffect(() => {
-    if (!formData.provinsiCode) {
-      setKotaOptions([]);
-      setKecamatanOptions([]);
-      setKelurahanOptions([]);
-      return;
-    }
+    setSelectedCityCode("");
+    setKabupatenName("");
+    setSelectedDistrictCode("");
+    setKecamatanName("");
+    setSelectedVillageCode("");
+    setKelurahanName("");
+    setKabupatenList([]);
+    setKecamatanList([]);
+    setKelurahanList([]);
 
-    const fetchKota = async () => {
-      setLoadingKota(true);
+    if (!selectedProvCode) return;
+
+    const fetchCities = async () => {
+      setLoadingKab(true);
       try {
-        const res = await fetch(`${BASE_API_URL}/cities/${formData.provinsiCode}`);
-        if (res.ok) setKotaOptions(parseDropdownData(await res.json()));
-      } catch (error) {
-        console.error(error);
+        const res = await fetch(
+          `${BASE_API_URL}/cities/${encodeURIComponent(selectedProvCode)}`
+        );
+        if (res.ok) {
+          const json = await res.json();
+          const parsed = parseLocationResponse(json);
+          setKabupatenList(parsed);
+        }
+      } catch (e) {
+        console.error("Gagal load cities:", e);
       } finally {
-        setLoadingKota(false);
+        setLoadingKab(false);
       }
     };
 
-    fetchKota();
-  }, [formData.provinsiCode]);
+    fetchCities();
+  }, [selectedProvCode]);
 
+  // 3. Fetch Kecamatan: GET /api/districts/{city_code}
   useEffect(() => {
-    if (!formData.kotaCode) {
-      setKecamatanOptions([]);
-      setKelurahanOptions([]);
-      return;
-    }
+    setSelectedDistrictCode("");
+    setKecamatanName("");
+    setSelectedVillageCode("");
+    setKelurahanName("");
+    setKecamatanList([]);
+    setKelurahanList([]);
 
-    const fetchKecamatan = async () => {
-      setLoadingKecamatan(true);
+    if (!selectedCityCode) return;
+
+    const fetchDistricts = async () => {
+      setLoadingKec(true);
       try {
-        const res = await fetch(`${BASE_API_URL}/districts/${formData.kotaCode}`);
-        if (res.ok) setKecamatanOptions(parseDropdownData(await res.json()));
-      } catch (error) {
-        console.error(error);
+        const res = await fetch(
+          `${BASE_API_URL}/districts/${encodeURIComponent(selectedCityCode)}`
+        );
+        if (res.ok) {
+          const json = await res.json();
+          const parsed = parseLocationResponse(json);
+          setKecamatanList(parsed);
+        }
+      } catch (e) {
+        console.error("Gagal load districts:", e);
       } finally {
-        setLoadingKecamatan(false);
+        setLoadingKec(false);
       }
     };
 
-    fetchKecamatan();
-  }, [formData.kotaCode]);
+    fetchDistricts();
+  }, [selectedCityCode]);
 
+  // 4. Fetch Kelurahan: GET /api/villages/{district_code}
   useEffect(() => {
-    if (!formData.kecamatanCode) {
-      setKelurahanOptions([]);
-      return;
-    }
+    setSelectedVillageCode("");
+    setKelurahanName("");
+    setKelurahanList([]);
 
-    const fetchKelurahan = async () => {
-      setLoadingKelurahan(true);
+    if (!selectedDistrictCode) return;
+
+    const fetchVillages = async () => {
+      setLoadingKel(true);
       try {
-        const res = await fetch(`${BASE_API_URL}/villages/${formData.kecamatanCode}`);
-        if (res.ok) setKelurahanOptions(parseDropdownData(await res.json()));
-      } catch (error) {
-        console.error(error);
+        const res = await fetch(
+          `${BASE_API_URL}/villages/${encodeURIComponent(selectedDistrictCode)}`
+        );
+        if (res.ok) {
+          const json = await res.json();
+          const parsed = parseLocationResponse(json);
+          setKelurahanList(parsed);
+        }
+      } catch (e) {
+        console.error("Gagal load villages:", e);
       } finally {
-        setLoadingKelurahan(false);
+        setLoadingKel(false);
       }
     };
 
-    fetchKelurahan();
-  }, [formData.kecamatanCode]);
+    fetchVillages();
+  }, [selectedDistrictCode]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-
-    if (name === "provinsiCode") {
-      const selected = provinsiOptions.find((p) => p.code === value);
-      setFormData((prev) => ({
-        ...prev,
-        provinsiCode: value,
-        provinsi: selected ? selected.name : "",
-        kotaCode: "",
-        kota_kab: "",
-        kecamatanCode: "",
-        kecamatan: "",
-        kelurahanCode: "",
-        kelurahan: "",
-      }));
-      return;
-    }
-
-    if (name === "kotaCode") {
-      const selected = kotaOptions.find((k) => k.code === value);
-      setFormData((prev) => ({
-        ...prev,
-        kotaCode: value,
-        kota_kab: selected ? selected.name : "",
-        kecamatanCode: "",
-        kecamatan: "",
-        kelurahanCode: "",
-        kelurahan: "",
-      }));
-      return;
-    }
-
-    if (name === "kecamatanCode") {
-      const selected = kecamatanOptions.find((k) => k.code === value);
-      setFormData((prev) => ({
-        ...prev,
-        kecamatanCode: value,
-        kecamatan: selected ? selected.name : "",
-        kelurahanCode: "",
-        kelurahan: "",
-      }));
-      return;
-    }
-
-    if (name === "kelurahanCode") {
-      const selected = kelurahanOptions.find((k) => k.code === value);
-      setFormData((prev) => ({
-        ...prev,
-        kelurahanCode: value,
-        kelurahan: selected ? selected.name : "",
-      }));
-      return;
-    }
-
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleNextStep = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const formData = {
+      category_id: categoryId,
+      jenisPengaduan,
+      lainnya,
+      tanggalPelaporan,
+      nomorTiket,
+      namaPelapor,
+      nik,
+      alamatPelapor,
+      jenisKelamin,
+      jabatan,
+      noTelpPelapor,
+      emailPelapor,
+      namaPerusahaan,
+      sector_id: sectorId,
+      sektorIndustri,
+      jumlahPekerja,
+      provinsi: provinsiName,
+      province_code: selectedProvCode,
+      kabupaten: kabupatenName,
+      city_code: selectedCityCode,
+      kecamatan: kecamatanName,
+      district_code: selectedDistrictCode,
+      kelurahan: kelurahanName,
+      village_code: selectedVillageCode,
+      noTelpPerusahaan,
+      emailPerusahaan,
+      alamatPerusahaan,
+    };
+
     sessionStorage.setItem("draft_pengaduan", JSON.stringify(formData));
-    navigate({ to: '/bukti_pendukung' });
+    navigate({ to: "/bukti_pendukung" });
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F4F7FB] font-sans">
-      {/* HEADER */}
-      <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-30">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
-          <Link to="/" className="flex items-center gap-3">
-            <img src={logoKemnaker} alt="Logo Kemnaker" className="h-8 w-8 object-contain" />
-            <span className="text-xl font-bold text-[#032749]">
+    <div className="min-h-screen bg-[#F8FAFC] text-gray-800" suppressHydrationWarning>
+      {/* Navbar Atas */}
+      <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-2xs">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-3">
+            <img
+              src={kemnakerLogo}
+              alt="Logo Kemnaker"
+              className="h-8 w-auto object-contain"
+            />
+            <span className="text-[14px] font-bold text-gray-900 tracking-tight">
               Kementerian Ketenagakerjaan
             </span>
-          </Link>
+          </div>
 
-          <nav aria-label="Navigasi utama" className="hidden items-center gap-8 md:flex text-[15px]">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className="pb-1 transition-colors font-medium text-gray-600 hover:text-[#032749]"
-                activeProps={{
-                  className: "text-[#032749] font-bold border-b-2 border-[#032749]",
-                }}
-                activeOptions={{ exact: link.to === "/" }}
-              >
-                {link.label}
-              </Link>
-            ))}
+          <nav className="flex items-center gap-6 text-[12px] font-medium text-gray-500">
+            <Link to="/" className="hover:text-gray-900 transition-colors">
+              Beranda
+            </Link>
+            <Link
+              to="/pengaduan"
+              className="font-semibold text-[#0E3B68] hover:text-[#0E3B68] transition-colors"
+            >
+              Pengaduan
+            </Link>
+            <Link to="/survei" className="hover:text-gray-900 transition-colors">
+              Survei
+            </Link>
           </nav>
         </div>
       </header>
 
-      {/* MAIN FORM */}
-      <main className="flex-1 py-10 px-4 sm:px-6">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[#032749]">Formulir Pengaduan</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Mohon lengkapi data diri dan informasi perusahaan Anda dengan akurat untuk memproses laporan ini.
-            </p>
-          </div>
-
-          <form onSubmit={handleNextStep} autoComplete="off" className="space-y-6">
-            {/* --- KARTU 1: DATA PELAPOR --- */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-sm">
-              <div className="flex items-center gap-2 mb-6 text-[#032749] border-b pb-4">
-                <User className="size-5" />
-                <h2 className="text-base font-bold">Data Pelapor</h2>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    Nama Pelapor <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="nama_lengkap"
-                    value={formData.nama_lengkap}
-                    onChange={handleChange}
-                    placeholder="Masukkan nama lengkap"
-                    required
-                    suppressHydrationWarning
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    NIK <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="nik"
-                    maxLength={16}
-                    value={formData.nik}
-                    onChange={handleChange}
-                    placeholder="Masukkan 16 digit NIK"
-                    required
-                    suppressHydrationWarning
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    Alamat <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    name="alamat_pelapor"
-                    rows={3}
-                    value={formData.alamat_pelapor}
-                    onChange={handleChange}
-                    placeholder="Masukkan alamat lengkap"
-                    required
-                    suppressHydrationWarning
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-2">
-                      Jenis Kelamin <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex items-center gap-6 mt-2">
-                      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="jenis_kelamin"
-                          value="laki-laki"
-                          checked={formData.jenis_kelamin === "laki-laki"}
-                          onChange={handleChange}
-                          className="h-4 w-4 text-[#032749] focus:ring-[#032749]"
-                        />
-                        Laki-laki
-                      </label>
-                      <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="jenis_kelamin"
-                          value="perempuan"
-                          checked={formData.jenis_kelamin === "perempuan"}
-                          onChange={handleChange}
-                          className="h-4 w-4 text-[#032749] focus:ring-[#032749]"
-                        />
-                        Perempuan
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Jabatan <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="jabatan"
-                      value={formData.jabatan}
-                      onChange={handleChange}
-                      placeholder="Contoh: Staff"
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      No Telp <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="no_telp_pelapor"
-                      value={formData.no_telp_pelapor}
-                      onChange={handleChange}
-                      placeholder="08xxxxxxxxxx"
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      name="email_pelapor"
-                      value={formData.email_pelapor}
-                      onChange={handleChange}
-                      placeholder="email@contoh.com"
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* --- KARTU 2: DATA PERUSAHAAN --- */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-sm">
-              <div className="flex items-center gap-2 mb-6 text-[#032749] border-b pb-4">
-                <Building2 className="size-5" />
-                <h2 className="text-base font-bold">Data Perusahaan</h2>
-              </div>
-
-              <div className="space-y-4">
-                {/* Baris 1: Nama Perusahaan & Sektor Industri */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Nama Perusahaan <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="nama_perusahaan"
-                      value={formData.nama_perusahaan}
-                      onChange={handleChange}
-                      placeholder="PT / CV ..."
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Sektor Industri <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="sektor_industri"
-                      value={formData.sektor_industri}
-                      onChange={(e) => {
-                        const sel = sektorOptions.find((s) => s.name === e.target.value || s.code === e.target.value);
-                        setFormData((prev) => ({
-                          ...prev,
-                          sektor_industri: sel ? sel.name : e.target.value,
-                        }));
-                      }}
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm bg-white text-gray-700 focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    >
-                      <option value="">{loadingInitial ? "Memuat..." : "Pilih Sektor"}</option>
-                      {sektorOptions.map((item) => (
-                        <option key={item.code} value={item.name}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Baris 2: Kategori Laporan & Jumlah Naker */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Kategori Laporan <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="category_id"
-                      value={formData.category_id}
-                      onChange={handleChange}
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm bg-white text-gray-700 focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    >
-                      <option value="">{loadingInitial ? "Memuat..." : "Pilih Kategori"}</option>
-                      {kategoriOptions.map((item) => (
-                        <option key={item.code} value={item.code}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Jumlah Naker <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="jumlah_naker"
-                      value={formData.jumlah_naker}
-                      onChange={handleChange}
-                      placeholder="0"
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    />
-                  </div>
-                </div>
-
-                {/* Baris 3: Provinsi & Kota/Kabupaten */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Provinsi <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="provinsiCode"
-                      value={formData.provinsiCode}
-                      onChange={handleChange}
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm bg-white text-gray-700 focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    >
-                      <option value="">{loadingInitial ? "Memuat..." : "Pilih"}</option>
-                      {provinsiOptions.map((item) => (
-                        <option key={item.code} value={item.code}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Kota/Kabupaten <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="kotaCode"
-                      value={formData.kotaCode}
-                      onChange={handleChange}
-                      disabled={!formData.provinsiCode || loadingKota}
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm bg-white text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    >
-                      <option value="">
-                        {loadingKota ? "Memuat..." : "Pilih"}
-                      </option>
-                      {kotaOptions.map((item) => (
-                        <option key={item.code} value={item.code}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Baris 4: Kecamatan & Kelurahan */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Kecamatan <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="kecamatanCode"
-                      value={formData.kecamatanCode}
-                      onChange={handleChange}
-                      disabled={!formData.kotaCode || loadingKecamatan}
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm bg-white text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    >
-                      <option value="">
-                        {loadingKecamatan ? "Memuat..." : "Pilih"}
-                      </option>
-                      {kecamatanOptions.map((item) => (
-                        <option key={item.code} value={item.code}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Kelurahan <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="kelurahanCode"
-                      value={formData.kelurahanCode}
-                      onChange={handleChange}
-                      disabled={!formData.kecamatanCode || loadingKelurahan}
-                      required
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm bg-white text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    >
-                      <option value="">
-                        {loadingKelurahan ? "Memuat..." : "Pilih"}
-                      </option>
-                      {kelurahanOptions.map((item) => (
-                        <option key={item.code} value={item.code}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Baris 5: No Telp Perusahaan & Email Perusahaan */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      No Telp Perusahaan
-                    </label>
-                    <input
-                      type="tel"
-                      name="no_telp_perusahaan"
-                      value={formData.no_telp_perusahaan}
-                      onChange={handleChange}
-                      placeholder="021-xxxxxx"
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Email Perusahaan
-                    </label>
-                    <input
-                      type="email"
-                      name="email_perusahaan"
-                      value={formData.email_perusahaan}
-                      onChange={handleChange}
-                      placeholder="hr@perusahaan.com"
-                      suppressHydrationWarning
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                    />
-                  </div>
-                </div>
-
-                {/* Baris 6: Alamat Perusahaan */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    Alamat Perusahaan <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="alamat_perusahaan"
-                    value={formData.alamat_perusahaan}
-                    onChange={handleChange}
-                    placeholder="Jalan, Gedung, dll"
-                    required
-                    suppressHydrationWarning
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* ACTION BUTTONS */}
-            <div className="flex items-center justify-between pt-4">
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/" })}
-                suppressHydrationWarning
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-[#032749] hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
-              >
-                <ArrowLeft className="size-4" />
-                Kembali
-              </button>
-
-              <button
-                type="submit"
-                suppressHydrationWarning
-                className="inline-flex items-center gap-2 rounded-lg bg-[#032749] px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-950 active:scale-95 transition-all shadow-md"
-              >
-                Lanjut ke Detail Aduan
-                <ArrowRight className="size-4" />
-              </button>
-            </div>
-          </form>
+      {/* Form Container */}
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <div className="mb-6">
+          <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">
+            Formulir Pengaduan
+          </h1>
+          <p className="mt-1 text-[12px] text-gray-500">
+            Mohon lengkapi data diri dan informasi perusahaan Anda dengan akurat untuk memproses laporan ini.
+          </p>
         </div>
-      </main>
 
-      {/* FOOTER */}
-      <footer className="bg-[#032749] text-white mt-16">
-        <div className="mx-auto max-w-6xl px-6 py-14">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
-            <div>
-              <h3 className="text-xl font-bold">
-                BINWASNAKER <span className="text-emerald-400">&amp; K3</span>
-              </h3>
-              <p className="mt-4 text-sm leading-relaxed text-gray-300">
-                Ditjen Binwasnaker &amp; K3 adalah unsur pelaksana yang berada di bawah
-                dan bertanggung jawab kepada Menteri Ketenagakerjaan.
-              </p>
-              <div className="mt-6 flex gap-3">
-                {socials.map(({ icon: Icon, href }, i) => (
-                  <a
-                    key={i}
-                    href={href}
-                    className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
+        <form onSubmit={handleSubmit} className="space-y-6" suppressHydrationWarning>
+          {/* ================= CARD 1: JENIS PENGADUAN ================= */}
+          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xs">
+            <div className="mb-5 flex items-center gap-2.5 border-b border-gray-100 pb-3">
+              <div className="grid h-7 w-7 place-items-center rounded-lg bg-sky-50 text-sky-600">
+                <FileText className="h-4 w-4" />
+              </div>
+              <h2 className="text-[13px] font-bold text-gray-900">
+                Jenis Pengaduan
+              </h2>
+            </div>
+
+            <div className="space-y-4 text-[11px]">
+              <div>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  Jenis Pengaduan <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    suppressHydrationWarning
+                    value={categoryId}
+                    onChange={(e) => {
+                      const selId = e.target.value;
+                      setCategoryId(selId);
+                      const matched = kategoriList.find((k) => String(k.id) === selId);
+                      setJenisPengaduan(matched ? matched.name : "");
+                    }}
+                    required
+                    className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer"
                   >
-                    <Icon className="size-4" />
-                  </a>
-                ))}
+                    <option value="">Pilih Jenis Pengaduan</option>
+                    {kategoriList.map((kat) => (
+                      <option key={kat.id} value={kat.id}>
+                        {kat.name}
+                      </option>
+                    ))}
+                    <option value="other">Lainnya</option>
+                  </select>
+                  <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
+                    ▼
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  Lainnya <span className="text-red-500">*</span>
+                </label>
+                <input
+                  suppressHydrationWarning
+                  type="text"
+                  value={lainnya}
+                  onChange={(e) => setLainnya(e.target.value)}
+                  placeholder="Masukkan Jenis Pengaduan"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Tanggal Pelaporan <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    suppressHydrationWarning
+                    type="date"
+                    value={tanggalPelaporan}
+                    onChange={(e) => setTanggalPelaporan(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Nomor Tiket <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    suppressHydrationWarning
+                    type="text"
+                    value={nomorTiket}
+                    onChange={(e) => setNomorTiket(e.target.value)}
+                    placeholder="A-123"
+                    required
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] font-semibold text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  />
+                </div>
               </div>
             </div>
+          </section>
 
-            <div>
-              <h4 className="text-lg font-semibold">Customer Support</h4>
-              <hr className="mt-4 border-white/15" />
-              <ul className="mt-5 space-y-3 text-sm text-gray-300">
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400">›</span>
-                  <a href="#" className="hover:text-emerald-400 transition-colors">FAQ</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400">›</span>
-                  <a href="#" className="hover:text-emerald-400 transition-colors">Contact Us</a>
-                </li>
-              </ul>
+          {/* ================= CARD 2: DATA PELAPOR ================= */}
+          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xs">
+            <div className="mb-5 flex items-center gap-2.5 border-b border-gray-100 pb-3">
+              <div className="grid h-7 w-7 place-items-center rounded-lg bg-sky-50 text-sky-600">
+                <User className="h-4 w-4" />
+              </div>
+              <h2 className="text-[13px] font-bold text-gray-900">
+                Data Pelapor
+              </h2>
             </div>
 
-            <div>
-              <h4 className="text-lg font-semibold">Have a Questions?</h4>
-              <hr className="mt-4 border-white/15" />
-              <div className="mt-5 flex gap-3 text-sm text-gray-300">
-                <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
-                <p className="leading-relaxed">
-                  Jl. Gatot Subroto No.51, RT.5/RW.4, Kuningan Timur.
-                  Kecamatan Setiabudi, Kota Jakarta Selatan, Daerah Khusus
-                  Jakarta - 12950 Jakarta - Indonesia
+            <div className="space-y-4 text-[11px]">
+              <div>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  Nama Pelapor <span className="text-red-500">*</span>
+                </label>
+                <input
+                  suppressHydrationWarning
+                  type="text"
+                  value={namaPelapor}
+                  onChange={(e) => setNamaPelapor(e.target.value)}
+                  placeholder="Nama Lengkap Pelapor"
+                  required
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  NIK <span className="text-red-500">*</span>
+                </label>
+                <input
+                  suppressHydrationWarning
+                  type="text"
+                  value={nik}
+                  onChange={(e) => setNik(e.target.value.replace(/\D/g, "").slice(0, 16))}
+                  placeholder="Masukkan 16 digit NIK"
+                  required
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  Alamat <span className="text-red-500">*</span>
+                </label>
+                <input
+                  suppressHydrationWarning
+                  type="text"
+                  value={alamatPelapor}
+                  onChange={(e) => setAlamatPelapor(e.target.value)}
+                  placeholder="Masukkan alamat lengkap"
+                  required
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block font-medium text-gray-700">
+                    Jenis Kelamin <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-5 pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        suppressHydrationWarning
+                        type="radio"
+                        name="jenisKelamin"
+                        value="Laki-laki"
+                        checked={jenisKelamin === "Laki-laki"}
+                        onChange={() => setJenisKelamin("Laki-laki")}
+                        className="h-3.5 w-3.5 text-[#0E3B68] focus:ring-[#0E3B68]"
+                      />
+                      <span className="text-[11px] text-gray-700">Laki-laki</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        suppressHydrationWarning
+                        type="radio"
+                        name="jenisKelamin"
+                        value="Perempuan"
+                        checked={jenisKelamin === "Perempuan"}
+                        onChange={() => setJenisKelamin("Perempuan")}
+                        className="h-3.5 w-3.5 text-[#0E3B68] focus:ring-[#0E3B68]"
+                      />
+                      <span className="text-[11px] text-gray-700">Perempuan</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Jabatan <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    suppressHydrationWarning
+                    type="text"
+                    value={jabatan}
+                    onChange={(e) => setJabatan(e.target.value)}
+                    placeholder="Contoh: Staff"
+                    required
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  No Telp <span className="text-red-500">*</span>
+                </label>
+                <input
+                  suppressHydrationWarning
+                  type="tel"
+                  value={noTelpPelapor}
+                  onChange={(e) => setNoTelpPelapor(e.target.value)}
+                  placeholder="08xx xxxx xxxx"
+                  required
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  Email <span className="text-red-500">*</span>{" "}
+                  <span className="text-gray-400 font-normal">
+                    (Alamat email yang digunakan untuk mengirim berkas pengaduan)
+                  </span>
+                </label>
+                <input
+                  suppressHydrationWarning
+                  type="email"
+                  value={emailPelapor}
+                  onChange={(e) => setEmailPelapor(e.target.value)}
+                  placeholder="email@contoh.com"
+                  required
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                />
+              </div>
+
+              <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-[10.5px] leading-relaxed text-amber-900">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                <p>
+                  <strong className="font-semibold text-amber-700">PENTING:</strong>{" "}
+                  Alamat email yang dicantumkan di formulir ini harus sama persis dengan alamat email yang Anda gunakan saat mengirimkan dokumen/berkas pengaduan untuk kebutuhan verifikasi.
                 </p>
               </div>
-              <div className="mt-4 flex items-center gap-3 text-sm">
-                <Mail className="size-5 text-emerald-400" />
-                <a href="#" className="text-gray-300 hover:text-emerald-400 transition-colors">
-                  Pengaduan WLKP
-                </a>
+            </div>
+          </section>
+
+          {/* ================= CARD 3: DATA PERUSAHAAN ================= */}
+          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xs">
+            <div className="mb-5 flex items-center gap-2.5 border-b border-gray-100 pb-3">
+              <div className="grid h-7 w-7 place-items-center rounded-lg bg-sky-50 text-sky-600">
+                <Building2 className="h-4 w-4" />
+              </div>
+              <h2 className="text-[13px] font-bold text-gray-900">
+                Data Perusahaan
+              </h2>
+            </div>
+
+            <div className="space-y-4 text-[11px]">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Nama Perusahaan <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    suppressHydrationWarning
+                    type="text"
+                    value={namaPerusahaan}
+                    onChange={(e) => setNamaPerusahaan(e.target.value)}
+                    placeholder="PT / CV ...."
+                    required
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Sektor Industri <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      suppressHydrationWarning
+                      value={sectorId}
+                      onChange={(e) => {
+                        const selId = e.target.value;
+                        setSectorId(selId);
+                        const matched = sektorList.find((s) => String(s.id) === selId);
+                        setSektorIndustri(matched ? matched.name : "");
+                      }}
+                      required
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer"
+                    >
+                      <option value="">Pilih Sektor</option>
+                      {sektorList.map((sek) => (
+                        <option key={sek.id} value={sek.id}>
+                          {sek.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
+                      ▼
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Jumlah Pekerja <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    suppressHydrationWarning
+                    type="number"
+                    value={jumlahPekerja}
+                    onChange={(e) => setJumlahPekerja(e.target.value)}
+                    placeholder="0"
+                    min={0}
+                    required
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  />
+                </div>
+
+                {/* Dropdown 1: Provinsi -> GET /api/provinces */}
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Provinsi <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      suppressHydrationWarning
+                      value={selectedProvCode}
+                      onChange={(e) => {
+                        const provCode = e.target.value;
+                        setSelectedProvCode(provCode);
+                        const matched = provinsiList.find(
+                          (p) => String(p.code) === provCode
+                        );
+                        setProvinsiName(matched ? matched.name : "");
+                      }}
+                      required
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer"
+                    >
+                      <option value="">
+                        {loadingProv ? "Memuat data provinsi..." : "Pilih Provinsi"}
+                      </option>
+                      {provinsiList.map((prov) => (
+                        <option key={prov.id} value={prov.code}>
+                          {prov.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
+                      {loadingProv ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+                      ) : (
+                        "▼"
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Dropdown 2: Kota / Kabupaten -> GET /api/cities/{province_code} */}
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Kota/Kabupaten <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      suppressHydrationWarning
+                      value={selectedCityCode}
+                      onChange={(e) => {
+                        const cityCode = e.target.value;
+                        setSelectedCityCode(cityCode);
+                        const matched = kabupatenList.find(
+                          (k) => String(k.code) === cityCode
+                        );
+                        setKabupatenName(matched ? matched.name : "");
+                      }}
+                      disabled={!selectedProvCode || loadingKab}
+                      required
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {!selectedProvCode
+                          ? "Pilih Provinsi terlebih dahulu"
+                          : loadingKab
+                          ? "Memuat kota/kabupaten..."
+                          : "Pilih Kota/Kabupaten"}
+                      </option>
+                      {kabupatenList.map((kab) => (
+                        <option key={kab.id} value={kab.code}>
+                          {kab.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
+                      {loadingKab ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+                      ) : (
+                        "▼"
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Dropdown 3: Kecamatan -> GET /api/districts/{city_code} */}
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Kecamatan <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      suppressHydrationWarning
+                      value={selectedDistrictCode}
+                      onChange={(e) => {
+                        const distCode = e.target.value;
+                        setSelectedDistrictCode(distCode);
+                        const matched = kecamatanList.find(
+                          (kc) => String(kc.code) === distCode
+                        );
+                        setKecamatanName(matched ? matched.name : "");
+                      }}
+                      disabled={!selectedCityCode || loadingKec}
+                      required
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {!selectedCityCode
+                          ? "Pilih Kota/Kabupaten terlebih dahulu"
+                          : loadingKec
+                          ? "Memuat kecamatan..."
+                          : "Pilih Kecamatan"}
+                      </option>
+                      {kecamatanList.map((kec) => (
+                        <option key={kec.id} value={kec.code}>
+                          {kec.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
+                      {loadingKec ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+                      ) : (
+                        "▼"
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Dropdown 4: Kelurahan -> GET /api/villages/{district_code} */}
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Kelurahan <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      suppressHydrationWarning
+                      value={selectedVillageCode}
+                      onChange={(e) => {
+                        const villCode = e.target.value;
+                        setSelectedVillageCode(villCode);
+                        const matched = kelurahanList.find(
+                          (kl) => String(kl.code) === villCode
+                        );
+                        setKelurahanName(matched ? matched.name : "");
+                      }}
+                      disabled={!selectedDistrictCode || loadingKel}
+                      required
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {!selectedDistrictCode
+                          ? "Pilih Kecamatan terlebih dahulu"
+                          : loadingKel
+                          ? "Memuat kelurahan..."
+                          : "Pilih Kelurahan"}
+                      </option>
+                      {kelurahanList.map((kel) => (
+                        <option key={kel.id} value={kel.code}>
+                          {kel.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
+                      {loadingKel ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+                      ) : (
+                        "▼"
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Email Perusahaan
+                  </label>
+                  <input
+                    suppressHydrationWarning
+                    type="email"
+                    value={emailPerusahaan}
+                    onChange={(e) => setEmailPerusahaan(e.target.value)}
+                    placeholder="hrdperusahaan.com"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  No Telp Perusahaan
+                </label>
+                <input
+                  suppressHydrationWarning
+                  type="tel"
+                  value={noTelpPerusahaan}
+                  onChange={(e) => setNoTelpPerusahaan(e.target.value)}
+                  placeholder="021-xxxxxxx"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  Alamat Perusahaan <span className="text-red-500">*</span>
+                </label>
+                <input
+                  suppressHydrationWarning
+                  type="text"
+                  value={alamatPerusahaan}
+                  onChange={(e) => setAlamatPerusahaan(e.target.value)}
+                  placeholder="Jalan, Gedung, dll"
+                  required
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                />
               </div>
             </div>
-          </div>
+          </section>
 
-          <hr className="mt-10 border-white/15" />
+          {/* Action Footer */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              suppressHydrationWarning
+              type="button"
+              onClick={() => window.history.back()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-[11px] font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Kembali</span>
+            </button>
 
-          <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
-            <p>Copyright © BINSIS || 2024 – 2026</p>
-            <p>
-              Designed by <span className="text-emerald-400">TUBSPK</span>
-            </p>
+            <button
+              suppressHydrationWarning
+              type="submit"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0E3B68] px-6 py-2.5 text-[11px] font-semibold text-white shadow-xs hover:bg-[#0a2c4e] transition-colors cursor-pointer"
+            >
+              <span>Lanjut ke Detail Aduan</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
           </div>
-        </div>
-      </footer>
+        </form>
+      </main>
     </div>
   );
 }

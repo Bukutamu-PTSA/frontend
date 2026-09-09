@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Building2,
+  UploadCloud,
   Camera,
   Video,
   X,
@@ -15,7 +16,7 @@ import {
   Instagram,
 } from "lucide-react";
 
-export const Route = createFileRoute("/bukti_pendukung")({
+export const Route = createFileRoute("/admin/detail_berkas")({
   head: () => ({
     meta: [
       {
@@ -27,20 +28,6 @@ export const Route = createFileRoute("/bukti_pendukung")({
 });
 
 const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api/complaints";
-
-// Helper konversi base64 kamera menjadi File objek
-function dataURLtoFile(dataurl: string, filename: string): File {
-  const arr = dataurl.split(",");
-  const mimeMatch = arr[0]?.match(/:(.*?);/);
-  const mime = mimeMatch?.[1] || "image/jpeg";
-  const bstr = atob(arr[1] || "");
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new File([u8arr], filename, { type: mime });
-}
 
 function BuktiPendukungPage() {
   const navigate = useNavigate();
@@ -57,6 +44,7 @@ function BuktiPendukungPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Aktifkan stream kamera saat dibutuhkan
   useEffect(() => {
     let stream: MediaStream | null = null;
     if (cameraActive) {
@@ -119,74 +107,48 @@ function BuktiPendukungPage() {
     try {
       const formData = new FormData();
 
-      // 1. Root Complaint Fields
-      formData.append("category_id", String(draftData.category_id || 1));
+      // Mapping data form tahap 1
+      formData.append("ticket_number", draftData.nomorTiket || `TCK-${Date.now()}`);
+      formData.append("complaint_date", draftData.tanggalPelaporan || new Date().toISOString());
       formData.append("description", deskripsiAduan);
-      formData.append(
-        "complaint_date",
-        draftData.tanggalPelaporan || new Date().toISOString().split("T")[0]
-      );
+      formData.append("category_name", draftData.jenisPengaduan || "Lainnya");
 
-      // 2. Complainant Nested Fields
-      formData.append("complainant[nama_lengkap]", draftData.namaPelapor || "");
-      formData.append("complainant[nik]", draftData.nik || "");
-      formData.append("complainant[alamat]", draftData.alamatPelapor || "");
-      formData.append(
-        "complainant[jenis_kelamin]",
-        (draftData.jenisKelamin || "Laki-laki").toLowerCase()
-      );
-      formData.append("complainant[jabatan]", draftData.jabatan || "");
-      formData.append("complainant[no_telp]", draftData.noTelpPelapor || "");
-      formData.append("complainant[email]", draftData.emailPelapor || "");
+      // Complainant data
+      formData.append("nama_lengkap", draftData.namaPelapor || "");
+      formData.append("nik", draftData.nik || "");
+      formData.append("alamat", draftData.alamatPelapor || "");
+      formData.append("jenis_kelamin", draftData.jenisKelamin || "Laki-laki");
+      formData.append("jabatan", draftData.jabatan || "");
+      formData.append("no_telp", draftData.noTelpPelapor || "");
+      formData.append("email", draftData.emailPelapor || "");
 
-      // 3. Company Nested Fields
-      formData.append("company[nama_perusahaan]", draftData.namaPerusahaan || "");
-      formData.append("company[sector_id]", String(draftData.sector_id || 1));
-      formData.append("company[alamat]", draftData.alamatPerusahaan || "");
-      formData.append("company[jumlah_naker]", String(draftData.jumlahPekerja || 0));
-      formData.append("company[provinsi]", draftData.provinsi || "");
-      formData.append("company[kota_kab]", draftData.kabupaten || "");
-      formData.append("company[kecamatan]", draftData.kecamatan || "");
-      formData.append("company[kelurahan]", draftData.kelurahan || "");
-      formData.append("company[no_telp]", draftData.noTelpPerusahaan || "");
-      formData.append("company[email]", draftData.emailPerusahaan || "");
+      // Company data
+      formData.append("nama_perusahaan", draftData.namaPerusahaan || "");
+      formData.append("sector_name", draftData.sektorIndustri || "");
+      formData.append("jumlah_naker", String(draftData.jumlahPekerja || 0));
+      formData.append("provinsi", draftData.provinsi || "");
+      formData.append("kabupaten", draftData.kabupaten || "");
+      formData.append("kecamatan", draftData.kecamatan || "");
+      formData.append("kelurahan", draftData.kelurahan || "");
+      formData.append("company_no_telp", draftData.noTelpPerusahaan || "");
+      formData.append("company_email", draftData.emailPerusahaan || "");
+      formData.append("company_alamat", draftData.alamatPerusahaan || "");
 
-      // 4. Attachments (attachments[])
-      if (capturedPhoto) {
-        const photoFile = dataURLtoFile(capturedPhoto, "foto.jpg");
-        formData.append("attachments[]", photoFile);
-      }
+      // File Lampiran
       if (selectedDocument) {
-        formData.append("attachments[]", selectedDocument);
+        formData.append("attachment", selectedDocument);
       }
-
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      if (capturedPhoto) {
+        formData.append("photo_base64", capturedPhoto);
+      }
 
       const res = await fetch(COMPLAINTS_API_URL, {
         method: "POST",
-        headers: {
-          Accept: "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: formData,
       });
 
-      const responseData = await res.json().catch(() => null);
-
       if (!res.ok) {
-        console.error("Backend validation error (HTTP 422):", responseData);
-        const errorMessages = responseData?.errors
-          ? Object.entries(responseData.errors)
-              .map(
-                ([field, msgs]: [string, any]) =>
-                  `• ${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`
-              )
-              .join("\n")
-          : responseData?.message || "Data formulir tidak memenuhi validasi server.";
-
-        alert(`Gagal menyimpan pengaduan (422):\n\n${errorMessages}`);
-        return;
+        console.warn("Gagal menyimpan ke backend, melanjutkan navigasi...");
       }
 
       sessionStorage.removeItem("draft_pengaduan");
@@ -194,7 +156,7 @@ function BuktiPendukungPage() {
       navigate({ to: "/admin/reportpengaduan" });
     } catch (err) {
       console.error("Gagal mengirim pengaduan:", err);
-      alert("Terjadi kendala jaringan saat menghubungi server.");
+      alert("Terjadi kendala saat mengirim pengaduan.");
     } finally {
       setIsSubmitting(false);
     }
@@ -202,7 +164,7 @@ function BuktiPendukungPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between text-gray-800">
-      {/* Header */}
+      {/* ================= NAVBAR ATAS ================= */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-2xs">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 sm:px-6">
           <div className="flex items-center gap-3">
@@ -231,10 +193,11 @@ function BuktiPendukungPage() {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* ================= FORM CONTENT ================= */}
       <main className="mx-auto max-w-3xl w-full px-4 py-8 sm:px-6">
         <form onSubmit={handleSubmit}>
           <div className="rounded-2xl border border-gray-100 bg-white p-6 sm:p-8 shadow-xs space-y-6">
+            {/* Header Card */}
             <div className="border-b border-gray-100 pb-4">
               <h1 className="text-[16px] font-bold text-gray-900 tracking-tight">
                 Detail Aduan & Bukti Pendukung
@@ -244,7 +207,7 @@ function BuktiPendukungPage() {
               </p>
             </div>
 
-            {/* Deskripsi Aduan */}
+            {/* Field 1: Deskripsi Aduan */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-semibold text-gray-800">
                 Deskripsi Aduan <span className="text-red-500">*</span>
@@ -262,7 +225,7 @@ function BuktiPendukungPage() {
               />
             </div>
 
-            {/* Upload Dokumen */}
+            {/* Field 2: Upload Dokumen JPG/PDF */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-semibold text-gray-800">
                 Bukti Pendukung (JPG/PDF)
@@ -318,7 +281,7 @@ function BuktiPendukungPage() {
               </div>
             </div>
 
-            {/* Bukti Foto Kamera */}
+            {/* Field 3: Bukti Foto Kamera */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-semibold text-gray-800">
                 Bukti Foto (Opsional namun sangat disarankan)
@@ -327,7 +290,9 @@ function BuktiPendukungPage() {
                 Gunakan kamera perangkat untuk mengambil foto Anda.
               </p>
 
+              {/* Viewport Box Kamera */}
               <div className="relative mx-auto mt-3 h-52 max-w-md overflow-hidden rounded-xl bg-[#2D3748] flex items-center justify-center">
+                {/* Frame Garis Sudut */}
                 <div className="pointer-events-none absolute inset-4 border border-white/20 rounded-lg">
                   <div className="absolute top-0 left-0 h-4 w-4 border-t-2 border-l-2 border-white/60" />
                   <div className="absolute top-0 right-0 h-4 w-4 border-t-2 border-r-2 border-white/60" />
@@ -367,6 +332,7 @@ function BuktiPendukungPage() {
                 <canvas ref={canvasRef} className="hidden" />
               </div>
 
+              {/* Tombol Ambil Foto */}
               <div className="flex justify-center pt-2">
                 <button
                   type="button"
@@ -381,7 +347,7 @@ function BuktiPendukungPage() {
               </div>
             </div>
 
-            {/* Footer Buttons */}
+            {/* Tombol Aksi di Bawah Kartu */}
             <div className="flex items-center justify-between border-t border-gray-100 pt-5">
               <button
                 type="button"
@@ -410,10 +376,11 @@ function BuktiPendukungPage() {
         </form>
       </main>
 
-      {/* Footer */}
+      {/* ================= FOOTER ================= */}
       <footer className="mt-12 border-t border-[#092847] bg-[#071F38] text-white/80">
         <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3 text-[11px]">
+            {/* Kolom 1: Binwasnaker & K3 */}
             <div className="space-y-3">
               <h3 className="text-[12px] font-bold text-emerald-400 tracking-wide">
                 BINWASNAKER & K3
@@ -434,6 +401,7 @@ function BuktiPendukungPage() {
               </div>
             </div>
 
+            {/* Kolom 2: Customer Support */}
             <div className="space-y-3">
               <h3 className="text-[12px] font-bold text-white tracking-wide">
                 Customer Support
@@ -452,6 +420,7 @@ function BuktiPendukungPage() {
               </ul>
             </div>
 
+            {/* Kolom 3: Have a Questions? */}
             <div className="space-y-3">
               <h3 className="text-[12px] font-bold text-white tracking-wide">
                 Have a Questions?

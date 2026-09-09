@@ -17,6 +17,7 @@ import { Route as PengaduanRouteImport } from './routes/pengaduan'
 import { Route as SettingRouteImport } from './routes/setting'
 import { Route as SurveiRouteImport } from './routes/survei'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as AdminDetail_berkasRouteImport } from './routes/admin/detail_berkas'
 import { Route as AdminDetail_kategori_pelayananRouteImport } from './routes/admin/detail_kategori_pelayanan'
 import { Route as AdminGrafikRouteImport } from './routes/admin/grafik'
 import { Route as AdminKategori_pelayananRouteImport } from './routes/admin/kategori_pelayanan'
@@ -63,6 +64,11 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/admin/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDetail_berkasRoute = AdminDetail_berkasRouteImport.update({
+  id: '/admin/detail_berkas',
+  path: '/admin/detail_berkas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminDetail_kategori_pelayananRoute =
   AdminDetail_kategori_pelayananRouteImport.update({
     id: '/admin/detail_kategori_pelayanan',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/detail_berkas': typeof AdminDetail_berkasRoute
   '/admin/detail_kategori_pelayanan': typeof AdminDetail_kategori_pelayananRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/detail_berkas': typeof AdminDetail_berkasRoute
   '/admin/detail_kategori_pelayanan': typeof AdminDetail_kategori_pelayananRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/detail_berkas': typeof AdminDetail_berkasRoute
   '/admin/detail_kategori_pelayanan': typeof AdminDetail_kategori_pelayananRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/setting'
     | '/survei'
     | '/admin/dashboard'
+    | '/admin/detail_berkas'
     | '/admin/detail_kategori_pelayanan'
     | '/admin/grafik'
     | '/admin/kategori_pelayanan'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/setting'
     | '/survei'
     | '/admin/dashboard'
+    | '/admin/detail_berkas'
     | '/admin/detail_kategori_pelayanan'
     | '/admin/grafik'
     | '/admin/kategori_pelayanan'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/setting'
     | '/survei'
     | '/admin/dashboard'
+    | '/admin/detail_berkas'
     | '/admin/detail_kategori_pelayanan'
     | '/admin/grafik'
     | '/admin/kategori_pelayanan'
@@ -193,6 +205,7 @@ export interface RootRouteChildren {
   SettingRoute: typeof SettingRoute
   SurveiRoute: typeof SurveiRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDetail_berkasRoute: typeof AdminDetail_berkasRoute
   AdminDetail_kategori_pelayananRoute: typeof AdminDetail_kategori_pelayananRoute
   AdminGrafikRoute: typeof AdminGrafikRoute
   AdminKategori_pelayananRoute: typeof AdminKategori_pelayananRoute
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/detail_berkas': {
+      id: '/admin/detail_berkas'
+      path: '/admin/detail_berkas'
+      fullPath: '/admin/detail_berkas'
+      preLoaderRoute: typeof AdminDetail_berkasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/detail_kategori_pelayanan': {
       id: '/admin/detail_kategori_pelayanan'
       path: '/admin/detail_kategori_pelayanan'
@@ -305,6 +325,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingRoute: SettingRoute,
   SurveiRoute: SurveiRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminDetail_berkasRoute: AdminDetail_berkasRoute,
   AdminDetail_kategori_pelayananRoute: AdminDetail_kategori_pelayananRoute,
   AdminGrafikRoute: AdminGrafikRoute,
   AdminKategori_pelayananRoute: AdminKategori_pelayananRoute,

@@ -133,7 +133,7 @@ function DetailKategoriPage() {
     try {
       let allData: any[] = [];
       const res = await fetch(
-        `${COMPLAINTS_API_URL}?category_id=${categoryId}&per_page=100`,
+        `${COMPLAINTS_API_URL}?category_id=${categoryId}&per_page=50`,
         {
           method: "GET",
           headers: authHeaders,
@@ -233,7 +233,7 @@ function DetailKategoriPage() {
     setCurrentPage(1);
   };
 
-  const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
+const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
     try {
       setDownloadingId(complaintId);
       const token =
@@ -244,7 +244,7 @@ function DetailKategoriPage() {
         {
           method: "GET",
           headers: {
-            Accept: "application/pdf",
+            Accept: "application/pdf, application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         }
@@ -252,8 +252,32 @@ function DetailKategoriPage() {
 
       if (!response.ok) throw new Error("Gagal mengunduh PDF");
 
+      const contentType = response.headers.get("content-type") || "";
+
+      // Kasus 1: Backend mengembalikan JSON (berisi URL file storage)
+      if (contentType.includes("application/json")) {
+        const json = await response.json();
+        const fileUrl = json?.url || json?.data?.url || json?.pdf_url || json?.download_url;
+
+        if (fileUrl) {
+          const a = document.createElement("a");
+          a.href = fileUrl;
+          a.target = "_blank";
+          a.download = `Pengaduan_${ticketNumber ?? complaintId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          return;
+        }
+
+        throw new Error(json?.message || "Format data JSON tidak memuat URL file PDF.");
+      }
+
+      // Kasus 2: Backend mengembalikan Binary Stream File PDF murni
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadUrl = window.URL.createObjectURL(
+        new Blob([blob], { type: "application/pdf" })
+      );
       const a = document.createElement("a");
       a.href = downloadUrl;
       a.download = `Pengaduan_${ticketNumber ?? complaintId}.pdf`;
@@ -261,9 +285,9 @@ function DetailKategoriPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(downloadUrl);
-    } catch (err) {
-      console.error(err);
-      alert("Terjadi kesalahan saat mengunduh PDF pengaduan.");
+    } catch (err: any) {
+      console.error("Download error:", err);
+      alert(err.message || "Terjadi kesalahan saat mengunduh PDF pengaduan.");
     } finally {
       setDownloadingId(null);
     }
@@ -431,6 +455,7 @@ function DetailKategoriPage() {
                         <td className="px-6 py-3.5 text-gray-700">{perusahaan}</td>
                         <td className="px-6 py-3.5">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* Unduh PDF API */}
                             <button
                               type="button"
                               title="Unduh PDF"
@@ -447,19 +472,19 @@ function DetailKategoriPage() {
                               )}
                             </button>
 
+                            {/* Tombol Menuju Halaman Detail Berkas */}
                             <button
                               type="button"
                               title="Detail Berkas"
                               onClick={() => {
-                                alert(
-                                  `Nomor Tiket: ${item.ticket_number}\nStatus: ${item.status}\nDeskripsi: ${item.description || "-"}`
-                                );
+                                window.location.assign(`/admin/detail_berkas?id=${item.id}`);
                               }}
                               className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
                             >
                               <FileText className="h-3.5 w-3.5" />
                             </button>
 
+                            {/* Lihat */}
                             <button
                               type="button"
                               title="Lihat"
@@ -474,6 +499,7 @@ function DetailKategoriPage() {
                               <Eye className="h-3.5 w-3.5" />
                             </button>
 
+                            {/* Hapus */}
                             <button
                               type="button"
                               title="Hapus"
