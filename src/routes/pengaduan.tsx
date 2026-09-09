@@ -126,9 +126,7 @@ function FormulirPengaduanPage() {
   const [alamatPerusahaan, setAlamatPerusahaan] = useState("");
 
   // Inisialisasi tanggal di browser client untuk menghindari hydration warning
-  useEffect(() => {
-    setTanggalPelaporan(new Date().toISOString().split("T")[0]);
-  }, []);
+
 
   // 1. Fetch Kategori, Sektor, & Provinsi dari Backend
   useEffect(() => {

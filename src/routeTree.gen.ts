@@ -22,6 +22,7 @@ import { Route as AdminDetail_kategori_pelayananRouteImport } from './routes/adm
 import { Route as AdminGrafikRouteImport } from './routes/admin/grafik'
 import { Route as AdminKategori_pelayananRouteImport } from './routes/admin/kategori_pelayanan'
 import { Route as AdminReportpengaduanRouteImport } from './routes/admin/reportpengaduan'
+import { Route as AdminView_pdfRouteImport } from './routes/admin/view_pdf'
 import { Route as AdminWilayahRouteImport } from './routes/admin/wilayah'
 
 const IndexRoute = IndexRouteImport.update({
@@ -90,6 +91,11 @@ const AdminReportpengaduanRoute = AdminReportpengaduanRouteImport.update({
   path: '/admin/reportpengaduan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminView_pdfRoute = AdminView_pdfRouteImport.update({
+  id: '/admin/view_pdf',
+  path: '/admin/view_pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminWilayahRoute = AdminWilayahRouteImport.update({
   id: '/admin/wilayah',
   path: '/admin/wilayah',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
   '/admin/reportpengaduan': typeof AdminReportpengaduanRoute
+  '/admin/view_pdf': typeof AdminView_pdfRoute
   '/admin/wilayah': typeof AdminWilayahRoute
 }
 export interface FileRoutesByTo {
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
   '/admin/reportpengaduan': typeof AdminReportpengaduanRoute
+  '/admin/view_pdf': typeof AdminView_pdfRoute
   '/admin/wilayah': typeof AdminWilayahRoute
 }
 export interface FileRoutesById {
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
   '/admin/reportpengaduan': typeof AdminReportpengaduanRoute
+  '/admin/view_pdf': typeof AdminView_pdfRoute
   '/admin/wilayah': typeof AdminWilayahRoute
 }
 export interface FileRouteTypes {
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/admin/grafik'
     | '/admin/kategori_pelayanan'
     | '/admin/reportpengaduan'
+    | '/admin/view_pdf'
     | '/admin/wilayah'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/admin/grafik'
     | '/admin/kategori_pelayanan'
     | '/admin/reportpengaduan'
+    | '/admin/view_pdf'
     | '/admin/wilayah'
   id:
     | '__root__'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/admin/grafik'
     | '/admin/kategori_pelayanan'
     | '/admin/reportpengaduan'
+    | '/admin/view_pdf'
     | '/admin/wilayah'
   fileRoutesById: FileRoutesById
 }
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   AdminGrafikRoute: typeof AdminGrafikRoute
   AdminKategori_pelayananRoute: typeof AdminKategori_pelayananRoute
   AdminReportpengaduanRoute: typeof AdminReportpengaduanRoute
+  AdminView_pdfRoute: typeof AdminView_pdfRoute
   AdminWilayahRoute: typeof AdminWilayahRoute
 }
 
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminReportpengaduanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/view_pdf': {
+      id: '/admin/view_pdf'
+      path: '/admin/view_pdf'
+      fullPath: '/admin/view_pdf'
+      preLoaderRoute: typeof AdminView_pdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/wilayah': {
       id: '/admin/wilayah'
       path: '/admin/wilayah'
@@ -330,6 +350,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminGrafikRoute: AdminGrafikRoute,
   AdminKategori_pelayananRoute: AdminKategori_pelayananRoute,
   AdminReportpengaduanRoute: AdminReportpengaduanRoute,
+  AdminView_pdfRoute: AdminView_pdfRoute,
   AdminWilayahRoute: AdminWilayahRoute,
 }
 export const routeTree = rootRouteImport

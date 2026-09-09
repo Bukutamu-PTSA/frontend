@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 
-const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api/complaints";
+const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api";
 
 export const Route = createFileRoute("/admin/reportpengaduan")({
   head: () => ({
@@ -22,6 +22,8 @@ export const Route = createFileRoute("/admin/reportpengaduan")({
   }),
   component: ReportPengaduanPage,
 });
+
+
 
 const nf = new Intl.NumberFormat("id-ID");
 
@@ -76,7 +78,7 @@ function formatDateIndo(dateStr: string | null | undefined): string {
 function ReportPengaduanPage() {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState("Semua Bulan");
   const [year, setYear] = useState("2026");
@@ -103,7 +105,7 @@ function ReportPengaduanPage() {
 
     try {
       let allData: any[] = [];
-      const res = await fetch(`${COMPLAINTS_API_URL}?per_page=100`, {
+      const res = await fetch(`${COMPLAINTS_API_URL}/complaints?per_page=50`, {
         method: "GET",
         headers: authHeaders,
       });
@@ -123,7 +125,7 @@ function ReportPengaduanPage() {
         const lastPage = Number(json?.last_page ?? json?.data?.last_page ?? 1);
         if (lastPage > 1 && allData.length < Number(json?.total ?? json?.data?.total ?? 0)) {
           for (let p = 2; p <= lastPage; p++) {
-            const nextRes = await fetch(`${COMPLAINTS_API_URL}?page=${p}&per_page=100`, {
+            const nextRes = await fetch(`${COMPLAINTS_API_URL}/complaints?page=${p}&per_page=50`, {
               headers: authHeaders,
             });
             if (nextRes.ok) {
@@ -253,7 +255,7 @@ function ReportPengaduanPage() {
       localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     try {
-      const res = await fetch(`${COMPLAINTS_API_URL}/${id}`, {
+      const res = await fetch(`${COMPLAINTS_API_URL}/complaints/${id}`, {
         method: "DELETE",
         headers: {
           Accept: "application/json",
@@ -268,6 +270,65 @@ function ReportPengaduanPage() {
       }
     } catch (e) {
       console.error("Gagal menghapus aduan:", e);
+    }
+  };
+  const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
+    try {
+      setDownloadingId(complaintId);
+      const token =
+        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+
+      const response = await fetch(
+        `http://192.168.147.199:8000/api/complaints/${complaintId}/pdf`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/pdf, application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error("Gagal mengunduh PDF");
+
+      const contentType = response.headers.get("content-type") || "";
+
+      // Kasus 1: Backend mengembalikan JSON (berisi URL file storage)
+      if (contentType.includes("application/json")) {
+        const json = await response.json();
+        const fileUrl = json?.url || json?.data?.url || json?.pdf_url || json?.download_url;
+
+        if (fileUrl) {
+          const a = document.createElement("a");
+          a.href = fileUrl;
+          a.target = "_blank";
+          a.download = `Pengaduan_${ticketNumber ?? complaintId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          return;
+        }
+
+        throw new Error(json?.message || "Format data JSON tidak memuat URL file PDF.");
+      }
+
+      // Kasus 2: Backend mengembalikan Binary Stream File PDF murni
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(
+        new Blob([blob], { type: "application/pdf" })
+      );
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = `Pengaduan_${ticketNumber ?? complaintId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err: any) {
+      console.error("Download error:", err);
+      alert(err.message || "Terjadi kesalahan saat mengunduh PDF pengaduan.");
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -445,20 +506,18 @@ function ReportPengaduanPage() {
                             {/* Unduh */}
                             <button
                               type="button"
-                              title="Unduh"
-                              onClick={() => {
-                                const jsonStr = JSON.stringify(item, null, 2);
-                                const blob = new Blob([jsonStr], { type: "application/json" });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url;
-                                a.download = `Pengaduan_${item.ticket_number ?? item.id}.json`;
-                                a.click();
-                                URL.revokeObjectURL(url);
-                              }}
-                              className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
+                              title="Unduh PDF"
+                              disabled={downloadingId === item.id}
+                              onClick={() =>
+                                handleDownloadPdf(item.id, item.ticket_number)
+                              }
+                              className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer disabled:opacity-50"
                             >
-                              <Download className="h-3.5 w-3.5" />
+                              {downloadingId === item.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Download className="h-3.5 w-3.5" />
+                              )}
                             </button>
 
                             {/* Detail Berkas */}
@@ -466,19 +525,19 @@ function ReportPengaduanPage() {
                               type="button"
                               title="Detail Berkas"
                               onClick={() => {
-                                alert(`Nomor Tiket: ${item.ticket_number}\nStatus: ${item.status}\nDeskripsi: ${item.description || "-"}`);
+                                window.location.assign(`/admin/detail_berkas?id=${item.id}`);
                               }}
                               className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
                             >
                               <FileText className="h-3.5 w-3.5" />
                             </button>
-
                             {/* Lihat */}
+                              
                             <button
                               type="button"
                               title="Lihat"
                               onClick={() => {
-                                window.open(`/pengaduan?ticket=${item.ticket_number}`, "_blank");
+                                window.location.assign(`/admin/view_pdf?id=${item.id}`);
                               }}
                               className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
                             >

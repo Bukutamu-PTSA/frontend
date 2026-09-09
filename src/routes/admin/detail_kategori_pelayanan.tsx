@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 
-const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api/complaints";
+const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api";
 
 const CATEGORY_MAP: Record<number, { title: string; shortName: string }> = {
   1: { title: "Wajib Lapor Ketenagakerjaan", shortName: "WLKP" },
@@ -133,7 +133,7 @@ function DetailKategoriPage() {
     try {
       let allData: any[] = [];
       const res = await fetch(
-        `${COMPLAINTS_API_URL}?category_id=${categoryId}&per_page=50`,
+        `${COMPLAINTS_API_URL}/complaints?category_id=${categoryId}&per_page=50`,
         {
           method: "GET",
           headers: authHeaders,
@@ -300,7 +300,7 @@ const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => 
       localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     try {
-      const res = await fetch(`${COMPLAINTS_API_URL}/${deleteId}`, {
+      const res = await fetch(`${COMPLAINTS_API_URL}/complaints/${deleteId}`, {
         method: "DELETE",
         headers: {
           Accept: "application/json",
@@ -489,10 +489,7 @@ const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => 
                               type="button"
                               title="Lihat"
                               onClick={() => {
-                                window.open(
-                                  `/pengaduan?ticket=${item.ticket_number}`,
-                                  "_blank"
-                                );
+                                window.location.assign(`/admin/view_pdf?id=${item.id}`);
                               }}
                               className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
                             >
