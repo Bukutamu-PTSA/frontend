@@ -144,7 +144,7 @@ function AppShell({ children }) {
 								className: "h-9 w-9 rounded-full bg-slate-600 border border-white/20 overflow-hidden flex items-center justify-center text-xs font-semibold text-white",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 									src: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-									alt: "Ikko",
+									alt: "Zuan",
 									className: "h-full w-full object-cover",
 									onError: (e) => {
 										e.target.style.display = "none";
@@ -155,7 +155,7 @@ function AppShell({ children }) {
 							className: "min-w-0 flex-1",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "text-[11px] font-semibold text-white truncate",
-								children: "Ikko"
+								children: "Zuan"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "text-[9px] text-gray-400 truncate",
 								children: "Petugas Pelayanan"

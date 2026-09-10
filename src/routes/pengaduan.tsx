@@ -95,7 +95,7 @@ function FormulirPengaduanPage() {
   const [tanggalPelaporan, setTanggalPelaporan] = useState("");
   const [nomorTiket, setNomorTiket] = useState("");
 
-  const [namaPelapor, setNamaPelapor] = useState("Ikko");
+  const [namaPelapor, setNamaPelapor] = useState("Zuan");
   const [nik, setNik] = useState("");
   const [alamatPelapor, setAlamatPelapor] = useState("");
   const [jenisKelamin, setJenisKelamin] = useState<"Laki-laki" | "Perempuan">("Laki-laki");
