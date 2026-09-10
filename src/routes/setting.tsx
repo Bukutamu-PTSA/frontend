@@ -121,7 +121,7 @@ function SettingPage() {
                       key={card.title}
                       type="button"
                       onClick={() => card.to && navigate({ to: card.to })}
-                      className="group relative flex w-full items-start gap-3.5 rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] transition-shadow duration-200 hover:shadow-md"
+                      className="group relative flex w-full cursor-pointer items-start gap-3.5 rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] transition-shadow duration-200 hover:shadow-md"
                     >
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#016A61]/10 text-[#016A61]">
                         <Icon className="h-5 w-5" />

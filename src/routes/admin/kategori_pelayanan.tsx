@@ -19,6 +19,20 @@ import {
   Layers,
   Loader2,
   X,
+  Plus,
+  Check,
+  Users,
+  Briefcase,
+  Building,
+  GraduationCap,
+  Landmark,
+  Stethoscope,
+  Gavel,
+  Globe2,
+  HandCoins,
+  BookOpen,
+  ClipboardList,
+  Truck,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 
@@ -39,7 +53,8 @@ interface CategoryMeta {
   id: number;
   code: string;
   title: string;
-  icon: React.ElementType;
+  /** Ikon lucide (dipakai semua kategori). */
+  icon?: React.ElementType;
   iconColor: string;
   bgColor: string;
 }
@@ -59,6 +74,48 @@ const CATEGORIES_CONFIG: CategoryMeta[] = [
   { id: 12, code: "SKP", title: "SKP", icon: FileCheck, iconColor: "text-slate-600", bgColor: "bg-slate-100" },
 ];
 
+// Pilihan ikon dari lucide-react untuk kategori baru.
+const ICON_CHOICES: { name: string; icon: React.ElementType }[] = [
+  { name: "FileText", icon: FileText },
+  { name: "WalletCards", icon: WalletCards },
+  { name: "ShieldCheck", icon: ShieldCheck },
+  { name: "Handshake", icon: Handshake },
+  { name: "PersonStanding", icon: PersonStanding },
+  { name: "Clock3", icon: Clock3 },
+  { name: "Scale", icon: Scale },
+  { name: "BriefcaseBusiness", icon: BriefcaseBusiness },
+  { name: "HeartPulse", icon: HeartPulse },
+  { name: "Baby", icon: Baby },
+  { name: "Award", icon: Award },
+  { name: "FileCheck", icon: FileCheck },
+  { name: "Users", icon: Users },
+  { name: "Briefcase", icon: Briefcase },
+  { name: "Building", icon: Building },
+  { name: "GraduationCap", icon: GraduationCap },
+  { name: "Landmark", icon: Landmark },
+  { name: "Stethoscope", icon: Stethoscope },
+  { name: "Gavel", icon: Gavel },
+  { name: "Globe2", icon: Globe2 },
+  { name: "HandCoins", icon: HandCoins },
+  { name: "BookOpen", icon: BookOpen },
+  { name: "ClipboardList", icon: ClipboardList },
+  { name: "Truck", icon: Truck },
+];
+
+// Pilihan warna (mengikuti gaya kategori bawaan).
+const COLOR_CHOICES: { name: string; iconColor: string; bgColor: string; swatch: string }[] = [
+  { name: "Merah", iconColor: "text-red-500", bgColor: "bg-red-50", swatch: "bg-red-500" },
+  { name: "Oranye", iconColor: "text-orange-500", bgColor: "bg-orange-50", swatch: "bg-orange-500" },
+  { name: "Amber", iconColor: "text-amber-500", bgColor: "bg-amber-50", swatch: "bg-amber-500" },
+  { name: "Emerald", iconColor: "text-emerald-500", bgColor: "bg-emerald-50", swatch: "bg-emerald-500" },
+  { name: "Cyan", iconColor: "text-cyan-600", bgColor: "bg-cyan-50", swatch: "bg-cyan-600" },
+  { name: "Biru", iconColor: "text-blue-500", bgColor: "bg-blue-50", swatch: "bg-blue-500" },
+  { name: "Ungu", iconColor: "text-purple-500", bgColor: "bg-purple-50", swatch: "bg-purple-500" },
+  { name: "Slate", iconColor: "text-slate-600", bgColor: "bg-slate-100", swatch: "bg-slate-500" },
+];
+
+const DEFAULT_COLOR = COLOR_CHOICES[0]!;
+
 const nf = new Intl.NumberFormat("id-ID");
 
 function KategoriPelayananPage() {
@@ -67,6 +124,81 @@ function KategoriPelayananPage() {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [categoryCounts, setCategoryCounts] = useState<Record<number, number>>({});
+
+  // Kategori tambahan buatan admin (disimpan di state lokal untuk saat ini).
+  const [customCategories, setCustomCategories] = useState<CategoryMeta[]>([]);
+
+  // State modal "Tambah Kategori".
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [selectedIconName, setSelectedIconName] = useState<string | null>(null);
+  const [selectedColorName, setSelectedColorName] = useState<string>(
+    DEFAULT_COLOR.name
+  );
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const allCategories = [...CATEGORIES_CONFIG, ...customCategories];
+
+  const resetForm = () => {
+    setNewName("");
+    setSelectedIconName(null);
+    setSelectedColorName(DEFAULT_COLOR.name);
+    setFormError(null);
+  };
+
+  const handleCloseModal = () => {
+    setShowAddModal(false);
+    resetForm();
+  };
+
+  const handleSubmitCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    const name = newName.trim();
+    if (!name) {
+      setFormError("Nama kategori wajib diisi.");
+      return;
+    }
+    if (!selectedIconName) {
+      setFormError("Pilih salah satu logo kategori.");
+      return;
+    }
+
+    const iconChoice = ICON_CHOICES.find((c) => c.name === selectedIconName);
+    if (!iconChoice) {
+      setFormError("Ikon yang dipilih tidak valid.");
+      return;
+    }
+    const colorChoice =
+      COLOR_CHOICES.find((c) => c.name === selectedColorName) ?? DEFAULT_COLOR;
+
+    setSaving(true);
+    try {
+      // TODO(backend): kirim ke API pembuatan kategori bila sudah tersedia.
+      // Simpan `name`, nama ikon (selectedIconName), dan warna (selectedColorName).
+
+      const newCategory: CategoryMeta = {
+        id: Date.now(), // sementara, ganti dengan id dari backend
+        code: name.toUpperCase().replace(/\s+/g, "_"),
+        title: name.toUpperCase(),
+        icon: iconChoice.icon,
+        iconColor: colorChoice.iconColor,
+        bgColor: colorChoice.bgColor,
+      };
+
+      setCustomCategories((prev) => [...prev, newCategory]);
+      setCategoryCounts((prev) => ({ ...prev, [newCategory.id]: 0 }));
+      setShowAddModal(false);
+      resetForm();
+    } catch (err) {
+      console.error("Gagal menyimpan kategori:", err);
+      setFormError("Gagal menyimpan kategori. Coba lagi.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const formatDisplayDate = (dateStr: string | null) => {
     if (!dateStr) return "Semua Waktu";
@@ -102,9 +234,9 @@ function KategoriPelayananPage() {
     const csvContent =
       "data:text/csv;charset=utf-8," +
       "ID Kategori,Nama Kategori,Total Pengaduan\n" +
-      CATEGORIES_CONFIG.map(
-        (cat) => `"${cat.id}","${cat.title}",${categoryCounts[cat.id] ?? 0}`
-      ).join("\n");
+      allCategories
+        .map((cat) => `"${cat.id}","${cat.title}",${categoryCounts[cat.id] ?? 0}`)
+        .join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -230,12 +362,21 @@ function KategoriPelayananPage() {
               <Download className="h-3.5 w-3.5 text-gray-500" />
               <span>Export Laporan</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#032749] px-3.5 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-[#053a6b] transition-colors cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Tambah Kategori</span>
+            </button>
           </div>
         </div>
 
         {/* 12 Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {CATEGORIES_CONFIG.map((item) => {
+          {allCategories.map((item) => {
             const Icon = item.icon;
             const count = categoryCounts[item.id] ?? 0;
 
@@ -247,9 +388,11 @@ function KategoriPelayananPage() {
                 <div>
                   <div className="flex items-center gap-3.5 mb-6">
                     <div
-                      className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${item.bgColor}`}
+                      className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl ${item.bgColor}`}
                     >
-                      <Icon className={`h-6 w-6 ${item.iconColor}`} />
+                      {Icon ? (
+                        <Icon className={`h-6 w-6 ${item.iconColor}`} />
+                      ) : null}
                     </div>
                     <h2 className="text-[12px] font-bold text-gray-800 leading-snug tracking-wide uppercase">
                       {item.title}
@@ -287,6 +430,137 @@ function KategoriPelayananPage() {
           })}
         </div>
       </div>
+
+      {/* ================= MODAL TAMBAH KATEGORI ================= */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <button
+            aria-label="Tutup"
+            onClick={handleCloseModal}
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          />
+
+          {/* Panel */}
+          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <h2 className="text-[14px] font-bold text-gray-800">
+                Tambah Kategori Layanan
+              </h2>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitCategory} className="space-y-4 px-5 py-5">
+              {/* Nama Kategori */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Nama Kategori <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Contoh: Perlindungan Pekerja Migran"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
+                />
+              </div>
+
+              {/* Pilih Warna */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Warna
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {COLOR_CHOICES.map((color) => {
+                    const active = selectedColorName === color.name;
+                    return (
+                      <button
+                        key={color.name}
+                        type="button"
+                        title={color.name}
+                        onClick={() => setSelectedColorName(color.name)}
+                        className={`grid h-7 w-7 place-items-center rounded-full ${color.swatch} transition-transform ${
+                          active
+                            ? "ring-2 ring-offset-2 ring-[#032749] scale-105"
+                            : "hover:scale-105"
+                        }`}
+                      >
+                        {active && <Check className="h-3.5 w-3.5 text-white" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Pilih Logo (Ikon lucide) */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Logo Kategori <span className="text-red-500">*</span>
+                </label>
+                <div className="grid max-h-44 grid-cols-6 gap-2 overflow-y-auto rounded-lg border border-gray-200 p-2.5">
+                  {ICON_CHOICES.map(({ name, icon: Icon }) => {
+                    const active = selectedIconName === name;
+                    const color =
+                      COLOR_CHOICES.find((c) => c.name === selectedColorName) ??
+                      DEFAULT_COLOR;
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        title={name}
+                        onClick={() => setSelectedIconName(name)}
+                        className={`grid aspect-square place-items-center rounded-lg border transition-colors ${
+                          active
+                            ? `${color.bgColor} border-[#032749]`
+                            : "border-transparent hover:bg-gray-100"
+                        }`}
+                      >
+                        <Icon
+                          className={`h-5 w-5 ${
+                            active ? color.iconColor : "text-gray-500"
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-[10px] text-gray-400">
+                  Pilih salah satu ikon sebagai logo kategori.
+                </p>
+              </div>
+
+              {formError && (
+                <p className="text-xs font-medium text-red-500">{formError}</p>
+              )}
+
+              {/* Aksi */}
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-[12px] font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#032749] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[#053a6b] disabled:opacity-50"
+                >
+                  {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {saving ? "Menyimpan..." : "Simpan Kategori"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
