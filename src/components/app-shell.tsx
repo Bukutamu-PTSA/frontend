@@ -62,10 +62,10 @@ const nav: NavGroup[] = [
         exactPaths: ["/admin/reportpengaduan", "/admin/reportpengaduan"],
       },
       {
-        to: "/survei",
+        to: "/admin/reportsurvei",
         icon: FileText,
         name: "Report Survei",
-        exactPaths: ["/survei", "/admin/survei"],
+        exactPaths: ["/admin/reportsurvei", "/admin/survei"],
       },
     ],
   },
@@ -84,7 +84,7 @@ const nav: NavGroup[] = [
     label: "Tools",
     items: [
       {
-        to: "/admin/dashboard",
+        to: "/setting",
         icon: Settings,
         name: "Pengaturan",
         exactPaths: ["/setting", "/admin/pengaturan"],
