@@ -1,1 +1,0 @@
-import{o as e}from"./index-CPzTcZAI.js";var t=e();function n(){return(0,t.jsx)(`div`,{children:`Hello "/admin/wilayah"!`})}export{n as component};

@@ -1,7 +1,4 @@
 import { A as rootRouteId, M as createLRUCache, N as invariant, P as decodePath, S as createInlineCssStyleAsset, b as TSR_SCRIPT_BARRIER_ID, w as getStylesheetHref, x as createInlineCssPlaceholderAsset, y as GLOBAL_TSR } from "./react-router+[...].mjs";
-//#region node_modules/unenv/dist/runtime/polyfill/globalthis.mjs
-var globalthis_default = globalThis;
-//#endregion
 //#region node_modules/seroval/dist/index.js
 var SYM_ASYNC_ITERATOR = Symbol.asyncIterator;
 var SYM_HAS_INSTANCE = Symbol.hasInstance;
@@ -214,7 +211,7 @@ else if (typeof self !== "undefined") Object.defineProperty(self, REFERENCES_KEY
 	writable: false,
 	enumerable: false
 });
-else if (typeof globalthis_default !== "undefined") Object.defineProperty(globalthis_default, REFERENCES_KEY, {
+else if (typeof global !== "undefined") Object.defineProperty(global, REFERENCES_KEY, {
 	value: INV_REFERENCE,
 	configurable: true,
 	writable: false,
