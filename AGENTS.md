@@ -1,10 +1,14 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# AGENTS
+
+Project guidance for AI coding agents working in this repository.
+
+## Stack
+- TanStack Start (React 19) with TanStack Router and TanStack Query
+- Vite build with Nitro server output
+- Tailwind CSS v4
+- TypeScript (strict)
+
+## Conventions
+- Use the `@/` path alias for imports from `src/`.
+- Keep the app in a working, buildable state.
+- Run `npm run build` (or `bun run build`) to verify changes compile.
