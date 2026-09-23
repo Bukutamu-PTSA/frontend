@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as Bukti_pendukungRouteImport } from './routes/bukti_pendukung'
 import { Route as ChatRouteImport } from './routes/chat'
-import { Route as FaqpageRouteImport } from './routes/faqpage'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PengaduanRouteImport } from './routes/pengaduan'
 import { Route as SurveiRouteImport } from './routes/survei'
@@ -25,7 +24,6 @@ import { Route as AdminDetail_kategori_pelayananRouteImport } from './routes/adm
 import { Route as AdminEdit_skalaRouteImport } from './routes/admin/edit_skala'
 import { Route as AdminEdit_surveiRouteImport } from './routes/admin/edit_survei'
 import { Route as AdminEdit_userRouteImport } from './routes/admin/edit_user'
-import { Route as AdminFaqRouteImport } from './routes/admin/faq'
 import { Route as AdminGrafikRouteImport } from './routes/admin/grafik'
 import { Route as AdminJenis_pengaduanRouteImport } from './routes/admin/jenis_pengaduan'
 import { Route as AdminKategori_pelayananRouteImport } from './routes/admin/kategori_pelayanan'
@@ -51,11 +49,6 @@ const Bukti_pendukungRoute = Bukti_pendukungRouteImport.update({
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FaqpageRoute = FaqpageRouteImport.update({
-  id: '/faqpage',
-  path: '/faqpage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -119,11 +112,6 @@ const AdminEdit_userRoute = AdminEdit_userRouteImport.update({
   path: '/admin/edit_user',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminFaqRoute = AdminFaqRouteImport.update({
-  id: '/admin/faq',
-  path: '/admin/faq',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminGrafikRoute = AdminGrafikRouteImport.update({
   id: '/admin/grafik',
   path: '/admin/grafik',
@@ -184,7 +172,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
-  '/faqpage': typeof FaqpageRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/survei': typeof SurveiRoute
@@ -197,7 +184,6 @@ export interface FileRoutesByFullPath {
   '/admin/edit_skala': typeof AdminEdit_skalaRoute
   '/admin/edit_survei': typeof AdminEdit_surveiRoute
   '/admin/edit_user': typeof AdminEdit_userRoute
-  '/admin/faq': typeof AdminFaqRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/jenis_pengaduan': typeof AdminJenis_pengaduanRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
@@ -214,7 +200,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
-  '/faqpage': typeof FaqpageRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/survei': typeof SurveiRoute
@@ -227,7 +212,6 @@ export interface FileRoutesByTo {
   '/admin/edit_skala': typeof AdminEdit_skalaRoute
   '/admin/edit_survei': typeof AdminEdit_surveiRoute
   '/admin/edit_user': typeof AdminEdit_userRoute
-  '/admin/faq': typeof AdminFaqRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/jenis_pengaduan': typeof AdminJenis_pengaduanRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
@@ -245,7 +229,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
-  '/faqpage': typeof FaqpageRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/survei': typeof SurveiRoute
@@ -258,7 +241,6 @@ export interface FileRoutesById {
   '/admin/edit_skala': typeof AdminEdit_skalaRoute
   '/admin/edit_survei': typeof AdminEdit_surveiRoute
   '/admin/edit_user': typeof AdminEdit_userRoute
-  '/admin/faq': typeof AdminFaqRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/jenis_pengaduan': typeof AdminJenis_pengaduanRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
@@ -277,7 +259,6 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
-    | '/faqpage'
     | '/login'
     | '/pengaduan'
     | '/survei'
@@ -290,7 +271,6 @@ export interface FileRouteTypes {
     | '/admin/edit_skala'
     | '/admin/edit_survei'
     | '/admin/edit_user'
-    | '/admin/faq'
     | '/admin/grafik'
     | '/admin/jenis_pengaduan'
     | '/admin/kategori_pelayanan'
@@ -307,7 +287,6 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
-    | '/faqpage'
     | '/login'
     | '/pengaduan'
     | '/survei'
@@ -320,7 +299,6 @@ export interface FileRouteTypes {
     | '/admin/edit_skala'
     | '/admin/edit_survei'
     | '/admin/edit_user'
-    | '/admin/faq'
     | '/admin/grafik'
     | '/admin/jenis_pengaduan'
     | '/admin/kategori_pelayanan'
@@ -337,7 +315,6 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
-    | '/faqpage'
     | '/login'
     | '/pengaduan'
     | '/survei'
@@ -350,7 +327,6 @@ export interface FileRouteTypes {
     | '/admin/edit_skala'
     | '/admin/edit_survei'
     | '/admin/edit_user'
-    | '/admin/faq'
     | '/admin/grafik'
     | '/admin/jenis_pengaduan'
     | '/admin/kategori_pelayanan'
@@ -368,7 +344,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   Bukti_pendukungRoute: typeof Bukti_pendukungRoute
   ChatRoute: typeof ChatRoute
-  FaqpageRoute: typeof FaqpageRoute
   LoginRoute: typeof LoginRoute
   PengaduanRoute: typeof PengaduanRoute
   SurveiRoute: typeof SurveiRoute
@@ -381,7 +356,6 @@ export interface RootRouteChildren {
   AdminEdit_skalaRoute: typeof AdminEdit_skalaRoute
   AdminEdit_surveiRoute: typeof AdminEdit_surveiRoute
   AdminEdit_userRoute: typeof AdminEdit_userRoute
-  AdminFaqRoute: typeof AdminFaqRoute
   AdminGrafikRoute: typeof AdminGrafikRoute
   AdminJenis_pengaduanRoute: typeof AdminJenis_pengaduanRoute
   AdminKategori_pelayananRoute: typeof AdminKategori_pelayananRoute
@@ -416,13 +390,6 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/faqpage': {
-      id: '/faqpage'
-      path: '/faqpage'
-      fullPath: '/faqpage'
-      preLoaderRoute: typeof FaqpageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -509,13 +476,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminEdit_userRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/faq': {
-      id: '/admin/faq'
-      path: '/admin/faq'
-      fullPath: '/admin/faq'
-      preLoaderRoute: typeof AdminFaqRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin/grafik': {
       id: '/admin/grafik'
       path: '/admin/grafik'
@@ -600,7 +560,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   Bukti_pendukungRoute: Bukti_pendukungRoute,
   ChatRoute: ChatRoute,
-  FaqpageRoute: FaqpageRoute,
   LoginRoute: LoginRoute,
   PengaduanRoute: PengaduanRoute,
   SurveiRoute: SurveiRoute,
@@ -613,7 +572,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminEdit_skalaRoute: AdminEdit_skalaRoute,
   AdminEdit_surveiRoute: AdminEdit_surveiRoute,
   AdminEdit_userRoute: AdminEdit_userRoute,
-  AdminFaqRoute: AdminFaqRoute,
   AdminGrafikRoute: AdminGrafikRoute,
   AdminJenis_pengaduanRoute: AdminJenis_pengaduanRoute,
   AdminKategori_pelayananRoute: AdminKategori_pelayananRoute,
