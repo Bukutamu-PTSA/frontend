@@ -7,11 +7,17 @@ import {
   ChevronRight,
   ArrowUpDown,
   Check,
+  Download,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { apiUrl, authHeaders } from "@/lib/api";
 
-const BASE_API_URL = "http://192.168.147.199:8000/api";
-const PROVINCE_SUMMARY_API_URL = `${BASE_API_URL}/dashboard/province-summary`;
+const PROVINCE_SUMMARY_API_URL = apiUrl("dashboard/province-summary");
+// Ekspor rekapitulasi provinsi dalam bentuk PDF dari backend.
+const PROVINCE_PDF_API_URL = apiUrl("dashboard/province-summary/pdf");
+// Master kategori pengaduan: sumber kolom tabel agar otomatis mengikuti
+// kategori terbaru (termasuk yang baru ditambahkan admin).
+const CATEGORIES_API_URL = apiUrl("complaint-categories");
 
 export const Route = createFileRoute("/admin/wilayah")({
   head: () => ({
@@ -24,18 +30,25 @@ export const Route = createFileRoute("/admin/wilayah")({
   component: DataProvinsiPage,
 });
 
-const CATEGORY_COLUMNS = [
-  { apiKey: "WAJIB_LAPOR", label: "WLKP" },
+interface CategoryColumn {
+  apiKey: string;
+  label: string;
+}
+
+// Cadangan bila API master kategori gagal dimuat.
+const DEFAULT_CATEGORY_COLUMNS: CategoryColumn[] = [
+  { apiKey: "WAJIB_LAPOR", label: "WAJIB LAPOR KETENAGAKERJAAN" },
   { apiKey: "UPAH_KERJA", label: "UPAH KERJA" },
   { apiKey: "JAMINAN_SOSIAL", label: "JAMINAN SOSIAL" },
   { apiKey: "HUBUNGAN_KERJA", label: "HUBUNGAN KERJA" },
   { apiKey: "KECELAKAAN_KERJA", label: "KECELAKAAN KERJA" },
-  { apiKey: "WAKTU_KERJA", label: "WAKTU KERJA WAKTU ISTIRAHAT" },
-  { apiKey: "PENEMPATAN_TK", label: "TENAGA KERJA DALAM & LN" },
-  { apiKey: "K3", label: "K3" },
-  { apiKey: "PEREMPUAN ANAK", label: "PEREMPUAN & K3" },
-  { apiKey: "KADER NORMA", label: "KADER NORMA K3" },
-  { apiKey: "KADER K3", label: "KNK" },
+  { apiKey: "WAKTU_KERJA", label: "WAKTU KERJA & WAKTU ISTIRAHAT" },
+  { apiKey: "KADER_NORMA", label: "KADER NORMA KETENAGAKERJAAN" },
+  { apiKey: "PENEMPATAN_TK", label: "PENEMPATAN TK DALAM & LUAR NEGERI" },
+  { apiKey: "K3", label: "KESELAMATAN & KESEHATAN KERJA" },
+  { apiKey: "PEREMPUAN_ANAK", label: "PEREMPUAN & ANAK" },
+  { apiKey: "NORMA_K3", label: "KADER NORMA K3" },
+  { apiKey: "SKP", label: "SKP" },
 ];
 
 function toTitleCase(str: string): string {
@@ -71,88 +84,135 @@ interface ProvinsiRow {
   [key: string]: string | number;
 }
 
+// Ubah satu item mentah dari API menjadi baris tabel lengkap dengan nomor urut.
+function mapProvinsiItem(item: any, no: number, columns: CategoryColumn[]): ProvinsiRow {
+  let provName = toTitleCase(item.provinsi || "-");
+  if (
+    provName.toUpperCase().includes("DKI") ||
+    provName.toUpperCase().includes("IBUKOTA") ||
+    provName.toUpperCase().includes("JAKARTA")
+  ) {
+    provName = "Daerah Khusus Ibukota Jakarta";
+  }
+
+  // Normalisasi kunci category_counts (huruf besar) agar cocok dengan kode master.
+  const rawCounts = item.category_counts || {};
+  const counts: Record<string, number> = {};
+  Object.entries(rawCounts).forEach(([key, value]) => {
+    counts[String(key).trim().toUpperCase()] = Number(value ?? 0);
+  });
+
+  const rowObj: ProvinsiRow = {
+    no,
+    provinsi: provName,
+    total: Number(item.count ?? item.total ?? 0),
+  };
+
+  columns.forEach((col) => {
+    rowObj[col.apiKey] = counts[col.apiKey] ?? 0;
+  });
+
+  return rowObj;
+}
+
 function DataProvinsiPage() {
   const [loading, setLoading] = useState(true);
-  const [tableData, setTableData] = useState<ProvinsiRow[]>([]);
+  const [rawProvinces, setRawProvinces] = useState<any[]>([]);
+  const [categoryColumns, setCategoryColumns] =
+    useState<CategoryColumn[]>(DEFAULT_CATEGORY_COLUMNS);
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const [sortField, setSortField] = useState<string>("total");
   const [sortAsc, setSortAsc] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(44);
   const itemsPerPage = 10;
 
+  // Ambil master kategori + SEMUA data provinsi sekali di awal (tarik seluruh
+  // halaman dari API), lalu paginasi/pencarian/sort dilakukan di sisi klien.
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchAllProvinces = async () => {
       setLoading(true);
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      const headers = authHeaders();
+
+      const extractList = (json: any): any[] =>
+        Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+
+      // 1. Master kategori -> kolom tabel. Otomatis ikut saat kategori baru
+      // ditambahkan, dan kategori tanpa aduan tetap tampil (nilai 0).
+      try {
+        const categoriesJson = await fetch(CATEGORIES_API_URL, { headers })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+
+        const columns: CategoryColumn[] = extractList(categoriesJson)
+          .map((c: any) => ({
+            apiKey: String(c.category_code ?? "")
+              .trim()
+              .toUpperCase(),
+            label: String(c.category_name ?? c.name ?? "")
+              .trim()
+              .toUpperCase(),
+          }))
+          .filter((c) => c.apiKey && c.label)
+          .filter((c, i, arr) => arr.findIndex((x) => x.apiKey === c.apiKey) === i);
+
+        if (columns.length > 0) setCategoryColumns(columns);
+      } catch (err) {
+        console.error("Gagal memuat master kategori:", err);
+      }
+
+      // 2. Data provinsi (per_page besar; fallback loop bila dibatasi backend).
+      const perPage = 100;
+
+      const buildUrl = (page: number) =>
+        `${PROVINCE_SUMMARY_API_URL}?with_categories=1&page=${page}&per_page=${perPage}`;
+
+      const fetchPage = async (page: number) => {
+        const res = await fetch(buildUrl(page), { headers });
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        return res.json();
+      };
 
       try {
-        const url = `${PROVINCE_SUMMARY_API_URL}?with_categories=1&page=${currentPage}&per_page=${itemsPerPage}`;
-        const res = await fetch(url, {
-          headers: {
-            Accept: "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
+        const first = await fetchPage(1);
+        const collected: any[] = extractList(first);
 
-        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        // Tentukan jumlah halaman total dari meta (mendukung beberapa bentuk respons).
+        const lastPage = Number(first?.meta?.last_page ?? first?.last_page ?? 1);
 
-        const json = await res.json();
-        const rawList: any[] = Array.isArray(json?.data) ? json.data : [];
-
-        // Hitung total provinsi yang benar (bukan total pengaduan 146)
-        const totalProvCount = Number(
-          json?.meta?.total_provinces ??
-          json?.meta?.total_data ??
-          (json?.meta?.last_page ? json.meta.last_page * itemsPerPage : null) ??
-          (json?.last_page ? json.last_page * itemsPerPage : null) ??
-          44
-        );
-        setTotalItems(totalProvCount);
-
-        const rows: ProvinsiRow[] = rawList.map((item: any, idx: number) => {
-          let provName = toTitleCase(item.provinsi || "-");
-          if (
-            provName.toUpperCase().includes("DKI") ||
-            provName.toUpperCase().includes("IBUKOTA") ||
-            provName.toUpperCase().includes("JAKARTA")
-          ) {
-            provName = "Daerah Khusus Ibukota Jakarta";
-          }
-
-          const counts = item.category_counts || {};
-
-          const rowObj: ProvinsiRow = {
-            no: (currentPage - 1) * itemsPerPage + idx + 1,
-            provinsi: provName,
-            total: Number(item.count ?? item.total ?? 0),
-          };
-
-          CATEGORY_COLUMNS.forEach((col) => {
-            rowObj[col.apiKey] = Number(counts[col.apiKey] ?? 0);
+        // Ambil sisa halaman (2..lastPage) secara paralel bila ada.
+        if (Number.isFinite(lastPage) && lastPage > 1) {
+          const pages = Array.from({ length: lastPage - 1 }, (_, i) => i + 2);
+          const results = await Promise.all(pages.map((p) => fetchPage(p)));
+          results.forEach((json) => {
+            collected.push(...extractList(json));
           });
+        }
 
-          return rowObj;
-        });
-
-        setTableData(rows);
+        setRawProvinces(collected);
       } catch (err) {
         console.error("Gagal memuat data provinsi:", err);
+        setRawProvinces([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [currentPage]);
+    fetchAllProvinces();
+  }, []);
+
+  // Baris tabel dibangun ulang ketika kolom kategori ikut berubah.
+  const tableData = useMemo(
+    () => rawProvinces.map((item, idx) => mapProvinsiItem(item, idx + 1, categoryColumns)),
+    [rawProvinces, categoryColumns],
+  );
 
   const filteredData = useMemo(() => {
     const result = tableData.filter((row) =>
-      row.provinsi.toLowerCase().includes(search.toLowerCase().trim())
+      row.provinsi.toLowerCase().includes(search.toLowerCase().trim()),
     );
 
     result.sort((a, b) => {
@@ -170,10 +230,29 @@ function DataProvinsiPage() {
     return result;
   }, [tableData, search, sortField, sortAsc]);
 
+  // Total item mengikuti jumlah data hasil filter (seluruh provinsi yang tertarik).
+  const totalItems = filteredData.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+
+  // Kembali ke halaman 1 bila filter/urutan berubah agar tidak "nyangkut".
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, sortField, sortAsc]);
+
+  // Jaga currentPage tetap valid setelah data/filter berubah.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  // Potongan data yang ditampilkan pada halaman aktif (paginasi sisi klien).
+  const pagedData = useMemo(
+    () => filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage),
+    [filteredData, currentPage, itemsPerPage],
+  );
+
   const paginationRange = useMemo(
     () => getPaginationRange(currentPage, totalPages),
-    [currentPage, totalPages]
+    [currentPage, totalPages],
   );
 
   const handleSort = (field: string) => {
@@ -185,34 +264,182 @@ function DataProvinsiPage() {
     }
   };
 
-  const handleCopy = () => {
-    const headers = ["NO", "PROVINSI", "TOTAL", ...CATEGORY_COLUMNS.map((c) => c.label)].join("\t");
-    const body = filteredData
-      .map((r: ProvinsiRow) =>
-        [r.no, r.provinsi, r.total, ...CATEGORY_COLUMNS.map((c) => r[c.apiKey] ?? 0)].join("\t")
-      )
-      .join("\n");
+  // Susun header & baris data (nomor urut mengikuti urutan hasil filter/sort,
+  // sehingga penomoran tetap berlanjut di setiap halaman).
+  const buildExportData = () => {
+    const headers = ["NO", "PROVINSI", "TOTAL", ...categoryColumns.map((c) => c.label)];
 
-    navigator.clipboard.writeText(`${headers}\n${body}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const rows = filteredData.map((r: ProvinsiRow, index: number) => [
+      index + 1,
+      r.provinsi,
+      r.total,
+      ...categoryColumns.map((c) => Number(r[c.apiKey] ?? 0)),
+    ]);
+
+    return { headers, rows };
   };
 
-  const handleExportCsv = () => {
-    const headers = ["NO", "PROVINSI", "TOTAL", ...CATEGORY_COLUMNS.map((c) => `"${c.label}"`)].join(",");
-    const rows = filteredData
-      .map((r: ProvinsiRow) =>
-        [r.no, `"${r.provinsi}"`, r.total, ...CATEGORY_COLUMNS.map((c) => r[c.apiKey] ?? 0)].join(",")
-      )
-      .join("\n");
+  const fileStamp = () => new Date().toISOString().split("T")[0];
 
-    const blob = new Blob([`${headers}\n${rows}`], { type: "text/csv;charset=utf-8;" });
+  const downloadFile = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Data_Provinsi_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleCopy = async () => {
+    const { headers, rows } = buildExportData();
+    const text = `${headers.join("\t")}\n${rows.map((row) => row.join("\t")).join("\n")}`;
+
+    const copyViaFallback = () => {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return ok;
+    };
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else if (!copyViaFallback()) {
+        throw new Error("Gagal menyalin ke clipboard.");
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Gagal menyalin data:", err);
+    }
+  };
+
+  const handleExportCsv = () => {
+    const { headers, rows } = buildExportData();
+    const escapeCell = (cell: string | number) => `"${String(cell).replace(/"/g, '""')}"`;
+
+    const csv = [
+      headers.map(escapeCell).join(","),
+      ...rows.map((row) => row.map(escapeCell).join(",")),
+    ].join("\n");
+
+    downloadFile(
+      new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" }),
+      `Data_Provinsi_${fileStamp()}.csv`,
+    );
+  };
+
+  const handleExportExcel = () => {
+    const { headers, rows } = buildExportData();
+
+    const table = `
+      <table border="1">
+        <thead>
+          <tr>${headers
+            .map((h) => `<th style="background:#EDF3F8;font-weight:bold;">${h}</th>`)
+            .join("")}</tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
+            .join("")}
+        </tbody>
+      </table>`;
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8" /></head><body>${table}</body></html>`;
+
+    downloadFile(
+      new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8;" }),
+      `Data_Provinsi_${fileStamp()}.xls`,
+    );
+  };
+
+  // Cetak / simpan sebagai PDF memakai dialog print browser (untuk tombol Print).
+  const handlePrintPdf = () => {
+    window.print();
+  };
+
+  // Unduh rekapitulasi provinsi sebagai PDF dari endpoint backend.
+  const handleExportPdf = async () => {
+    if (downloadingPdf) return;
+    try {
+      setDownloadingPdf(true);
+      const response = await fetch(PROVINCE_PDF_API_URL, {
+        method: "GET",
+        headers: {
+          Accept: "application/pdf, application/json",
+          ...authHeaders(),
+        },
+      });
+
+      if (!response.ok) {
+        let message = `Gagal mengunduh PDF (HTTP ${response.status}).`;
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const json = await response.json().catch(() => null);
+          message =
+            json?.message ||
+            json?.data?.message ||
+            (json?.errors && typeof json.errors === "object"
+              ? Object.values(json.errors).flat().join(", ")
+              : "") ||
+            message;
+        }
+        throw new Error(message);
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+
+      if (response.redirected) {
+        const a = document.createElement("a");
+        a.href = response.url;
+        a.target = "_blank";
+        a.download = `Data_Provinsi_${fileStamp()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
+      }
+
+      // Kasus 1: Backend mengembalikan JSON berisi URL file storage.
+      if (contentType.includes("application/json")) {
+        const json = await response.json();
+        const fileUrl = json?.url || json?.data?.url || json?.pdf_url || json?.download_url;
+
+        if (fileUrl) {
+          const a = document.createElement("a");
+          a.href = fileUrl;
+          a.target = "_blank";
+          a.download = `Data_Provinsi_${fileStamp()}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          return;
+        }
+
+        throw new Error(json?.message || "Format data JSON tidak memuat URL file PDF.");
+      }
+
+      // Kasus 2: Backend mengembalikan binary stream PDF murni.
+      if (!contentType.includes("application/pdf")) {
+        throw new Error(
+          `Respons tidak dikenali (${contentType || "tanpa content-type"}). Periksa endpoint backend.`,
+        );
+      }
+
+      const blob = await response.blob();
+      downloadFile(blob, `Data_Provinsi_${fileStamp()}.pdf`);
+    } catch (err: any) {
+      console.error("Export PDF error:", err);
+      alert(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   return (
@@ -220,9 +447,7 @@ function DataProvinsiPage() {
       <div className="space-y-4">
         {/* Header */}
         <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-xs print:hidden">
-          <h1 className="text-[17px] font-bold text-gray-900 tracking-tight">
-            Data Provinsi
-          </h1>
+          <h1 className="text-[17px] font-bold text-gray-900 tracking-tight">Data Provinsi</h1>
           <p className="text-[11.5px] text-gray-500 mt-0.5">
             Rekapitulasi persebaran pelayanan aduan masyarakat di seluruh provinsi
           </p>
@@ -249,21 +474,27 @@ function DataProvinsiPage() {
               </button>
               <button
                 type="button"
-                onClick={handleExportCsv}
+                onClick={handleExportExcel}
                 className="px-3 py-1.5 hover:bg-gray-50 rounded-md transition-colors cursor-pointer border-r border-gray-100"
               >
                 Excel
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="px-3 py-1.5 hover:bg-gray-50 rounded-md transition-colors cursor-pointer border-r border-gray-100"
+                onClick={handleExportPdf}
+                disabled={downloadingPdf}
+                className="px-3 py-1.5 hover:bg-gray-50 rounded-md transition-colors cursor-pointer border-r border-gray-100 flex items-center gap-1 disabled:opacity-60"
               >
-                PDF
+                {downloadingPdf ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
+                <span>{downloadingPdf ? "Memuat…" : "PDF"}</span>
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={handlePrintPdf}
                 className="px-3 py-1.5 hover:bg-gray-50 rounded-md transition-colors cursor-pointer"
               >
                 Print
@@ -311,7 +542,7 @@ function DataProvinsiPage() {
                       <ArrowUpDown className="h-3 w-3 opacity-60" />
                     </div>
                   </th>
-                  {CATEGORY_COLUMNS.map((cat) => (
+                  {categoryColumns.map((cat) => (
                     <th
                       key={cat.apiKey}
                       onClick={() => handleSort(cat.apiKey)}
@@ -329,7 +560,7 @@ function DataProvinsiPage() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={CATEGORY_COLUMNS.length + 3}
+                      colSpan={categoryColumns.length + 3}
                       className="px-6 py-14 text-center text-gray-400"
                     >
                       <div className="flex items-center justify-center gap-2">
@@ -341,32 +572,24 @@ function DataProvinsiPage() {
                 ) : filteredData.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={CATEGORY_COLUMNS.length + 3}
+                      colSpan={categoryColumns.length + 3}
                       className="px-6 py-10 text-center text-gray-400"
                     >
                       Tidak ada data provinsi yang ditemukan.
                     </td>
                   </tr>
                 ) : (
-                  filteredData.map((row: ProvinsiRow) => (
-                    <tr
-                      key={row.provinsi}
-                      className="hover:bg-gray-50/70 transition-colors"
-                    >
+                  pagedData.map((row: ProvinsiRow, index: number) => (
+                    <tr key={row.no} className="hover:bg-gray-50/70 transition-colors">
                       <td className="px-3 py-3.5 text-center text-gray-500 font-medium">
-                        {row.no}
+                        {(currentPage - 1) * itemsPerPage + index + 1}
                       </td>
-                      <td className="px-4 py-3.5 font-medium text-gray-800">
-                        {row.provinsi}
-                      </td>
+                      <td className="px-4 py-3.5 font-medium text-gray-800">{row.provinsi}</td>
                       <td className="px-3 py-3.5 text-center font-bold text-gray-900 bg-blue-50/30">
                         {row.total}
                       </td>
-                      {CATEGORY_COLUMNS.map((cat) => (
-                        <td
-                          key={cat.apiKey}
-                          className="px-3 py-3.5 text-center text-gray-600"
-                        >
+                      {categoryColumns.map((cat) => (
+                        <td key={cat.apiKey} className="px-3 py-3.5 text-center text-gray-600">
                           {row[cat.apiKey] ?? 0}
                         </td>
                       ))}
@@ -380,8 +603,8 @@ function DataProvinsiPage() {
           {/* Pagination Footer */}
           <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3.5 border-t border-gray-100 gap-3 print:hidden">
             <p className="text-[11px] text-gray-500">
-              Menampilkan {filteredData.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to{" "}
-              {(currentPage - 1) * itemsPerPage + filteredData.length} dari {totalItems} data
+              Menampilkan {totalItems ? (currentPage - 1) * itemsPerPage + 1 : 0} to{" "}
+              {(currentPage - 1) * itemsPerPage + pagedData.length} dari {totalItems} data
             </p>
 
             <div className="flex items-center gap-1.5">
@@ -415,7 +638,7 @@ function DataProvinsiPage() {
                   >
                     {page}
                   </button>
-                )
+                ),
               )}
 
               <button

@@ -122,7 +122,12 @@ export const pengaduanWlkp = [
 
 export const settingMenu = [
   { no: 1, nama: "Halaman Beranda", desc: "Konten hero, banner, dan pengumuman", tone: "brand" },
-  { no: 2, nama: "Data Skala Perusahaan", desc: "Kelola klasifikasi mikro s.d. besar", tone: "brand" },
+  {
+    no: 2,
+    nama: "Data Skala Perusahaan",
+    desc: "Kelola klasifikasi mikro s.d. besar",
+    tone: "brand",
+  },
   { no: 3, nama: "Data Survei", desc: "Pertanyaan dan periode survei kepuasan", tone: "brand" },
   { no: 4, nama: "Userlogin", desc: "Akun petugas, peran, dan akses", tone: "brand" },
   { no: 5, nama: "Data Visitor", desc: "Statistik kunjungan layanan", tone: "brand" },

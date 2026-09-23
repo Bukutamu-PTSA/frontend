@@ -1,14 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import {
-  ArrowLeft,
-  MoreVertical,
-  Paperclip,
-  Phone,
-  Search,
-  Send,
-  Video,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, MoreVertical, Paperclip, Phone, Search, Send, Video } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { cn } from "@/lib/utils";
@@ -64,9 +56,19 @@ const initialThreads: ChatThread[] = [
     unread: 2,
     online: true,
     messages: [
-      { id: "m1", sender: "them", text: "Selamat pagi, saya mau tanya soal laporan WLKP saya.", time: "09:05" },
+      {
+        id: "m1",
+        sender: "them",
+        text: "Selamat pagi, saya mau tanya soal laporan WLKP saya.",
+        time: "09:05",
+      },
       { id: "m2", sender: "me", text: "Pagi Pak Budi, silakan. Bisa saya bantu?", time: "09:08" },
-      { id: "m3", sender: "them", text: "Statusnya masih diproses, kira-kira berapa lama ya?", time: "09:10" },
+      {
+        id: "m3",
+        sender: "them",
+        text: "Statusnya masih diproses, kira-kira berapa lama ya?",
+        time: "09:10",
+      },
       { id: "m4", sender: "me", text: "Biasanya 3–5 hari kerja. Saya cek dulu ya.", time: "09:12" },
       { id: "m5", sender: "them", text: "Baik, saya tunggu konfirmasinya.", time: "09:15" },
     ],
@@ -81,7 +83,12 @@ const initialThreads: ChatThread[] = [
     unread: 0,
     online: true,
     messages: [
-      { id: "m1", sender: "them", text: "Halo, saya sudah selesai verifikasi data provinsi.", time: "Kem" },
+      {
+        id: "m1",
+        sender: "them",
+        text: "Halo, saya sudah selesai verifikasi data provinsi.",
+        time: "Kem",
+      },
       { id: "m2", sender: "me", text: "Terima kasih, Dewi.", time: "Kem" },
       { id: "m3", sender: "them", text: "Data provinsi sudah saya update.", time: "Kem" },
     ],
@@ -96,8 +103,18 @@ const initialThreads: ChatThread[] = [
     unread: 1,
     online: false,
     messages: [
-      { id: "m1", sender: "them", text: "Selamat sore, ini bukti transfer gaji yang belum dibayar.", time: "Kem" },
-      { id: "m2", sender: "me", text: "Sore Pak, terima kasih. Saya teruskan ke tim verifikasi.", time: "Kem" },
+      {
+        id: "m1",
+        sender: "them",
+        text: "Selamat sore, ini bukti transfer gaji yang belum dibayar.",
+        time: "Kem",
+      },
+      {
+        id: "m2",
+        sender: "me",
+        text: "Sore Pak, terima kasih. Saya teruskan ke tim verifikasi.",
+        time: "Kem",
+      },
       { id: "m3", sender: "them", text: "Saya lampirkan bukti transfernya.", time: "Kem" },
     ],
   },
@@ -111,7 +128,12 @@ const initialThreads: ChatThread[] = [
     unread: 0,
     online: true,
     messages: [
-      { id: "m1", sender: "them", text: "Halo admin, ada 12 laporan menunggu review.", time: "Sen" },
+      {
+        id: "m1",
+        sender: "them",
+        text: "Halo admin, ada 12 laporan menunggu review.",
+        time: "Sen",
+      },
       { id: "m2", sender: "me", text: "Oke, saya cek segera.", time: "Sen" },
     ],
   },
@@ -125,7 +147,12 @@ const initialThreads: ChatThread[] = [
     unread: 0,
     online: false,
     messages: [
-      { id: "m1", sender: "them", text: "Permisi, BPJS Ketenagakerjaan saya belum aktif.", time: "Sen" },
+      {
+        id: "m1",
+        sender: "them",
+        text: "Permisi, BPJS Ketenagakerjaan saya belum aktif.",
+        time: "Sen",
+      },
       { id: "m2", sender: "me", text: "Bisa sertakan NIK dan nama perusahaan?", time: "Sen" },
       { id: "m3", sender: "them", text: "Sudah saya kirim via email.", time: "Sen" },
       { id: "m4", sender: "me", text: "Baik, kami proses.", time: "Sen" },
@@ -138,15 +165,25 @@ function ChatPage() {
   const [threads, setThreads] = useState<ChatThread[]>(initialThreads);
   const [activeId, setActiveId] = useState<string>(initialThreads[0]!.id);
   const [input, setInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showList, setShowList] = useState(true);
 
   const activeThread = threads.find((t) => t.id === activeId) || initialThreads[0]!;
 
+  const filteredThreads = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return threads;
+    return threads.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.role.toLowerCase().includes(q) ||
+        t.lastMessage.toLowerCase().includes(q),
+    );
+  }, [threads, searchQuery]);
+
   const handleSelect = (id: string) => {
     setActiveId(id);
-    setThreads((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, unread: 0 } : t))
-    );
+    setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, unread: 0 } : t)));
     if (window.innerWidth < 1024) setShowList(false);
   };
 
@@ -174,8 +211,8 @@ function ChatPage() {
               lastMessage: text,
               time,
             }
-          : t
-      )
+          : t,
+      ),
     );
     setInput("");
   };
@@ -195,7 +232,7 @@ function ChatPage() {
           <aside
             className={cn(
               "flex w-full flex-col border-r border-border bg-muted/30 lg:w-80",
-              showList ? "block" : "hidden lg:flex"
+              showList ? "block" : "hidden lg:flex",
             )}
           >
             <div className="border-b border-border px-4 py-4">
@@ -203,19 +240,26 @@ function ChatPage() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari percakapan…"
                   className="w-full rounded-xl border border-border bg-surface py-2 pl-9 pr-3 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
                 />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
-              {threads.map((thread) => (
+              {filteredThreads.length === 0 ? (
+                <div className="flex h-32 items-center justify-center px-4 text-center text-xs text-muted-foreground">
+                  Tidak ada percakapan yang cocok dengan pencarian.
+                </div>
+              ) : (
+                filteredThreads.map((thread) => (
                 <button
                   key={thread.id}
                   onClick={() => handleSelect(thread.id)}
                   className={cn(
                     "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/60",
-                    activeId === thread.id && "bg-accent"
+                    activeId === thread.id && "bg-accent",
                   )}
                 >
                   <div className="relative shrink-0">
@@ -228,16 +272,12 @@ function ChatPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-semibold">
-                        {thread.name}
-                      </p>
+                      <p className="truncate text-sm font-semibold">{thread.name}</p>
                       <span className="shrink-0 text-[11px] text-muted-foreground">
                         {thread.time}
                       </span>
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {thread.role}
-                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{thread.role}</p>
                     <p className="mt-0.5 truncate text-xs text-foreground/80">
                       {thread.lastMessage}
                     </p>
@@ -248,16 +288,14 @@ function ChatPage() {
                     </span>
                   )}
                 </button>
-              ))}
+                ))
+              )}
             </div>
           </aside>
 
           {/* Area percakapan */}
           <section
-            className={cn(
-              "flex flex-1 flex-col bg-surface",
-              showList ? "hidden lg:flex" : "flex"
-            )}
+            className={cn("flex flex-1 flex-col bg-surface", showList ? "hidden lg:flex" : "flex")}
           >
             {/* Header chat */}
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -278,9 +316,7 @@ function ChatPage() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
-                    {activeThread.name}
-                  </p>
+                  <p className="truncate text-sm font-semibold">{activeThread.name}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {activeThread.online ? "Aktif" : "Terakhir dilihat kemarin"}
                   </p>
@@ -305,17 +341,14 @@ function ChatPage() {
                 {activeThread.messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={cn(
-                      "flex",
-                      msg.sender === "me" ? "justify-end" : "justify-start"
-                    )}
+                    className={cn("flex", msg.sender === "me" ? "justify-end" : "justify-start")}
                   >
                     <div
                       className={cn(
                         "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm",
                         msg.sender === "me"
                           ? "rounded-br-sm bg-primary text-primary-foreground"
-                          : "rounded-bl-sm bg-muted text-foreground"
+                          : "rounded-bl-sm bg-muted text-foreground",
                       )}
                     >
                       <p>{msg.text}</p>
@@ -324,7 +357,7 @@ function ChatPage() {
                           "mt-1 text-right text-[10px]",
                           msg.sender === "me"
                             ? "text-primary-foreground/70"
-                            : "text-muted-foreground"
+                            : "text-muted-foreground",
                         )}
                       >
                         {msg.time}

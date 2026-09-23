@@ -12,9 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as Bukti_pendukungRouteImport } from './routes/bukti_pendukung'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as FaqpageRouteImport } from './routes/faqpage'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PengaduanRouteImport } from './routes/pengaduan'
-import { Route as SettingRouteImport } from './routes/setting'
 import { Route as SurveiRouteImport } from './routes/survei'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as AdminData_skalaRouteImport } from './routes/admin/data_skala'
@@ -25,12 +25,15 @@ import { Route as AdminDetail_kategori_pelayananRouteImport } from './routes/adm
 import { Route as AdminEdit_skalaRouteImport } from './routes/admin/edit_skala'
 import { Route as AdminEdit_surveiRouteImport } from './routes/admin/edit_survei'
 import { Route as AdminEdit_userRouteImport } from './routes/admin/edit_user'
+import { Route as AdminFaqRouteImport } from './routes/admin/faq'
 import { Route as AdminGrafikRouteImport } from './routes/admin/grafik'
 import { Route as AdminJenis_pengaduanRouteImport } from './routes/admin/jenis_pengaduan'
 import { Route as AdminKategori_pelayananRouteImport } from './routes/admin/kategori_pelayanan'
 import { Route as AdminManajemen_userRouteImport } from './routes/admin/manajemen_user'
+import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
 import { Route as AdminReportpengaduanRouteImport } from './routes/admin/reportpengaduan'
 import { Route as AdminReportsurveiRouteImport } from './routes/admin/reportsurvei'
+import { Route as AdminSettingRouteImport } from './routes/admin/setting'
 import { Route as AdminTambah_userRouteImport } from './routes/admin/tambah_user'
 import { Route as AdminView_pdfRouteImport } from './routes/admin/view_pdf'
 import { Route as AdminWilayahRouteImport } from './routes/admin/wilayah'
@@ -50,6 +53,11 @@ const ChatRoute = ChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FaqpageRoute = FaqpageRouteImport.update({
+  id: '/faqpage',
+  path: '/faqpage',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -58,11 +66,6 @@ const LoginRoute = LoginRouteImport.update({
 const PengaduanRoute = PengaduanRouteImport.update({
   id: '/pengaduan',
   path: '/pengaduan',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingRoute = SettingRouteImport.update({
-  id: '/setting',
-  path: '/setting',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SurveiRoute = SurveiRouteImport.update({
@@ -116,6 +119,11 @@ const AdminEdit_userRoute = AdminEdit_userRouteImport.update({
   path: '/admin/edit_user',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminFaqRoute = AdminFaqRouteImport.update({
+  id: '/admin/faq',
+  path: '/admin/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminGrafikRoute = AdminGrafikRouteImport.update({
   id: '/admin/grafik',
   path: '/admin/grafik',
@@ -136,6 +144,11 @@ const AdminManajemen_userRoute = AdminManajemen_userRouteImport.update({
   path: '/admin/manajemen_user',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/admin/notifications',
+  path: '/admin/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminReportpengaduanRoute = AdminReportpengaduanRouteImport.update({
   id: '/admin/reportpengaduan',
   path: '/admin/reportpengaduan',
@@ -144,6 +157,11 @@ const AdminReportpengaduanRoute = AdminReportpengaduanRouteImport.update({
 const AdminReportsurveiRoute = AdminReportsurveiRouteImport.update({
   id: '/admin/reportsurvei',
   path: '/admin/reportsurvei',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingRoute = AdminSettingRouteImport.update({
+  id: '/admin/setting',
+  path: '/admin/setting',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminTambah_userRoute = AdminTambah_userRouteImport.update({
@@ -166,9 +184,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
+  '/faqpage': typeof FaqpageRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
-  '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/data_skala': typeof AdminData_skalaRoute
@@ -179,12 +197,15 @@ export interface FileRoutesByFullPath {
   '/admin/edit_skala': typeof AdminEdit_skalaRoute
   '/admin/edit_survei': typeof AdminEdit_surveiRoute
   '/admin/edit_user': typeof AdminEdit_userRoute
+  '/admin/faq': typeof AdminFaqRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/jenis_pengaduan': typeof AdminJenis_pengaduanRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
   '/admin/manajemen_user': typeof AdminManajemen_userRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reportpengaduan': typeof AdminReportpengaduanRoute
   '/admin/reportsurvei': typeof AdminReportsurveiRoute
+  '/admin/setting': typeof AdminSettingRoute
   '/admin/tambah_user': typeof AdminTambah_userRoute
   '/admin/view_pdf': typeof AdminView_pdfRoute
   '/admin/wilayah': typeof AdminWilayahRoute
@@ -193,9 +214,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
+  '/faqpage': typeof FaqpageRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
-  '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/data_skala': typeof AdminData_skalaRoute
@@ -206,12 +227,15 @@ export interface FileRoutesByTo {
   '/admin/edit_skala': typeof AdminEdit_skalaRoute
   '/admin/edit_survei': typeof AdminEdit_surveiRoute
   '/admin/edit_user': typeof AdminEdit_userRoute
+  '/admin/faq': typeof AdminFaqRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/jenis_pengaduan': typeof AdminJenis_pengaduanRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
   '/admin/manajemen_user': typeof AdminManajemen_userRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reportpengaduan': typeof AdminReportpengaduanRoute
   '/admin/reportsurvei': typeof AdminReportsurveiRoute
+  '/admin/setting': typeof AdminSettingRoute
   '/admin/tambah_user': typeof AdminTambah_userRoute
   '/admin/view_pdf': typeof AdminView_pdfRoute
   '/admin/wilayah': typeof AdminWilayahRoute
@@ -221,9 +245,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
+  '/faqpage': typeof FaqpageRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
-  '/setting': typeof SettingRoute
   '/survei': typeof SurveiRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/data_skala': typeof AdminData_skalaRoute
@@ -234,12 +258,15 @@ export interface FileRoutesById {
   '/admin/edit_skala': typeof AdminEdit_skalaRoute
   '/admin/edit_survei': typeof AdminEdit_surveiRoute
   '/admin/edit_user': typeof AdminEdit_userRoute
+  '/admin/faq': typeof AdminFaqRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/jenis_pengaduan': typeof AdminJenis_pengaduanRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
   '/admin/manajemen_user': typeof AdminManajemen_userRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reportpengaduan': typeof AdminReportpengaduanRoute
   '/admin/reportsurvei': typeof AdminReportsurveiRoute
+  '/admin/setting': typeof AdminSettingRoute
   '/admin/tambah_user': typeof AdminTambah_userRoute
   '/admin/view_pdf': typeof AdminView_pdfRoute
   '/admin/wilayah': typeof AdminWilayahRoute
@@ -250,9 +277,9 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
+    | '/faqpage'
     | '/login'
     | '/pengaduan'
-    | '/setting'
     | '/survei'
     | '/admin/dashboard'
     | '/admin/data_skala'
@@ -263,12 +290,15 @@ export interface FileRouteTypes {
     | '/admin/edit_skala'
     | '/admin/edit_survei'
     | '/admin/edit_user'
+    | '/admin/faq'
     | '/admin/grafik'
     | '/admin/jenis_pengaduan'
     | '/admin/kategori_pelayanan'
     | '/admin/manajemen_user'
+    | '/admin/notifications'
     | '/admin/reportpengaduan'
     | '/admin/reportsurvei'
+    | '/admin/setting'
     | '/admin/tambah_user'
     | '/admin/view_pdf'
     | '/admin/wilayah'
@@ -277,9 +307,9 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
+    | '/faqpage'
     | '/login'
     | '/pengaduan'
-    | '/setting'
     | '/survei'
     | '/admin/dashboard'
     | '/admin/data_skala'
@@ -290,12 +320,15 @@ export interface FileRouteTypes {
     | '/admin/edit_skala'
     | '/admin/edit_survei'
     | '/admin/edit_user'
+    | '/admin/faq'
     | '/admin/grafik'
     | '/admin/jenis_pengaduan'
     | '/admin/kategori_pelayanan'
     | '/admin/manajemen_user'
+    | '/admin/notifications'
     | '/admin/reportpengaduan'
     | '/admin/reportsurvei'
+    | '/admin/setting'
     | '/admin/tambah_user'
     | '/admin/view_pdf'
     | '/admin/wilayah'
@@ -304,9 +337,9 @@ export interface FileRouteTypes {
     | '/'
     | '/bukti_pendukung'
     | '/chat'
+    | '/faqpage'
     | '/login'
     | '/pengaduan'
-    | '/setting'
     | '/survei'
     | '/admin/dashboard'
     | '/admin/data_skala'
@@ -317,12 +350,15 @@ export interface FileRouteTypes {
     | '/admin/edit_skala'
     | '/admin/edit_survei'
     | '/admin/edit_user'
+    | '/admin/faq'
     | '/admin/grafik'
     | '/admin/jenis_pengaduan'
     | '/admin/kategori_pelayanan'
     | '/admin/manajemen_user'
+    | '/admin/notifications'
     | '/admin/reportpengaduan'
     | '/admin/reportsurvei'
+    | '/admin/setting'
     | '/admin/tambah_user'
     | '/admin/view_pdf'
     | '/admin/wilayah'
@@ -332,9 +368,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   Bukti_pendukungRoute: typeof Bukti_pendukungRoute
   ChatRoute: typeof ChatRoute
+  FaqpageRoute: typeof FaqpageRoute
   LoginRoute: typeof LoginRoute
   PengaduanRoute: typeof PengaduanRoute
-  SettingRoute: typeof SettingRoute
   SurveiRoute: typeof SurveiRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminData_skalaRoute: typeof AdminData_skalaRoute
@@ -345,12 +381,15 @@ export interface RootRouteChildren {
   AdminEdit_skalaRoute: typeof AdminEdit_skalaRoute
   AdminEdit_surveiRoute: typeof AdminEdit_surveiRoute
   AdminEdit_userRoute: typeof AdminEdit_userRoute
+  AdminFaqRoute: typeof AdminFaqRoute
   AdminGrafikRoute: typeof AdminGrafikRoute
   AdminJenis_pengaduanRoute: typeof AdminJenis_pengaduanRoute
   AdminKategori_pelayananRoute: typeof AdminKategori_pelayananRoute
   AdminManajemen_userRoute: typeof AdminManajemen_userRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminReportpengaduanRoute: typeof AdminReportpengaduanRoute
   AdminReportsurveiRoute: typeof AdminReportsurveiRoute
+  AdminSettingRoute: typeof AdminSettingRoute
   AdminTambah_userRoute: typeof AdminTambah_userRoute
   AdminView_pdfRoute: typeof AdminView_pdfRoute
   AdminWilayahRoute: typeof AdminWilayahRoute
@@ -379,6 +418,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/faqpage': {
+      id: '/faqpage'
+      path: '/faqpage'
+      fullPath: '/faqpage'
+      preLoaderRoute: typeof FaqpageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -391,13 +437,6 @@ declare module '@tanstack/react-router' {
       path: '/pengaduan'
       fullPath: '/pengaduan'
       preLoaderRoute: typeof PengaduanRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/setting': {
-      id: '/setting'
-      path: '/setting'
-      fullPath: '/setting'
-      preLoaderRoute: typeof SettingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/survei': {
@@ -470,6 +509,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminEdit_userRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/faq': {
+      id: '/admin/faq'
+      path: '/admin/faq'
+      fullPath: '/admin/faq'
+      preLoaderRoute: typeof AdminFaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/grafik': {
       id: '/admin/grafik'
       path: '/admin/grafik'
@@ -498,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminManajemen_userRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/admin/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/reportpengaduan': {
       id: '/admin/reportpengaduan'
       path: '/admin/reportpengaduan'
@@ -510,6 +563,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/reportsurvei'
       fullPath: '/admin/reportsurvei'
       preLoaderRoute: typeof AdminReportsurveiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/setting': {
+      id: '/admin/setting'
+      path: '/admin/setting'
+      fullPath: '/admin/setting'
+      preLoaderRoute: typeof AdminSettingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/tambah_user': {
@@ -540,9 +600,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   Bukti_pendukungRoute: Bukti_pendukungRoute,
   ChatRoute: ChatRoute,
+  FaqpageRoute: FaqpageRoute,
   LoginRoute: LoginRoute,
   PengaduanRoute: PengaduanRoute,
-  SettingRoute: SettingRoute,
   SurveiRoute: SurveiRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminData_skalaRoute: AdminData_skalaRoute,
@@ -553,12 +613,15 @@ const rootRouteChildren: RootRouteChildren = {
   AdminEdit_skalaRoute: AdminEdit_skalaRoute,
   AdminEdit_surveiRoute: AdminEdit_surveiRoute,
   AdminEdit_userRoute: AdminEdit_userRoute,
+  AdminFaqRoute: AdminFaqRoute,
   AdminGrafikRoute: AdminGrafikRoute,
   AdminJenis_pengaduanRoute: AdminJenis_pengaduanRoute,
   AdminKategori_pelayananRoute: AdminKategori_pelayananRoute,
   AdminManajemen_userRoute: AdminManajemen_userRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminReportpengaduanRoute: AdminReportpengaduanRoute,
   AdminReportsurveiRoute: AdminReportsurveiRoute,
+  AdminSettingRoute: AdminSettingRoute,
   AdminTambah_userRoute: AdminTambah_userRoute,
   AdminView_pdfRoute: AdminView_pdfRoute,
   AdminWilayahRoute: AdminWilayahRoute,

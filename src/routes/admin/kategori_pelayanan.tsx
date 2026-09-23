@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   CalendarDays,
@@ -18,25 +18,14 @@ import {
   ArrowRight,
   Layers,
   Loader2,
+  Search,
   X,
   Plus,
-  Check,
-  Users,
-  Briefcase,
-  Building,
-  GraduationCap,
-  Landmark,
-  Stethoscope,
-  Gavel,
-  Globe2,
-  HandCoins,
-  BookOpen,
-  ClipboardList,
-  Truck,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { apiUrl } from "@/lib/api";
 
-const SUMMARY_API_URL = "http://192.168.147.199:8000/api/dashboard/complaint-summary";
+const SUMMARY_API_URL = apiUrl("dashboard/complaint-summary");
 
 export const Route = createFileRoute("/admin/kategori_pelayanan")({
   head: () => ({
@@ -60,67 +49,110 @@ interface CategoryMeta {
 }
 
 const CATEGORIES_CONFIG: CategoryMeta[] = [
-  { id: 1, code: "WAJIB_LAPOR", title: "WAJIB LAPOR KETENAGAKERJAAN", icon: FileText, iconColor: "text-red-500", bgColor: "bg-red-50" },
-  { id: 2, code: "UPAH_KERJA", title: "UPAH KERJA", icon: WalletCards, iconColor: "text-slate-600", bgColor: "bg-slate-100" },
-  { id: 3, code: "JAMINAN_SOSIAL", title: "JAMINAN SOSIAL", icon: ShieldCheck, iconColor: "text-emerald-500", bgColor: "bg-emerald-50" },
-  { id: 4, code: "HUBUNGAN_KERJA", title: "HUBUNGAN KERJA", icon: Handshake, iconColor: "text-purple-500", bgColor: "bg-purple-50" },
-  { id: 5, code: "KECELAKAAN_KERJA", title: "KECELAKAAN KERJA", icon: PersonStanding, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
-  { id: 6, code: "WAKTU_KERJA", title: "WAKTU KERJA & WAKTU ISTIRAHAT", icon: Clock3, iconColor: "text-amber-500", bgColor: "bg-amber-50" },
-  { id: 7, code: "KADER_NORMA", title: "KADER NORMA KETENAGAKERJAAN", icon: Scale, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
-  { id: 8, code: "PENEMPATAN_TK", title: "PENEMPATAN TK DALAM & LUAR NEGERI", icon: BriefcaseBusiness, iconColor: "text-cyan-600", bgColor: "bg-cyan-50" },
-  { id: 9, code: "K3", title: "KESELAMATAN & KESEHATAN KERJA", icon: HeartPulse, iconColor: "text-red-500", bgColor: "bg-red-50" },
-  { id: 10, code: "PEREMPUAN_ANAK", title: "PEREMPUAN & ANAK", icon: Baby, iconColor: "text-purple-600", bgColor: "bg-purple-50" },
-  { id: 11, code: "NORMA_K3", title: "Kader Norma K3", icon: Award, iconColor: "text-amber-700", bgColor: "bg-amber-50" },
-  { id: 12, code: "SKP", title: "SKP", icon: FileCheck, iconColor: "text-slate-600", bgColor: "bg-slate-100" },
+  {
+    id: 1,
+    code: "WAJIB_LAPOR",
+    title: "WAJIB LAPOR KETENAGAKERJAAN",
+    icon: FileText,
+    iconColor: "text-red-500",
+    bgColor: "bg-red-50",
+  },
+  {
+    id: 2,
+    code: "UPAH_KERJA",
+    title: "UPAH KERJA",
+    icon: WalletCards,
+    iconColor: "text-slate-600",
+    bgColor: "bg-slate-100",
+  },
+  {
+    id: 3,
+    code: "JAMINAN_SOSIAL",
+    title: "JAMINAN SOSIAL",
+    icon: ShieldCheck,
+    iconColor: "text-emerald-500",
+    bgColor: "bg-emerald-50",
+  },
+  {
+    id: 4,
+    code: "HUBUNGAN_KERJA",
+    title: "HUBUNGAN KERJA",
+    icon: Handshake,
+    iconColor: "text-purple-500",
+    bgColor: "bg-purple-50",
+  },
+  {
+    id: 5,
+    code: "KECELAKAAN_KERJA",
+    title: "KECELAKAAN KERJA",
+    icon: PersonStanding,
+    iconColor: "text-orange-500",
+    bgColor: "bg-orange-50",
+  },
+  {
+    id: 6,
+    code: "WAKTU_KERJA",
+    title: "WAKTU KERJA & WAKTU ISTIRAHAT",
+    icon: Clock3,
+    iconColor: "text-amber-500",
+    bgColor: "bg-amber-50",
+  },
+  {
+    id: 7,
+    code: "KADER_NORMA",
+    title: "KADER NORMA KETENAGAKERJAAN",
+    icon: Scale,
+    iconColor: "text-blue-500",
+    bgColor: "bg-blue-50",
+  },
+  {
+    id: 8,
+    code: "PENEMPATAN_TK",
+    title: "PENEMPATAN TK DALAM & LUAR NEGERI",
+    icon: BriefcaseBusiness,
+    iconColor: "text-cyan-600",
+    bgColor: "bg-cyan-50",
+  },
+  {
+    id: 9,
+    code: "K3",
+    title: "KESELAMATAN & KESEHATAN KERJA",
+    icon: HeartPulse,
+    iconColor: "text-red-500",
+    bgColor: "bg-red-50",
+  },
+  {
+    id: 10,
+    code: "PEREMPUAN_ANAK",
+    title: "PEREMPUAN & ANAK",
+    icon: Baby,
+    iconColor: "text-purple-600",
+    bgColor: "bg-purple-50",
+  },
+  {
+    id: 11,
+    code: "NORMA_K3",
+    title: "Kader Norma K3",
+    icon: Award,
+    iconColor: "text-amber-700",
+    bgColor: "bg-amber-50",
+  },
+  {
+    id: 12,
+    code: "SKP",
+    title: "SKP",
+    icon: FileCheck,
+    iconColor: "text-slate-600",
+    bgColor: "bg-slate-100",
+  },
 ];
-
-// Pilihan ikon dari lucide-react untuk kategori baru.
-const ICON_CHOICES: { name: string; icon: React.ElementType }[] = [
-  { name: "FileText", icon: FileText },
-  { name: "WalletCards", icon: WalletCards },
-  { name: "ShieldCheck", icon: ShieldCheck },
-  { name: "Handshake", icon: Handshake },
-  { name: "PersonStanding", icon: PersonStanding },
-  { name: "Clock3", icon: Clock3 },
-  { name: "Scale", icon: Scale },
-  { name: "BriefcaseBusiness", icon: BriefcaseBusiness },
-  { name: "HeartPulse", icon: HeartPulse },
-  { name: "Baby", icon: Baby },
-  { name: "Award", icon: Award },
-  { name: "FileCheck", icon: FileCheck },
-  { name: "Users", icon: Users },
-  { name: "Briefcase", icon: Briefcase },
-  { name: "Building", icon: Building },
-  { name: "GraduationCap", icon: GraduationCap },
-  { name: "Landmark", icon: Landmark },
-  { name: "Stethoscope", icon: Stethoscope },
-  { name: "Gavel", icon: Gavel },
-  { name: "Globe2", icon: Globe2 },
-  { name: "HandCoins", icon: HandCoins },
-  { name: "BookOpen", icon: BookOpen },
-  { name: "ClipboardList", icon: ClipboardList },
-  { name: "Truck", icon: Truck },
-];
-
-// Pilihan warna (mengikuti gaya kategori bawaan).
-const COLOR_CHOICES: { name: string; iconColor: string; bgColor: string; swatch: string }[] = [
-  { name: "Merah", iconColor: "text-red-500", bgColor: "bg-red-50", swatch: "bg-red-500" },
-  { name: "Oranye", iconColor: "text-orange-500", bgColor: "bg-orange-50", swatch: "bg-orange-500" },
-  { name: "Amber", iconColor: "text-amber-500", bgColor: "bg-amber-50", swatch: "bg-amber-500" },
-  { name: "Emerald", iconColor: "text-emerald-500", bgColor: "bg-emerald-50", swatch: "bg-emerald-500" },
-  { name: "Cyan", iconColor: "text-cyan-600", bgColor: "bg-cyan-50", swatch: "bg-cyan-600" },
-  { name: "Biru", iconColor: "text-blue-500", bgColor: "bg-blue-50", swatch: "bg-blue-500" },
-  { name: "Ungu", iconColor: "text-purple-500", bgColor: "bg-purple-50", swatch: "bg-purple-500" },
-  { name: "Slate", iconColor: "text-slate-600", bgColor: "bg-slate-100", swatch: "bg-slate-500" },
-];
-
-const DEFAULT_COLOR = COLOR_CHOICES[0]!;
 
 const nf = new Intl.NumberFormat("id-ID");
 
 function KategoriPelayananPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const [search, setSearch] = useState("");
 
   const [loading, setLoading] = useState<boolean>(true);
   const [categoryCounts, setCategoryCounts] = useState<Record<number, number>>({});
@@ -131,19 +163,27 @@ function KategoriPelayananPage() {
   // State modal "Tambah Kategori".
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
-  const [selectedIconName, setSelectedIconName] = useState<string | null>(null);
-  const [selectedColorName, setSelectedColorName] = useState<string>(
-    DEFAULT_COLOR.name
-  );
   const [formError, setFormError] = useState<string | null>(null);
 
-  const allCategories = [...CATEGORIES_CONFIG, ...customCategories];
+  const allCategories = useMemo(
+    () => [...CATEGORIES_CONFIG, ...customCategories],
+    [customCategories],
+  );
+
+  // Filter kartu kategori berdasarkan nama/kode.
+  const filteredCategories = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return allCategories;
+    return allCategories.filter(
+      (cat) => cat.title.toLowerCase().includes(q) || cat.code.toLowerCase().includes(q),
+    );
+  }, [allCategories, search]);
 
   const resetForm = () => {
+    setNewCode("");
     setNewName("");
-    setSelectedIconName(null);
-    setSelectedColorName(DEFAULT_COLOR.name);
     setFormError(null);
   };
 
@@ -156,45 +196,67 @@ function KategoriPelayananPage() {
     e.preventDefault();
     setFormError(null);
 
+    const category_code = newCode.trim().toUpperCase();
     const name = newName.trim();
-    if (!name) {
-      setFormError("Nama kategori wajib diisi.");
+
+    if (!category_code) {
+      setFormError("The category code field is required.");
       return;
     }
-    if (!selectedIconName) {
-      setFormError("Pilih salah satu logo kategori.");
+    if (!name) {
+      setFormError("The category name field is required.");
       return;
     }
 
-    const iconChoice = ICON_CHOICES.find((c) => c.name === selectedIconName);
-    if (!iconChoice) {
-      setFormError("Ikon yang dipilih tidak valid.");
-      return;
-    }
-    const colorChoice =
-      COLOR_CHOICES.find((c) => c.name === selectedColorName) ?? DEFAULT_COLOR;
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     setSaving(true);
     try {
-      // TODO(backend): kirim ke API pembuatan kategori bila sudah tersedia.
-      // Simpan `name`, nama ikon (selectedIconName), dan warna (selectedColorName).
+      const response = await fetch(apiUrl("complaint-categories"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ category_code, category_name: name }),
+      });
 
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok || json?.success === false) {
+        let errMsg = "";
+        const errors = json?.errors;
+        if (errors && typeof errors === "object") {
+          Object.values(errors).forEach((val) => {
+            const txt = Array.isArray(val) ? val.join(", ") : String(val ?? "");
+            if (txt) errMsg += `${txt}. `;
+          });
+        }
+        if (!errMsg) {
+          errMsg = json?.message || `Gagal menyimpan kategori (${response.status}).`;
+        }
+        throw new Error(errMsg.trim());
+      }
+
+      const created = json?.data ?? null;
       const newCategory: CategoryMeta = {
-        id: Date.now(), // sementara, ganti dengan id dari backend
-        code: name.toUpperCase().replace(/\s+/g, "_"),
-        title: name.toUpperCase(),
-        icon: iconChoice.icon,
-        iconColor: colorChoice.iconColor,
-        bgColor: colorChoice.bgColor,
+        id: Number(created?.id ?? Date.now()),
+        code: String(created?.category_code ?? category_code),
+        title: String(created?.category_name ?? name).toUpperCase(),
+        icon: Layers,
+        iconColor: "text-slate-600",
+        bgColor: "bg-slate-100",
       };
 
       setCustomCategories((prev) => [...prev, newCategory]);
       setCategoryCounts((prev) => ({ ...prev, [newCategory.id]: 0 }));
       setShowAddModal(false);
       resetForm();
-    } catch (err) {
+      fetchCategorySummary([newCategory]);
+    } catch (err: any) {
       console.error("Gagal menyimpan kategori:", err);
-      setFormError("Gagal menyimpan kategori. Coba lagi.");
+      setFormError(err?.message || "Gagal menyimpan kategori. Coba lagi.");
     } finally {
       setSaving(false);
     }
@@ -234,85 +296,99 @@ function KategoriPelayananPage() {
     const csvContent =
       "data:text/csv;charset=utf-8," +
       "ID Kategori,Nama Kategori,Total Pengaduan\n" +
-      allCategories
+      filteredCategories
         .map((cat) => `"${cat.id}","${cat.title}",${categoryCounts[cat.id] ?? 0}`)
         .join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `Rekapitulasi_Kategori_${selectedDate ?? "Semua_Waktu"}.csv`
-    );
+    link.setAttribute("download", `Rekapitulasi_Kategori_${selectedDate ?? "Semua_Waktu"}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  useEffect(() => {
-    const fetchCategorySummary = async () => {
-      setLoading(true);
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+  const fetchCategorySummary = async (extraCategories: CategoryMeta[] = []) => {
+    setLoading(true);
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-      try {
-        const url = selectedDate
-          ? `${SUMMARY_API_URL}?date=${selectedDate}`
-          : SUMMARY_API_URL;
+    try {
+      const url = selectedDate ? `${SUMMARY_API_URL}?date=${selectedDate}` : SUMMARY_API_URL;
 
-        const response = await fetch(url, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
-        if (response.ok) {
-          const resJson = await response.json();
-          const list: any[] = Array.isArray(resJson?.data)
-            ? resJson.data
-            : Array.isArray(resJson)
+      if (response.ok) {
+        const resJson = await response.json();
+        const list: any[] = Array.isArray(resJson?.data)
+          ? resJson.data
+          : Array.isArray(resJson)
             ? resJson
             : [];
 
-          const counts: Record<number, number> = {};
-          CATEGORIES_CONFIG.forEach((cat) => {
-            counts[cat.id] = 0;
-          });
+        const merged = new Map<number, CategoryMeta>();
+        CATEGORIES_CONFIG.forEach((cat) => merged.set(cat.id, cat));
+        extraCategories.forEach((cat) => merged.set(cat.id, cat));
 
-          list.forEach((item) => {
-            const id = Number(item.id);
-            const count = Number(item.count ?? 0);
+        list.forEach((item) => {
+          const id = Number(item.id);
+          if (!id) return;
+          if (!merged.has(id)) {
+            merged.set(id, {
+              id,
+              code: String(item.category_code ?? ""),
+              title: String(item.category_name ?? "Kategori").toUpperCase(),
+              icon: Layers,
+              iconColor: "text-slate-600",
+              bgColor: "bg-slate-100",
+            });
+          }
+        });
 
-            if (counts[id] !== undefined) {
-              counts[id] = count;
-            } else {
-              const matched = CATEGORIES_CONFIG.find(
-                (c) => c.code === String(item.category_code ?? "").toUpperCase()
-              );
-              if (matched) counts[matched.id] = count;
-            }
-          });
+        const counts: Record<number, number> = {};
+        merged.forEach((_, id) => {
+          counts[id] = 0;
+        });
 
-          setCategoryCounts(counts);
-        }
-      } catch (err) {
-        console.error("Gagal mengambil data complaint-summary:", err);
-      } finally {
-        setLoading(false);
+        list.forEach((item) => {
+          const id = Number(item.id);
+          const count = Number(item.count ?? 0);
+
+          if (counts[id] !== undefined) {
+            counts[id] = count;
+          } else {
+            const matched = [...merged.values()].find(
+              (c) => c.code === String(item.category_code ?? "").toUpperCase(),
+            );
+            if (matched) counts[matched.id] = count;
+          }
+        });
+
+        setCustomCategories(
+          [...merged.values()].filter((cat) => !CATEGORIES_CONFIG.some((c) => c.id === cat.id)),
+        );
+        setCategoryCounts(counts);
       }
-    };
+    } catch (err) {
+      console.error("Gagal mengambil data complaint-summary:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchCategorySummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   return (
-    <AppShell
-      title="Rekapitulasi Layanan Kategori"
-      breadcrumb="Rekapitulasi Kategori"
-    >
+    <AppShell title="Rekapitulasi Layanan Kategori" breadcrumb="Rekapitulasi Kategori">
       <div className="space-y-6">
         {/* Header Bar */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -354,6 +430,17 @@ function KategoriPelayananPage() {
               </button>
             </div>
 
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari kategori…"
+                className="w-full sm:w-52 rounded-lg border border-gray-200 bg-white py-2 pl-8 pr-3 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#032749]"
+              />
+            </div>
+
             <button
               type="button"
               onClick={handleExportLaporan}
@@ -375,60 +462,56 @@ function KategoriPelayananPage() {
         </div>
 
         {/* 12 Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {allCategories.map((item) => {
-            const Icon = item.icon;
-            const count = categoryCounts[item.id] ?? 0;
+        {filteredCategories.length === 0 ? (
+          <div className="rounded-2xl border border-gray-100 bg-white px-6 py-14 text-center text-gray-400 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
+            Tidak ada kategori yang cocok dengan pencarian.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredCategories.map((item) => {
+              const count = categoryCounts[item.id] ?? 0;
 
-            return (
-              <div
-                key={item.id}
-                className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition-shadow duration-200"
-              >
-                <div>
-                  <div className="flex items-center gap-3.5 mb-6">
-                    <div
-                      className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl ${item.bgColor}`}
-                    >
-                      {Icon ? (
-                        <Icon className={`h-6 w-6 ${item.iconColor}`} />
-                      ) : null}
-                    </div>
-                    <h2 className="text-[12px] font-bold text-gray-800 leading-snug tracking-wide uppercase">
+              return (
+                <div
+                  key={item.id}
+                  className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition-shadow duration-200"
+                >
+                  <div>
+                    <h2 className="text-[13px] font-bold text-gray-800 leading-snug tracking-wide uppercase mb-5">
                       {item.title}
                     </h2>
+
+                    <div className="text-[13px] text-gray-700 mb-5 flex items-center gap-1.5">
+                      {loading ? (
+                        <span className="inline-flex items-center gap-1 text-muted-foreground text-[12px]">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Memuat...
+                        </span>
+                      ) : (
+                        <>
+                          <span className="font-bold text-gray-900 text-[14px]">
+                            {nf.format(count)}
+                          </span>{" "}
+                          Pengaduan
+                        </>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="text-[13px] text-gray-700 mb-5 flex items-center gap-1.5">
-                    {loading ? (
-                      <span className="inline-flex items-center gap-1 text-muted-foreground text-[12px]">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Memuat...
-                      </span>
-                    ) : (
-                      <>
-                        <span className="font-bold text-gray-900 text-[14px]">
-                          {nf.format(count)}
-                        </span>{" "}
-                        Pengaduan
-                      </>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.href = `/admin/detail_kategori_pelayanan?id=${item.id}`;
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer"
+                  >
+                    <span>Lihat Detail</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-gray-600" />
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href = `/admin/detail_kategori_pelayanan?id=${item.id}`;
-                  }}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[#F8FAFC] text-[11px] font-semibold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-pointer"
-                >
-                  <span>Lihat Detail</span>
-                  <ArrowRight className="h-3.5 w-3.5 text-gray-600" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ================= MODAL TAMBAH KATEGORI ================= */}
@@ -444,9 +527,7 @@ function KategoriPelayananPage() {
           {/* Panel */}
           <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h2 className="text-[14px] font-bold text-gray-800">
-                Tambah Kategori Layanan
-              </h2>
+              <h2 className="text-[14px] font-bold text-gray-800">Tambah Kategori Layanan</h2>
               <button
                 type="button"
                 onClick={handleCloseModal}
@@ -457,6 +538,24 @@ function KategoriPelayananPage() {
             </div>
 
             <form onSubmit={handleSubmitCategory} className="space-y-4 px-5 py-5">
+              {/* Kode Kategori */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Kode Kategori <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newCode}
+                  onChange={(e) => setNewCode(e.target.value)}
+                  placeholder="Contoh: PERLINDUNGAN_PM"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm uppercase placeholder:normal-case focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
+                />
+                <p className="mt-1.5 text-[10px] text-gray-400">
+                  Kode unik kategori (huruf besar, tanpa spasi; gunakan underscore untuk memisahkan
+                  kata).
+                </p>
+              </div>
+
               {/* Nama Kategori */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">
@@ -471,73 +570,7 @@ function KategoriPelayananPage() {
                 />
               </div>
 
-              {/* Pilih Warna */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  Warna
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {COLOR_CHOICES.map((color) => {
-                    const active = selectedColorName === color.name;
-                    return (
-                      <button
-                        key={color.name}
-                        type="button"
-                        title={color.name}
-                        onClick={() => setSelectedColorName(color.name)}
-                        className={`grid h-7 w-7 place-items-center rounded-full ${color.swatch} transition-transform ${
-                          active
-                            ? "ring-2 ring-offset-2 ring-[#032749] scale-105"
-                            : "hover:scale-105"
-                        }`}
-                      >
-                        {active && <Check className="h-3.5 w-3.5 text-white" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Pilih Logo (Ikon lucide) */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  Logo Kategori <span className="text-red-500">*</span>
-                </label>
-                <div className="grid max-h-44 grid-cols-6 gap-2 overflow-y-auto rounded-lg border border-gray-200 p-2.5">
-                  {ICON_CHOICES.map(({ name, icon: Icon }) => {
-                    const active = selectedIconName === name;
-                    const color =
-                      COLOR_CHOICES.find((c) => c.name === selectedColorName) ??
-                      DEFAULT_COLOR;
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        title={name}
-                        onClick={() => setSelectedIconName(name)}
-                        className={`grid aspect-square place-items-center rounded-lg border transition-colors ${
-                          active
-                            ? `${color.bgColor} border-[#032749]`
-                            : "border-transparent hover:bg-gray-100"
-                        }`}
-                      >
-                        <Icon
-                          className={`h-5 w-5 ${
-                            active ? color.iconColor : "text-gray-500"
-                          }`}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-1.5 text-[10px] text-gray-400">
-                  Pilih salah satu ikon sebagai logo kategori.
-                </p>
-              </div>
-
-              {formError && (
-                <p className="text-xs font-medium text-red-500">{formError}</p>
-              )}
+              {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
 
               {/* Aksi */}
               <div className="flex items-center justify-end gap-2 pt-2">

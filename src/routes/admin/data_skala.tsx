@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Loader2 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { apiUrl, authHeaders } from "@/lib/api";
+import { useTableExport } from "@/lib/export-utils";
+import { pageWindow } from "@/lib/pagination";
 
 export const Route = createFileRoute("/admin/data_skala")({
   head: () => ({
@@ -18,7 +21,10 @@ interface SkalaItem {
   end: number;
 }
 
-// TODO(backend): ganti dengan data dari API skala perusahaan.
+const COMPANY_SIZES_API_URL = apiUrl("v1/company-sizes");
+const COMPANY_SIZES_ADMIN_API_URL = apiUrl("v1/admin/company-sizes");
+
+// Fallback bila API belum respond.
 const INITIAL_DATA: SkalaItem[] = [
   { id: 1, nama: "Besar", start: 100, end: 999999999 },
   { id: 2, nama: "Menengah", start: 20, end: 99 },
@@ -26,7 +32,6 @@ const INITIAL_DATA: SkalaItem[] = [
   { id: 4, nama: "Mikro", start: 0, end: 4 },
 ];
 
-const EXPORT_ACTIONS = ["Copy", "CSV", "Excel", "PDF", "Print"];
 const ITEMS_PER_PAGE = 10;
 
 const nf = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2 });
@@ -36,6 +41,44 @@ function DataSkalaPage() {
   const [rows, setRows] = useState<SkalaItem[]>(INITIAL_DATA);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Ambil data skala dari API: GET /api/v1/company-sizes (tanpa /admin)
+  useEffect(() => {
+    const fetchSkala = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(COMPANY_SIZES_API_URL, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            ...authHeaders(),
+          },
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+
+        const json = await res.json();
+        const items = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+
+        const mapped: SkalaItem[] = items.map((it: any, idx: number) => ({
+          id: Number(it.id ?? idx + 1),
+          nama: String(it.size_name ?? it.nama ?? it.company_size ?? it.name ?? `Skala ${idx + 1}`),
+          start: Number(it.min_employees ?? it.start ?? it.min ?? 0),
+          end: Number(it.max_employees ?? it.end ?? it.max ?? 0),
+        }));
+
+        if (mapped.length > 0) setRows(mapped);
+      } catch (err) {
+        console.error("Gagal memuat data skala:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSkala();
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -44,16 +87,51 @@ function DataSkalaPage() {
   }, [rows, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const displayed = filtered.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE
-  );
+  const displayed = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!window.confirm("Hapus skala perusahaan ini?")) return;
-    // TODO(backend): DELETE /api/skala/{id}.
-    setRows((prev) => prev.filter((r) => r.id !== id));
+
+    setDeletingId(id);
+    try {
+      const response = await fetch(`${COMPANY_SIZES_ADMIN_API_URL}/${id}`, {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          ...authHeaders(),
+        },
+      });
+
+      if (!response.ok) {
+        const json = await response.json().catch(() => null);
+        throw new Error(json?.message || `Gagal menghapus skala (${response.status}).`);
+      }
+
+      setRows((prev) => prev.filter((r) => r.id !== id));
+    } catch (err: any) {
+      console.error("Gagal menghapus skala:", err);
+      alert(err?.message || "Gagal menghapus skala. Coba lagi.");
+    } finally {
+      setDeletingId(null);
+    }
   };
+
+  const buildExport = useMemo(() => {
+    const headers = ["NO", "SKALA PERUSAHAAN", "START", "END"];
+    const rows: (string | number)[][] = filtered.map((item, index) => [
+      index + 1,
+      item.nama,
+      item.start,
+      item.end,
+    ]);
+    return { headers, rows };
+  }, [filtered]);
+
+  const { copied, handleCopy, handleCsv, handleExcel, handlePrint } = useTableExport({
+    baseName: "Data_Skala",
+    headers: buildExport.headers,
+    rows: buildExport.rows,
+  });
 
   return (
     <AppShell title="Skala Perusahaan" breadcrumb="Skala Perusahaan">
@@ -71,15 +149,41 @@ function DataSkalaPage() {
         {/* Toolbar */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-1.5">
-            {EXPORT_ACTIONS.map((label) => (
-              <button
-                key={label}
-                type="button"
-                className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
-              >
-                {label}
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+            <button
+              type="button"
+              onClick={handleCsv}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={handleExcel}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              Excel
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              PDF
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              Print
+            </button>
           </div>
 
           <input
@@ -111,7 +215,7 @@ function DataSkalaPage() {
                 {displayed.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-5 py-10 text-center text-gray-400">
-                      Tidak ada data skala.
+                      {loading ? "Memuat data skala..." : "Tidak ada data skala."}
                     </td>
                   </tr>
                 ) : (
@@ -120,15 +224,9 @@ function DataSkalaPage() {
                       <td className="px-5 py-3.5 font-medium text-gray-600">
                         {(page - 1) * ITEMS_PER_PAGE + index + 1}
                       </td>
-                      <td className="px-5 py-3.5 font-medium text-gray-800">
-                        {item.nama}
-                      </td>
-                      <td className="px-5 py-3.5 text-gray-700">
-                        {nf.format(item.start)}
-                      </td>
-                      <td className="px-5 py-3.5 text-gray-700">
-                        {nf.format(item.end)}
-                      </td>
+                      <td className="px-5 py-3.5 font-medium text-gray-800">{item.nama}</td>
+                      <td className="px-5 py-3.5 text-gray-700">{nf.format(item.start)}</td>
+                      <td className="px-5 py-3.5 text-gray-700">{nf.format(item.end)}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
@@ -148,9 +246,14 @@ function DataSkalaPage() {
                             type="button"
                             title="Hapus"
                             onClick={() => handleDelete(item.id)}
-                            className="grid h-7 w-7 place-items-center rounded-md bg-red-500 text-white transition-colors hover:bg-red-600"
+                            disabled={deletingId === item.id}
+                            className="grid h-7 w-7 place-items-center rounded-md bg-red-500 text-white transition-colors hover:bg-red-600 disabled:opacity-50"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            {deletingId === item.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -177,7 +280,7 @@ function DataSkalaPage() {
             >
               ‹
             </button>
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((p) => (
+            {pageWindow(page, totalPages).map((p) => (
               <button
                 key={p}
                 type="button"

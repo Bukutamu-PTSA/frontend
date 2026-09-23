@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Save } from "lucide-react";
+import { Save, Eye, EyeOff } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { AUTH_BASE_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/tambah_user")({
   head: () => ({
@@ -11,23 +12,62 @@ export const Route = createFileRoute("/admin/tambah_user")({
   component: TambahUserPage,
 });
 
-const ROLE_OPTIONS = ["Administrator", "Pengawas", "Petugas"];
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: "super_admin", label: "Super Admin" },
+  { value: "admin", label: "Admin" },
+];
 
 function TambahUserPage() {
   const navigate = useNavigate();
   const [nama, setNama] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState(ROLE_OPTIONS[0]);
+  const [role, setRole] = useState(ROLE_OPTIONS[0].value);
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     setSaving(true);
     try {
-      // TODO(backend): POST /api/users dengan { nama, email, password, role }.
-      await new Promise((r) => setTimeout(r, 400));
+      const response = await fetch(`${AUTH_BASE_URL}/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          username: nama,
+          email: email,
+          password: password,
+          password_confirmation: password,
+          role: role,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || result?.success === false) {
+        let errMsg = "";
+        const errors = result?.errors;
+        if (errors && typeof errors === "object") {
+          Object.values(errors).forEach((val) => {
+            const txt = Array.isArray(val) ? val.join(", ") : String(val ?? "");
+            if (txt) errMsg += `${txt}. `;
+          });
+        }
+        throw new Error(
+          errMsg.trim() || result?.message || `Gagal mendaftarkan user (${response.status}).`,
+        );
+      }
+
+      alert("User berhasil ditambahkan!");
       navigate({ to: "/admin/manajemen_user" });
+    } catch (err: any) {
+      console.error("Registrasi user gagal:", err);
+      setErrorMessage(err?.message || "Gagal mendaftarkan user. Silakan coba lagi.");
     } finally {
       setSaving(false);
     }
@@ -41,11 +81,15 @@ function TambahUserPage() {
           Lengkapi form di bawah ini untuk menambahkan pengguna baru ke dalam sistem PTSA.
         </p>
 
+        {errorMessage && (
+          <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
+            {errorMessage}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-bold text-gray-700">
-              Nama User
-            </label>
+            <label className="mb-1.5 block text-xs font-bold text-gray-700">Nama User</label>
             <input
               type="text"
               value={nama}
@@ -56,9 +100,7 @@ function TambahUserPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-bold text-gray-700">
-              Email
-            </label>
+            <label className="mb-1.5 block text-xs font-bold text-gray-700">Email</label>
             <input
               type="email"
               value={email}
@@ -69,22 +111,32 @@ function TambahUserPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-bold text-gray-700">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-full border border-gray-300 px-4 py-2.5 text-sm focus:border-[#016A61] focus:outline-none focus:ring-1 focus:ring-[#016A61]"
-            />
+            <label className="mb-1.5 block text-xs font-bold text-gray-700">Password</label>
+            <div className="relative flex items-center">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-full border border-gray-300 py-2.5 pl-4 pr-12 text-sm focus:border-[#016A61] focus:outline-none focus:ring-1 focus:ring-[#016A61]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                className="absolute right-4 text-gray-500 hover:text-[#016A61] focus:outline-none"
+              >
+                {showPassword ? (
+                  <EyeOff className="size-5 stroke-[1.75]" />
+                ) : (
+                  <Eye className="size-5 stroke-[1.75]" />
+                )}
+              </button>
+            </div>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-bold text-gray-700">
-              Role Akses
-            </label>
+            <label className="mb-1.5 block text-xs font-bold text-gray-700">Role Akses</label>
             <div className="relative">
               <select
                 value={role}
@@ -92,8 +144,8 @@ function TambahUserPage() {
                 className="w-full appearance-none rounded-full border border-gray-300 px-4 py-2.5 pr-9 text-sm focus:border-[#016A61] focus:outline-none focus:ring-1 focus:ring-[#016A61]"
               >
                 {ROLE_OPTIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
+                  <option key={r.value} value={r.value}>
+                    {r.label}
                   </option>
                 ))}
               </select>

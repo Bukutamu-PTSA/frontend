@@ -3,6 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { useTableExport } from "@/lib/export-utils";
+import { pageWindow } from "@/lib/pagination";
 
 export const Route = createFileRoute("/admin/data_survei")({
   head: () => ({
@@ -44,7 +46,6 @@ const INITIAL_DATA: SurveiItem[] = [
   },
 ];
 
-const EXPORT_ACTIONS = ["Copy", "CSV", "Excel", "PDF", "Print"];
 const ITEMS_PER_PAGE = 10;
 
 function DataSurveiPage() {
@@ -56,14 +57,35 @@ function DataSurveiPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter((r) => r.pertanyaan.toLowerCase().includes(q));
+    return rows.filter(
+      (r) =>
+        r.pertanyaan.toLowerCase().includes(q) ||
+        r.optionA.toLowerCase().includes(q) ||
+        r.optionB.toLowerCase().includes(q) ||
+        r.optionC.toLowerCase().includes(q),
+    );
   }, [rows, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const displayed = filtered.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE
-  );
+  const displayed = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+  const buildExport = useMemo(() => {
+    const headers = ["NO", "SKALA PELAYANAN", "OPTION A", "OPTION B", "OPTION C"];
+    const rows: (string | number)[][] = filtered.map((item, index) => [
+      index + 1,
+      item.pertanyaan,
+      item.optionA,
+      item.optionB,
+      item.optionC,
+    ]);
+    return { headers, rows };
+  }, [filtered]);
+
+  const { copied, handleCopy, handleCsv, handleExcel, handlePrint } = useTableExport({
+    baseName: "Data_Survei",
+    headers: buildExport.headers,
+    rows: buildExport.rows,
+  });
 
   const handleDelete = (id: number) => {
     if (!window.confirm("Hapus pertanyaan survei ini?")) return;
@@ -76,26 +98,48 @@ function DataSurveiPage() {
       <div className="space-y-5">
         {/* Judul */}
         <div className="rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
-          <h1 className="text-[17px] font-bold tracking-tight text-gray-900">
-            Survei Pelayanan
-          </h1>
-          <p className="mt-1 text-[12px] text-gray-500">
-            Soal Survei Pelayanan
-          </p>
+          <h1 className="text-[17px] font-bold tracking-tight text-gray-900">Survei Pelayanan</h1>
+          <p className="mt-1 text-[12px] text-gray-500">Soal Survei Pelayanan</p>
         </div>
 
         {/* Toolbar export + search */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-1.5">
-            {EXPORT_ACTIONS.map((label) => (
-              <button
-                key={label}
-                type="button"
-                className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
-              >
-                {label}
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+            <button
+              type="button"
+              onClick={handleCsv}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={handleExcel}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              Excel
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              PDF
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              Print
+            </button>
           </div>
 
           <input
@@ -137,9 +181,7 @@ function DataSurveiPage() {
                       <td className="px-5 py-3.5 font-medium text-gray-600">
                         {(page - 1) * ITEMS_PER_PAGE + index + 1}
                       </td>
-                      <td className="px-5 py-3.5 text-gray-800">
-                        {item.pertanyaan}
-                      </td>
+                      <td className="px-5 py-3.5 text-gray-800">{item.pertanyaan}</td>
                       <td className="px-5 py-3.5 text-gray-700">{item.optionA}</td>
                       <td className="px-5 py-3.5 text-gray-700">{item.optionB}</td>
                       <td className="px-5 py-3.5 text-gray-700">{item.optionC}</td>
@@ -208,7 +250,7 @@ function Pagination({
       >
         ‹
       </button>
-      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((p) => (
+      {pageWindow(page, totalPages).map((p) => (
         <button
           key={p}
           type="button"

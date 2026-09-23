@@ -1,15 +1,17 @@
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import {
   BadgeCheck,
   FileText,
-  Twitter,
   Facebook,
   MessageSquare,
   Instagram,
   MapPin,
   Mail,
 } from "lucide-react";
+import { XIcon } from "@/components/x-icon";
 import { Button } from "@/components/ui/button";
+import { apiUrl, authHeaders } from "@/lib/api";
 
 import heroImage from "@/assets/gedung-kemnaker.jpg";
 import logoKemnaker from "@/assets/kemnaker_logo.png";
@@ -43,9 +45,10 @@ const navLinks = [
   { label: "Survei", to: "/survei" },
 ];
 
-const stats = [
-  { icon: BadgeCheck, value: "12.450+", label: "Laporan Diselesaikan" },
-];
+// Total default dipakai sebagai fallback bila API belum merespons.
+const DEFAULT_TOTAL_LAPORAN = 12450;
+
+const nf = new Intl.NumberFormat("id-ID");
 
 const steps = [
   {
@@ -59,14 +62,60 @@ const steps = [
 ];
 
 const socials = [
-  { icon: Twitter, href: "#" },
-  { icon: Facebook, href: "#" },
+  { icon: XIcon, href: "https://x.com/KemnakerRI" },
+  {
+    icon: Facebook,
+    href: "https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr",
+  },
   { icon: MessageSquare, href: "#" },
-  { icon: Instagram, href: "#" },
+  {
+    icon: Instagram,
+    href: "https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ==",
+  },
 ];
 
 function Index() {
   const navigate = useNavigate();
+
+  // Total laporan diselesaikan diambil dari API (dijumlahkan dari ringkasan kategori).
+  const [totalLaporan, setTotalLaporan] = useState<number>(DEFAULT_TOTAL_LAPORAN);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchTotalLaporan = async () => {
+      try {
+        const res = await fetch(apiUrl("dashboard/complaint-summary"), {
+          headers: authHeaders(),
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+
+        const json = await res.json();
+        const items = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+
+        const total = items.reduce(
+          (sum: number, item: any) => sum + Number(item.count ?? item.total ?? 0),
+          0,
+        );
+
+        if (total > 0) setTotalLaporan(total);
+      } catch {
+        // Abaikan error jaringan; tetap gunakan nilai fallback.
+      }
+    };
+
+    fetchTotalLaporan();
+    return () => controller.abort();
+  }, []);
+
+  const stats = [
+    {
+      icon: BadgeCheck,
+      value: `${nf.format(totalLaporan)}+`,
+      label: "Laporan Diselesaikan",
+    },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F4F7FB] font-sans">
@@ -75,19 +124,16 @@ function Index() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
           {/* Logo & Judul Brand */}
           <Link to="/" className="flex items-center gap-3">
-            <img
-              src={logoKemnaker}
-              alt="Logo Kemnaker"
-              className="h-8 w-8 object-contain"
-            />
-            <span className="text-xl font-bold text-[#032749]">
-              Kementerian Ketenagakerjaan
-            </span>
+            <img src={logoKemnaker} alt="Logo Kemnaker" className="h-8 w-8 object-contain" />
+            <span className="text-xl font-bold text-[#032749]">Kementerian Ketenagakerjaan</span>
           </Link>
 
           {/* Menu Navigasi & Tombol Masuk */}
           <div className="flex items-center gap-8">
-            <nav aria-label="Navigasi utama" className="hidden items-center gap-8 md:flex text-[15px]">
+            <nav
+              aria-label="Navigasi utama"
+              className="hidden items-center gap-8 md:flex text-[15px]"
+            >
               {navLinks.map((link) => (
                 <Link
                   key={link.to}
@@ -223,14 +269,16 @@ function Index() {
                 BINWASNAKER <span className="text-emerald-400">&amp; K3</span>
               </h3>
               <p className="mt-4 text-sm leading-relaxed text-gray-300">
-                Ditjen Binwasnaker &amp; K3 adalah unsur pelaksana yang berada di bawah
-                dan bertanggung jawab kepada Menteri Ketenagakerjaan.
+                Ditjen Binwasnaker &amp; K3 adalah unsur pelaksana yang berada di bawah dan
+                bertanggung jawab kepada Menteri Ketenagakerjaan.
               </p>
               <div className="mt-6 flex gap-3">
                 {socials.map(({ icon: Icon, href }, i) => (
                   <a
                     key={i}
                     href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
                   >
                     <Icon className="size-4" />
@@ -246,11 +294,15 @@ function Index() {
               <ul className="mt-5 space-y-3 text-sm text-gray-300">
                 <li className="flex items-center gap-2">
                   <span className="text-emerald-400">›</span>
-                  <a href="#" className="hover:text-emerald-400 transition-colors">FAQ</a>
+                  <Link to="/faqpage" className="hover:text-emerald-400 transition-colors">
+                    FAQ
+                  </Link>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-emerald-400">›</span>
-                  <a href="#" className="hover:text-emerald-400 transition-colors">Hubungi Kami</a>
+                  <a href="#" className="hover:text-emerald-400 transition-colors">
+                    Hubungi Kami
+                  </a>
                 </li>
               </ul>
             </div>
@@ -259,16 +311,24 @@ function Index() {
             <div>
               <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
               <hr className="mt-4 border-white/15" />
-              <div className="mt-5 flex gap-3 text-sm text-gray-300">
+              <a
+                href="https://maps.app.goo.gl/QiLps9tsVMszzHf79"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex gap-3 text-sm text-gray-300 transition-colors hover:text-emerald-400"
+              >
                 <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
                 <p className="leading-relaxed">
-                  Jl. Jend. Gatot Subroto Kav. 51, RT.5/RW.4, Kuningan Timur,
-                  Kecamatan Setiabudi, Kota Jakarta Selatan, DKI Jakarta 12950
+                  Jl. Jend. Gatot Subroto Kav. 51, RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi,
+                  Kota Jakarta Selatan, DKI Jakarta 12950
                 </p>
-              </div>
+              </a>
               <div className="mt-4 flex items-center gap-3 text-sm">
                 <Mail className="size-5 text-emerald-400" />
-                <a href="#" className="text-gray-300 hover:text-emerald-400 transition-colors">
+                <a
+                  href="mailto:pengaduanwlkp@gmail.com"
+                  className="text-gray-300 hover:text-emerald-400 transition-colors"
+                >
                   Pengaduan WLKP
                 </a>
               </div>

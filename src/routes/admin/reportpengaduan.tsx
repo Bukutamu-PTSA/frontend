@@ -1,16 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Search,
-  Download,
-  FileText,
-  Eye,
-  Trash2,
-  Loader2,
-} from "lucide-react";
+import { Search, Download, FileText, Eye, Trash2, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-
-const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api";
+import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/reportpengaduan")({
   head: () => ({
@@ -23,7 +15,7 @@ export const Route = createFileRoute("/admin/reportpengaduan")({
   component: ReportPengaduanPage,
 });
 
-
+const COMPANY_SIZES_API_URL = apiUrl("v1/company-sizes");
 
 const nf = new Intl.NumberFormat("id-ID");
 
@@ -94,8 +86,7 @@ function ReportPengaduanPage() {
   // 1. Fetch seluruh aduan dari API (menghandle pagination backend hingga tuntas)
   const fetchComplaints = async () => {
     setLoading(true);
-    const token =
-      localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     const authHeaders = {
       "Content-Type": "application/json",
@@ -112,29 +103,37 @@ function ReportPengaduanPage() {
 
       if (res.ok) {
         const json = await res.json();
+        const meta = json?.meta ?? json?.data?.meta ?? {};
         const firstPageData = Array.isArray(json?.data)
           ? json.data
           : Array.isArray(json?.data?.data)
-          ? json.data.data
-          : Array.isArray(json)
-          ? json
-          : [];
+            ? json.data.data
+            : Array.isArray(meta?.data)
+              ? meta.data
+              : Array.isArray(json)
+                ? json
+                : [];
 
         allData = [...firstPageData];
 
-        const lastPage = Number(json?.last_page ?? json?.data?.last_page ?? 1);
-        if (lastPage > 1 && allData.length < Number(json?.total ?? json?.data?.total ?? 0)) {
+        const lastPage = Number(meta?.last_page ?? json?.last_page ?? json?.data?.last_page ?? 1);
+        const total = Number(meta?.total ?? json?.total ?? json?.data?.total ?? allData.length);
+
+        if (lastPage > 1 && allData.length < total) {
           for (let p = 2; p <= lastPage; p++) {
             const nextRes = await fetch(`${COMPLAINTS_API_URL}/complaints?page=${p}&per_page=50`, {
               headers: authHeaders,
             });
             if (nextRes.ok) {
               const nextJson = await nextRes.json();
+              const nextMeta = nextJson?.meta ?? nextJson?.data?.meta ?? {};
               const nextItems = Array.isArray(nextJson?.data)
                 ? nextJson.data
                 : Array.isArray(nextJson?.data?.data)
-                ? nextJson.data.data
-                : [];
+                  ? nextJson.data.data
+                  : Array.isArray(nextMeta?.data)
+                    ? nextMeta.data
+                    : [];
               allData = [...allData, ...nextItems];
             }
           }
@@ -160,7 +159,7 @@ function ReportPengaduanPage() {
       const pelapor = String(item.complainant?.nama_lengkap ?? "").toLowerCase();
       const perusahaan = String(item.company?.nama_perusahaan ?? "").toLowerCase();
       const jenis = String(
-        item.category?.category_name ?? item.category?.category_code ?? ""
+        item.category?.category_name ?? item.category?.category_code ?? "",
       ).toLowerCase();
       const ticket = String(item.ticket_number ?? "").toLowerCase();
 
@@ -197,42 +196,126 @@ function ReportPengaduanPage() {
     });
   }, [complaints, appliedFilters]);
 
-  // 3. Hitung Stat Skala Usaha dari data terfilter
+  // 3. Stat Skala Usaha: ambil batas & label dari API (GET /api/v1/company-sizes),
+  // lalu hitung jumlah aduan per skala dari seluruh data aduan yang berhasil dimuat.
+  // Endpoint & mapping disamakan dengan halaman Data Skala agar nilai yang diedit
+  // di Edit Skala langsung tampil di sini.
+  const [companySizes, setCompanySizes] = useState<
+    { key: string; label: string; range: string; min: number; max: number }[]
+  >([
+    { key: "MICRO", label: "Mikro", range: "1 – 4 Pekerja", min: 1, max: 4 },
+    { key: "SMALL", label: "Kecil", range: "5 – 19 Pekerja", min: 5, max: 19 },
+    { key: "MEDIUM", label: "Menengah", range: "20 – 99 Pekerja", min: 20, max: 99 },
+    { key: "LARGE", label: "Besar", range: "≥ 101 Pekerja", min: 101, max: Infinity },
+  ]);
+
+  useEffect(() => {
+    const fetchCompanySizes = async () => {
+      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+
+      try {
+        const res = await fetch(COMPANY_SIZES_API_URL, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+
+        const json = await res.json();
+        const rawData = json?.data ?? json ?? {};
+        const items = Array.isArray(rawData)
+          ? rawData
+          : Array.isArray(rawData?.data)
+            ? rawData.data
+            : Array.isArray(rawData?.meta?.data)
+              ? rawData.meta.data
+              : [];
+
+        if (items.length === 0) return;
+
+        const mapped = items
+          .map((it: any, idx: number) => {
+            const rawMin = Number(it.min_employees ?? it.start ?? it.min ?? NaN);
+            const rawMaxRaw = it.max_employees ?? it.end ?? it.max ?? null;
+            const rawMax =
+              rawMaxRaw === null || rawMaxRaw === undefined ? Infinity : Number(rawMaxRaw);
+            const hasMin = Number.isFinite(rawMin);
+            const maxIsInf = !Number.isFinite(rawMax);
+            let range = "";
+            if (hasMin && !maxIsInf) range = `${rawMin} – ${rawMax} Pekerja`;
+            else if (hasMin) range = `≥ ${rawMin} Pekerja`;
+            else if (!maxIsInf) range = `≤ ${rawMax} Pekerja`;
+            return {
+              key: String(
+                it.size_code ?? it.id ?? it.code ?? it.company_size ?? `skala_${idx + 1}`,
+              ),
+              label: String(
+                it.size_name ??
+                  it.label ??
+                  it.nama ??
+                  it.company_size ??
+                  it.name ??
+                  `Skala ${idx + 1}`,
+              ),
+              range,
+              min: hasMin ? rawMin : 0,
+              max: rawMax,
+            };
+          })
+          .filter((it: any) => it.label);
+
+        if (mapped.length > 0) setCompanySizes(mapped);
+      } catch (err) {
+        console.error("Gagal memuat data skala usaha:", err);
+      }
+    };
+
+    fetchCompanySizes();
+  }, []);
+
   const scaleStats = useMemo(() => {
-    let mikro = 0;
-    let kecil = 0;
-    let menengah = 0;
-    let besar = 0;
+    return companySizes.map((size) => {
+      const total = complaints.filter((item) => {
+        const naker = Number(
+          item.company?.jumlah_naker ??
+            item.jumlah_naker ??
+            item.company?.jumlah_tenaga_kerja ??
+            item.jumlah_tenaga_kerja ??
+            item.company?.naker ??
+            NaN,
+        );
+        if (!Number.isFinite(naker)) return false;
+        return naker >= size.min && naker <= size.max;
+      }).length;
 
-    filteredComplaints.forEach((item) => {
-      const naker = Number(
-        item.company?.jumlah_naker ?? item.jumlah_naker ?? 0
-      );
-
-      if (naker > 0 && naker < 10) mikro++;
-      else if (naker >= 10 && naker < 50) kecil++;
-      else if (naker >= 50 && naker < 200) menengah++;
-      else if (naker >= 200) besar++;
-      else mikro++;
+      return { ...size, total };
     });
-
-    return [
-      { key: "mikro", label: "MIKRO", total: mikro },
-      { key: "kecil", label: "KECIL", total: kecil },
-      { key: "menengah", label: "MENENGAH", total: menengah },
-      { key: "besar", label: "BESAR", total: besar },
-    ];
-  }, [filteredComplaints]);
+  }, [companySizes, complaints]);
 
   // 4. Pagination
   const totalData = filteredComplaints.length;
   const totalPages = Math.max(1, Math.ceil(totalData / itemsPerPage));
   const displayedRows = useMemo(() => {
-    return filteredComplaints.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    );
+    return filteredComplaints.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   }, [filteredComplaints, currentPage, itemsPerPage]);
+
+  const pageNumbers = useMemo(() => {
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    const end = Math.min(totalPages, start + maxVisible - 1);
+    start = Math.max(1, end - maxVisible + 1);
+    const pages: (number | "…")[] = [];
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
 
   const handleFilter = () => {
     setAppliedFilters({ search, month, year });
@@ -251,8 +334,7 @@ function ReportPengaduanPage() {
   const handleDelete = async (id: number) => {
     if (!window.confirm("Apakah Anda yakin ingin menghapus pengaduan ini?")) return;
 
-    const token =
-      localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     try {
       const res = await fetch(`${COMPLAINTS_API_URL}/complaints/${id}`, {
@@ -275,19 +357,15 @@ function ReportPengaduanPage() {
   const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
     try {
       setDownloadingId(complaintId);
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-      const response = await fetch(
-        `http://192.168.147.199:8000/api/complaints/${complaintId}/pdf`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/pdf, application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      const response = await fetch(apiUrl(`complaints/${complaintId}/pdf`), {
+        method: "GET",
+        headers: {
+          Accept: "application/pdf, application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
       if (!response.ok) throw new Error("Gagal mengunduh PDF");
 
@@ -314,9 +392,7 @@ function ReportPengaduanPage() {
 
       // Kasus 2: Backend mengembalikan Binary Stream File PDF murni
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(
-        new Blob([blob], { type: "application/pdf" })
-      );
+      const downloadUrl = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
       const a = document.createElement("a");
       a.href = downloadUrl;
       a.download = `Pengaduan_${ticketNumber ?? complaintId}.pdf`;
@@ -351,8 +427,12 @@ function ReportPengaduanPage() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleFilter()}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearch(v);
+                  setAppliedFilters((prev) => ({ ...prev, search: v }));
+                  setCurrentPage(1);
+                }}
                 placeholder="Cari pelapor, perusahaan, atau jenis..."
                 className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-4 py-2 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#007A64]"
               />
@@ -419,17 +499,22 @@ function ReportPengaduanPage() {
           {scaleStats.map((stat) => (
             <div
               key={stat.key}
-              className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] text-center"
+              className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm"
             >
-              <p className="text-[10px] font-bold tracking-wider text-gray-400 uppercase">
+              <p className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">
                 {stat.label}
               </p>
-              <p className="mt-2 text-[18px] font-bold text-gray-900 leading-none">
-                {nf.format(stat.total)}{" "}
-                <span className="text-[12px] font-medium text-gray-500">
-                  Pengaduan
-                </span>
+              {stat.range ? (
+                <p className="text-[9px] font-semibold tracking-wider text-gray-400 uppercase mt-0.5">
+                  {stat.range}
+                </p>
+              ) : null}
+
+              <p className="mt-3 text-3xl font-extrabold text-[#0B2A4A] tracking-tight">
+                {nf.format(stat.total)}
               </p>
+
+              <span className="mt-1 text-xs font-bold text-[#0B2A4A]">Pengaduan</span>
             </div>
           ))}
         </div>
@@ -460,10 +545,7 @@ function ReportPengaduanPage() {
                   </tr>
                 ) : displayedRows.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-10 text-center text-gray-400"
-                    >
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400">
                       Tidak ada data pengaduan yang ditemukan.
                     </td>
                   </tr>
@@ -477,30 +559,15 @@ function ReportPengaduanPage() {
                       "-";
                     const pelapor = item.complainant?.nama_lengkap ?? "-";
                     const perusahaan = item.company?.nama_perusahaan ?? "-";
-                    const tanggal = formatDateIndo(
-                      item.complaint_date ?? item.created_at
-                    );
+                    const tanggal = formatDateIndo(item.complaint_date ?? item.created_at);
 
                     return (
-                      <tr
-                        key={item.id ?? index}
-                        className="hover:bg-gray-50/60 transition-colors"
-                      >
-                        <td className="px-6 py-3.5 text-gray-600 font-medium">
-                          {rowNumber}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-700">
-                          {tanggal}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-700 font-medium">
-                          {jenis}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-800 font-medium">
-                          {pelapor}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-700">
-                          {perusahaan}
-                        </td>
+                      <tr key={item.id ?? index} className="hover:bg-gray-50/60 transition-colors">
+                        <td className="px-6 py-3.5 text-gray-600 font-medium">{rowNumber}</td>
+                        <td className="px-6 py-3.5 text-gray-700">{tanggal}</td>
+                        <td className="px-6 py-3.5 text-gray-700 font-medium">{jenis}</td>
+                        <td className="px-6 py-3.5 text-gray-800 font-medium">{pelapor}</td>
+                        <td className="px-6 py-3.5 text-gray-700">{perusahaan}</td>
                         <td className="px-6 py-3.5">
                           <div className="flex items-center justify-end gap-1.5">
                             {/* Unduh */}
@@ -508,9 +575,7 @@ function ReportPengaduanPage() {
                               type="button"
                               title="Unduh PDF"
                               disabled={downloadingId === item.id}
-                              onClick={() =>
-                                handleDownloadPdf(item.id, item.ticket_number)
-                              }
+                              onClick={() => handleDownloadPdf(item.id, item.ticket_number)}
                               className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer disabled:opacity-50"
                             >
                               {downloadingId === item.id ? (
@@ -532,7 +597,7 @@ function ReportPengaduanPage() {
                               <FileText className="h-3.5 w-3.5" />
                             </button>
                             {/* Lihat */}
-                              
+
                             <button
                               type="button"
                               title="Lihat"
@@ -568,8 +633,8 @@ function ReportPengaduanPage() {
         <div className="flex items-center justify-between px-1">
           <p className="text-[11px] text-gray-500">
             Menampilkan {displayedRows.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to{" "}
-            {(currentPage - 1) * itemsPerPage + displayedRows.length} dari{" "}
-            {nf.format(totalData)} data
+            {(currentPage - 1) * itemsPerPage + displayedRows.length} dari {nf.format(totalData)}{" "}
+            data
           </p>
 
           <div className="flex items-center gap-1.5">
@@ -582,20 +647,29 @@ function ReportPengaduanPage() {
               ‹
             </button>
 
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                type="button"
-                onClick={() => setCurrentPage(page)}
-                className={`grid h-7 w-7 place-items-center rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                  currentPage === page
-                    ? "bg-[#007A64] text-white"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
+            {pageNumbers.map((page) =>
+              page === "…" ? (
+                <span
+                  key="ellipsis"
+                  className="grid h-7 w-7 place-items-center text-[11px] text-gray-400"
+                >
+                  …
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`grid h-7 w-7 place-items-center rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                    currentPage === page
+                      ? "bg-[#007A64] text-white"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {page}
+                </button>
+              ),
+            )}
 
             <button
               type="button"

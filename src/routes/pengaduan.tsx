@@ -10,8 +10,7 @@ import {
   Loader2,
 } from "lucide-react";
 import kemnakerLogo from "@/assets/kemnaker_logo.png";
-
-const BASE_API_URL = "http://192.168.147.199:8000/api";
+import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/pengaduan")({
   head: () => ({
@@ -51,7 +50,7 @@ function parseLocationResponse(json: any): DropdownItem[] {
           item.province_code ||
           item.city_code ||
           item.district_code ||
-          item.village_code
+          item.village_code,
       );
       return {
         id: item.id ?? code,
@@ -93,7 +92,6 @@ function FormulirPengaduanPage() {
   const [categoryId, setCategoryId] = useState<number | string>("");
   const [lainnya, setLainnya] = useState("");
   const [tanggalPelaporan, setTanggalPelaporan] = useState("");
-  const [nomorTiket, setNomorTiket] = useState("");
 
   const [namaPelapor, setNamaPelapor] = useState("Zuan");
   const [nik, setNik] = useState("");
@@ -127,12 +125,10 @@ function FormulirPengaduanPage() {
 
   // Inisialisasi tanggal di browser client untuk menghindari hydration warning
 
-
   // 1. Fetch Kategori, Sektor, & Provinsi dari Backend
   useEffect(() => {
     const fetchInitialData = async () => {
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
       const headers = {
         Accept: "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -146,13 +142,13 @@ function FormulirPengaduanPage() {
           const items = Array.isArray(jsonCat?.data)
             ? jsonCat.data
             : Array.isArray(jsonCat)
-            ? jsonCat
-            : [];
+              ? jsonCat
+              : [];
           setKategoriList(
             items.map((item: any) => ({
               id: item.id,
               name: item.category_name || item.name || item.category_code,
-            }))
+            })),
           );
         }
       } catch (e) {
@@ -167,13 +163,13 @@ function FormulirPengaduanPage() {
           const items = Array.isArray(jsonSek?.data)
             ? jsonSek.data
             : Array.isArray(jsonSek)
-            ? jsonSek
-            : [];
+              ? jsonSek
+              : [];
           setSektorList(
             items.map((item: any) => ({
               id: item.id,
               name: item.sector_name || item.name,
-            }))
+            })),
           );
         }
       } catch (e) {
@@ -216,9 +212,7 @@ function FormulirPengaduanPage() {
     const fetchCities = async () => {
       setLoadingKab(true);
       try {
-        const res = await fetch(
-          `${BASE_API_URL}/cities/${encodeURIComponent(selectedProvCode)}`
-        );
+        const res = await fetch(`${BASE_API_URL}/cities/${encodeURIComponent(selectedProvCode)}`);
         if (res.ok) {
           const json = await res.json();
           const parsed = parseLocationResponse(json);
@@ -249,7 +243,7 @@ function FormulirPengaduanPage() {
       setLoadingKec(true);
       try {
         const res = await fetch(
-          `${BASE_API_URL}/districts/${encodeURIComponent(selectedCityCode)}`
+          `${BASE_API_URL}/districts/${encodeURIComponent(selectedCityCode)}`,
         );
         if (res.ok) {
           const json = await res.json();
@@ -278,7 +272,7 @@ function FormulirPengaduanPage() {
       setLoadingKel(true);
       try {
         const res = await fetch(
-          `${BASE_API_URL}/villages/${encodeURIComponent(selectedDistrictCode)}`
+          `${BASE_API_URL}/villages/${encodeURIComponent(selectedDistrictCode)}`,
         );
         if (res.ok) {
           const json = await res.json();
@@ -303,7 +297,6 @@ function FormulirPengaduanPage() {
       jenisPengaduan,
       lainnya,
       tanggalPelaporan,
-      nomorTiket,
       namaPelapor,
       nik,
       alamatPelapor,
@@ -338,11 +331,7 @@ function FormulirPengaduanPage() {
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-2xs">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <img
-              src={kemnakerLogo}
-              alt="Logo Kemnaker"
-              className="h-8 w-auto object-contain"
-            />
+            <img src={kemnakerLogo} alt="Logo Kemnaker" className="h-8 w-auto object-contain" />
             <span className="text-[14px] font-bold text-gray-900 tracking-tight">
               Kementerian Ketenagakerjaan
             </span>
@@ -368,11 +357,10 @@ function FormulirPengaduanPage() {
       {/* Form Container */}
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <div className="mb-6">
-          <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">
-            Formulir Pengaduan
-          </h1>
+          <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">Formulir Pengaduan</h1>
           <p className="mt-1 text-[12px] text-gray-500">
-            Mohon lengkapi data diri dan informasi perusahaan Anda dengan akurat untuk memproses laporan ini.
+            Mohon lengkapi data diri dan informasi perusahaan Anda dengan akurat untuk memproses
+            laporan ini.
           </p>
         </div>
 
@@ -383,9 +371,7 @@ function FormulirPengaduanPage() {
               <div className="grid h-7 w-7 place-items-center rounded-lg bg-sky-50 text-sky-600">
                 <FileText className="h-4 w-4" />
               </div>
-              <h2 className="text-[13px] font-bold text-gray-900">
-                Jenis Pengaduan
-              </h2>
+              <h2 className="text-[13px] font-bold text-gray-900">Jenis Pengaduan</h2>
             </div>
 
             <div className="space-y-4 text-[11px]">
@@ -422,15 +408,21 @@ function FormulirPengaduanPage() {
 
               <div>
                 <label className="mb-1.5 block font-medium text-gray-700">
-                  Lainnya <span className="text-red-500">*</span>
+                  Lainnya{" "}
+                  {String(categoryId) === "other" && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   suppressHydrationWarning
                   type="text"
                   value={lainnya}
                   onChange={(e) => setLainnya(e.target.value)}
-                  placeholder="Masukkan Jenis Pengaduan"
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  disabled={String(categoryId) !== "other"}
+                  placeholder={
+                    String(categoryId) === "other"
+                      ? "Masukkan Jenis Pengaduan"
+                      : 'Pilih "Lainnya" pada Jenis Pengaduan dahulu'
+                  }
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                 />
               </div>
 
@@ -448,21 +440,6 @@ function FormulirPengaduanPage() {
                     className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
                   />
                 </div>
-
-                <div>
-                  <label className="mb-1.5 block font-medium text-gray-700">
-                    Nomor Tiket <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    suppressHydrationWarning
-                    type="text"
-                    value={nomorTiket}
-                    onChange={(e) => setNomorTiket(e.target.value)}
-                    placeholder="A-123"
-                    required
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] font-semibold text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
-                  />
-                </div>
               </div>
             </div>
           </section>
@@ -473,9 +450,7 @@ function FormulirPengaduanPage() {
               <div className="grid h-7 w-7 place-items-center rounded-lg bg-sky-50 text-sky-600">
                 <User className="h-4 w-4" />
               </div>
-              <h2 className="text-[13px] font-bold text-gray-900">
-                Data Pelapor
-              </h2>
+              <h2 className="text-[13px] font-bold text-gray-900">Data Pelapor</h2>
             </div>
 
             <div className="space-y-4 text-[11px]">
@@ -609,8 +584,9 @@ function FormulirPengaduanPage() {
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-[10.5px] leading-relaxed text-amber-900">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
                 <p>
-                  <strong className="font-semibold text-amber-700">PENTING:</strong>{" "}
-                  Alamat email yang dicantumkan di formulir ini harus sama persis dengan alamat email yang Anda gunakan saat mengirimkan dokumen/berkas pengaduan untuk kebutuhan verifikasi.
+                  <strong className="font-semibold text-amber-700">PENTING:</strong> Alamat email
+                  yang dicantumkan di formulir ini harus sama persis dengan alamat email yang Anda
+                  gunakan saat mengirimkan dokumen/berkas pengaduan untuk kebutuhan verifikasi.
                 </p>
               </div>
             </div>
@@ -622,9 +598,7 @@ function FormulirPengaduanPage() {
               <div className="grid h-7 w-7 place-items-center rounded-lg bg-sky-50 text-sky-600">
                 <Building2 className="h-4 w-4" />
               </div>
-              <h2 className="text-[13px] font-bold text-gray-900">
-                Data Perusahaan
-              </h2>
+              <h2 className="text-[13px] font-bold text-gray-900">Data Perusahaan</h2>
             </div>
 
             <div className="space-y-4 text-[11px]">
@@ -704,9 +678,7 @@ function FormulirPengaduanPage() {
                       onChange={(e) => {
                         const provCode = e.target.value;
                         setSelectedProvCode(provCode);
-                        const matched = provinsiList.find(
-                          (p) => String(p.code) === provCode
-                        );
+                        const matched = provinsiList.find((p) => String(p.code) === provCode);
                         setProvinsiName(matched ? matched.name : "");
                       }}
                       required
@@ -745,9 +717,7 @@ function FormulirPengaduanPage() {
                       onChange={(e) => {
                         const cityCode = e.target.value;
                         setSelectedCityCode(cityCode);
-                        const matched = kabupatenList.find(
-                          (k) => String(k.code) === cityCode
-                        );
+                        const matched = kabupatenList.find((k) => String(k.code) === cityCode);
                         setKabupatenName(matched ? matched.name : "");
                       }}
                       disabled={!selectedProvCode || loadingKab}
@@ -758,8 +728,8 @@ function FormulirPengaduanPage() {
                         {!selectedProvCode
                           ? "Pilih Provinsi terlebih dahulu"
                           : loadingKab
-                          ? "Memuat kota/kabupaten..."
-                          : "Pilih Kota/Kabupaten"}
+                            ? "Memuat kota/kabupaten..."
+                            : "Pilih Kota/Kabupaten"}
                       </option>
                       {kabupatenList.map((kab) => (
                         <option key={kab.id} value={kab.code}>
@@ -789,9 +759,7 @@ function FormulirPengaduanPage() {
                       onChange={(e) => {
                         const distCode = e.target.value;
                         setSelectedDistrictCode(distCode);
-                        const matched = kecamatanList.find(
-                          (kc) => String(kc.code) === distCode
-                        );
+                        const matched = kecamatanList.find((kc) => String(kc.code) === distCode);
                         setKecamatanName(matched ? matched.name : "");
                       }}
                       disabled={!selectedCityCode || loadingKec}
@@ -802,8 +770,8 @@ function FormulirPengaduanPage() {
                         {!selectedCityCode
                           ? "Pilih Kota/Kabupaten terlebih dahulu"
                           : loadingKec
-                          ? "Memuat kecamatan..."
-                          : "Pilih Kecamatan"}
+                            ? "Memuat kecamatan..."
+                            : "Pilih Kecamatan"}
                       </option>
                       {kecamatanList.map((kec) => (
                         <option key={kec.id} value={kec.code}>
@@ -835,9 +803,7 @@ function FormulirPengaduanPage() {
                       onChange={(e) => {
                         const villCode = e.target.value;
                         setSelectedVillageCode(villCode);
-                        const matched = kelurahanList.find(
-                          (kl) => String(kl.code) === villCode
-                        );
+                        const matched = kelurahanList.find((kl) => String(kl.code) === villCode);
                         setKelurahanName(matched ? matched.name : "");
                       }}
                       disabled={!selectedDistrictCode || loadingKel}
@@ -848,8 +814,8 @@ function FormulirPengaduanPage() {
                         {!selectedDistrictCode
                           ? "Pilih Kecamatan terlebih dahulu"
                           : loadingKel
-                          ? "Memuat kelurahan..."
-                          : "Pilih Kelurahan"}
+                            ? "Memuat kelurahan..."
+                            : "Pilih Kelurahan"}
                       </option>
                       {kelurahanList.map((kel) => (
                         <option key={kel.id} value={kel.code}>
@@ -868,9 +834,7 @@ function FormulirPengaduanPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block font-medium text-gray-700">
-                    Email Perusahaan
-                  </label>
+                  <label className="mb-1.5 block font-medium text-gray-700">Email Perusahaan</label>
                   <input
                     suppressHydrationWarning
                     type="email"
@@ -883,9 +847,7 @@ function FormulirPengaduanPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block font-medium text-gray-700">
-                  No Telp Perusahaan
-                </label>
+                <label className="mb-1.5 block font-medium text-gray-700">No Telp Perusahaan</label>
                 <input
                   suppressHydrationWarning
                   type="tel"

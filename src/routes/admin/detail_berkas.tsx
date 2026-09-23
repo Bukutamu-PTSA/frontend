@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { User, Building2, Loader2, AlertCircle } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-
-const BASE_API_URL = "http://192.168.147.199:8000/api";
+import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
 
 export type DetailBerkasSearch = {
   id?: string | number;
@@ -78,8 +77,7 @@ function DetailBerkasPage() {
     const fetchDetail = async () => {
       setLoading(true);
       setErrorMsg(null);
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
       try {
         const res = await fetch(`${BASE_API_URL}/complaints/${complaintId}`, {
@@ -94,7 +92,7 @@ function DetailBerkasPage() {
 
         if (!res.ok || !json) {
           throw new Error(
-            json?.message || `Gagal mengambil data pengaduan (Status: ${res.status})`
+            json?.message || `Gagal mengambil data pengaduan (Status: ${res.status})`,
           );
         }
 
@@ -114,16 +112,9 @@ function DetailBerkasPage() {
         setData({
           id: item.id || complaintId,
           jenisPengaduan:
-            category.category_name ||
-            item.category_name ||
-            item.jenis_pengaduan ||
-            "-",
+            category.category_name || item.category_name || item.jenis_pengaduan || "-",
           categoryId: category.id || item.category_id || 1,
-          namaLengkap:
-            complainant.nama_lengkap ||
-            complainant.nama ||
-            item.nama_pelapor ||
-            "-",
+          namaLengkap: complainant.nama_lengkap || complainant.nama || item.nama_pelapor || "-",
           nik: complainant.nik || item.nik || "-",
           alamatPelapor: complainant.alamat || item.alamat_pelapor || "-",
           jenisKelamin: complainant.jenis_kelamin || item.jenis_kelamin || "-",
@@ -131,27 +122,18 @@ function DetailBerkasPage() {
           noTelpPelapor: complainant.no_telp || item.no_telp || "-",
           emailPelapor: complainant.email || item.email || "-",
           tglPelaporan: item.complaint_date
-            ? new Date(String(item.complaint_date).replace(" ", "T")).toLocaleDateString(
-                "en-GB",
-                {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                }
-              )
+            ? new Date(String(item.complaint_date).replace(" ", "T")).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })
             : "-",
 
-          namaPerusahaan:
-            company.nama_perusahaan || item.nama_perusahaan || "-",
+          namaPerusahaan: company.nama_perusahaan || item.nama_perusahaan || "-",
           sektorIndustri:
-            company.sector?.sector_name ||
-            company.sektor_industri ||
-            item.sektor_industri ||
-            "-",
-          alamatPerusahaan:
-            company.alamat || item.alamat_perusahaan || "-",
-          alamatPerusahaanKantor:
-            company.alamat || item.alamat_perusahaan || "-",
+            company.sector?.sector_name || company.sektor_industri || item.sektor_industri || "-",
+          alamatPerusahaan: company.alamat || item.alamat_perusahaan || "-",
+          alamatPerusahaanKantor: company.alamat || item.alamat_perusahaan || "-",
           jumlahTenagaKerja: Number(company.jumlah_naker || item.jumlah_naker || 0),
           provinsi: company.provinsi || item.provinsi || "-",
           kotaKab: company.kota_kab || company.city || item.kota_kab || "-",
@@ -186,8 +168,7 @@ function DetailBerkasPage() {
     }
 
     setSaving(true);
-    const token =
-      localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     const payload = {
       description: data.deskripsiAduan,
@@ -243,9 +224,7 @@ function DetailBerkasPage() {
   return (
     <AppShell>
       <div className="space-y-4">
-        <h1 className="text-[20px] font-normal text-gray-800 tracking-tight">
-          View
-        </h1>
+        <h1 className="text-[20px] font-normal text-gray-800 tracking-tight">View</h1>
 
         {loading ? (
           <div className="flex h-72 items-center justify-center rounded-xl border border-gray-200 bg-white">
@@ -288,9 +267,7 @@ function DetailBerkasPage() {
                 <h2 className="text-[17px] font-bold text-gray-900 leading-tight">
                   {data.namaLengkap}
                 </h2>
-                <p className="text-[12px] text-gray-500 mt-1 mb-5">
-                  {data.jabatan}
-                </p>
+                <p className="text-[12px] text-gray-500 mt-1 mb-5">{data.jabatan}</p>
 
                 <button
                   type="button"
@@ -314,9 +291,7 @@ function DetailBerkasPage() {
                       <User className="h-3.5 w-3.5 text-gray-600" />
                       <span>Nama Pelapor</span>
                     </div>
-                    <p className="text-gray-700 pl-5.5 font-normal">
-                      {data.namaLengkap}
-                    </p>
+                    <p className="text-gray-700 pl-5.5 font-normal">{data.namaLengkap}</p>
                   </div>
 
                   <hr className="border-gray-100" />
@@ -368,9 +343,7 @@ function DetailBerkasPage() {
                 {activeTab === "detail" && (
                   <div className="space-y-6 text-[12px]">
                     <div className="space-y-3">
-                      <h3 className="text-[13px] font-bold text-gray-900">
-                        Detail Pelapor
-                      </h3>
+                      <h3 className="text-[13px] font-bold text-gray-900">Detail Pelapor</h3>
                       <div className="space-y-2 text-gray-800">
                         <div className="flex items-baseline">
                           <span className="w-44 shrink-0 text-gray-600">Pelaporan</span>
@@ -412,9 +385,7 @@ function DetailBerkasPage() {
                     </div>
 
                     <div className="space-y-3 pt-2">
-                      <h3 className="text-[13px] font-bold text-[#008767]">
-                        Detail Perusahaan
-                      </h3>
+                      <h3 className="text-[13px] font-bold text-[#008767]">Detail Perusahaan</h3>
                       <div className="space-y-2 text-gray-800">
                         <div className="flex items-baseline">
                           <span className="w-44 shrink-0 text-gray-600">Nama Perusahaan</span>
@@ -460,9 +431,7 @@ function DetailBerkasPage() {
                     </div>
 
                     <div className="space-y-1.5 pt-2">
-                      <h3 className="text-[13px] font-bold text-[#008767]">
-                        Detail Pengaduan
-                      </h3>
+                      <h3 className="text-[13px] font-bold text-[#008767]">Detail Pengaduan</h3>
                       <p className="text-[11.5px] text-gray-700 underline font-medium">
                         Deskripsi Pengaduan :
                       </p>
@@ -483,9 +452,7 @@ function DetailBerkasPage() {
                       <input
                         type="text"
                         value={data.jenisPengaduan}
-                        onChange={(e) =>
-                          setData({ ...data, jenisPengaduan: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, jenisPengaduan: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
@@ -497,17 +464,13 @@ function DetailBerkasPage() {
                       <input
                         type="text"
                         value={data.namaLengkap}
-                        onChange={(e) =>
-                          setData({ ...data, namaLengkap: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, namaLengkap: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                      <label className="w-44 shrink-0 text-gray-700 font-normal">
-                        NIK
-                      </label>
+                      <label className="w-44 shrink-0 text-gray-700 font-normal">NIK</label>
                       <input
                         type="text"
                         value={data.nik}
@@ -517,15 +480,11 @@ function DetailBerkasPage() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                      <label className="w-44 shrink-0 text-gray-700 font-normal">
-                        Alamat
-                      </label>
+                      <label className="w-44 shrink-0 text-gray-700 font-normal">Alamat</label>
                       <input
                         type="text"
                         value={data.alamatPelapor}
-                        onChange={(e) =>
-                          setData({ ...data, alamatPelapor: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, alamatPelapor: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
@@ -537,51 +496,37 @@ function DetailBerkasPage() {
                       <input
                         type="text"
                         value={data.jenisKelamin}
-                        onChange={(e) =>
-                          setData({ ...data, jenisKelamin: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, jenisKelamin: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                      <label className="w-44 shrink-0 text-gray-700 font-normal">
-                        Jabatan
-                      </label>
+                      <label className="w-44 shrink-0 text-gray-700 font-normal">Jabatan</label>
                       <input
                         type="text"
                         value={data.jabatan}
-                        onChange={(e) =>
-                          setData({ ...data, jabatan: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, jabatan: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                      <label className="w-44 shrink-0 text-gray-700 font-normal">
-                        No Telp
-                      </label>
+                      <label className="w-44 shrink-0 text-gray-700 font-normal">No Telp</label>
                       <input
                         type="text"
                         value={data.noTelpPelapor}
-                        onChange={(e) =>
-                          setData({ ...data, noTelpPelapor: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, noTelpPelapor: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                      <label className="w-44 shrink-0 text-gray-700 font-normal">
-                        Email
-                      </label>
+                      <label className="w-44 shrink-0 text-gray-700 font-normal">Email</label>
                       <input
                         type="email"
                         value={data.emailPelapor}
-                        onChange={(e) =>
-                          setData({ ...data, emailPelapor: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, emailPelapor: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
@@ -595,9 +540,7 @@ function DetailBerkasPage() {
                       <input
                         type="text"
                         value={data.namaPerusahaan}
-                        onChange={(e) =>
-                          setData({ ...data, namaPerusahaan: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, namaPerusahaan: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
@@ -609,23 +552,17 @@ function DetailBerkasPage() {
                       <input
                         type="text"
                         value={data.sektorIndustri}
-                        onChange={(e) =>
-                          setData({ ...data, sektorIndustri: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, sektorIndustri: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                      <label className="w-44 shrink-0 text-gray-700 font-normal">
-                        Alamat
-                      </label>
+                      <label className="w-44 shrink-0 text-gray-700 font-normal">Alamat</label>
                       <input
                         type="text"
                         value={data.alamatPerusahaan}
-                        onChange={(e) =>
-                          setData({ ...data, alamatPerusahaan: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, alamatPerusahaan: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
@@ -650,15 +587,11 @@ function DetailBerkasPage() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                      <label className="w-44 shrink-0 text-gray-700 font-normal">
-                        Provinsi
-                      </label>
+                      <label className="w-44 shrink-0 text-gray-700 font-normal">Provinsi</label>
                       <input
                         type="text"
                         value={data.provinsi}
-                        onChange={(e) =>
-                          setData({ ...data, provinsi: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, provinsi: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
@@ -670,37 +603,27 @@ function DetailBerkasPage() {
                       <input
                         type="text"
                         value={data.kotaKab}
-                        onChange={(e) =>
-                          setData({ ...data, kotaKab: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, kotaKab: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                      <label className="w-44 shrink-0 text-gray-700 font-normal">
-                        Kecamatan
-                      </label>
+                      <label className="w-44 shrink-0 text-gray-700 font-normal">Kecamatan</label>
                       <input
                         type="text"
                         value={data.kecamatan}
-                        onChange={(e) =>
-                          setData({ ...data, kecamatan: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, kecamatan: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-                      <label className="w-44 shrink-0 text-gray-700 font-normal">
-                        Kelurahan
-                      </label>
+                      <label className="w-44 shrink-0 text-gray-700 font-normal">Kelurahan</label>
                       <input
                         type="text"
                         value={data.kelurahan}
-                        onChange={(e) =>
-                          setData({ ...data, kelurahan: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, kelurahan: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
@@ -712,9 +635,7 @@ function DetailBerkasPage() {
                       <input
                         type="text"
                         value={data.noTelpPerusahaan}
-                        onChange={(e) =>
-                          setData({ ...data, noTelpPerusahaan: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, noTelpPerusahaan: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
@@ -726,9 +647,7 @@ function DetailBerkasPage() {
                       <input
                         type="email"
                         value={data.emailPerusahaan}
-                        onChange={(e) =>
-                          setData({ ...data, emailPerusahaan: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, emailPerusahaan: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white px-3.5 py-2 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none"
                       />
                     </div>
@@ -740,9 +659,7 @@ function DetailBerkasPage() {
                       <textarea
                         rows={3}
                         value={data.deskripsiAduan}
-                        onChange={(e) =>
-                          setData({ ...data, deskripsiAduan: e.target.value })
-                        }
+                        onChange={(e) => setData({ ...data, deskripsiAduan: e.target.value })}
                         className="flex-1 rounded-md border border-gray-300 bg-white p-3 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none resize-none"
                       />
                     </div>
@@ -760,9 +677,7 @@ function DetailBerkasPage() {
                         className="text-[11px] text-gray-500 cursor-pointer select-none"
                       >
                         I agree to the{" "}
-                        <span className="text-blue-500 hover:underline">
-                          terms and conditions
-                        </span>
+                        <span className="text-blue-500 hover:underline">terms and conditions</span>
                       </label>
                     </div>
 

@@ -1,1 +1,6 @@
 node_modules
+
+# Local env files (jangan di-commit). Gunakan .env.example sebagai template.
+.env
+.env.local
+.env.*.local

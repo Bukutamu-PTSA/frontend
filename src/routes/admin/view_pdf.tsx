@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Printer, User, Loader2, AlertCircle } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-
-const BASE_API_URL = "http://192.168.147.199:8000/api";
+import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
 
 export type ViewPdfSearch = {
   id?: string | number;
@@ -81,8 +80,7 @@ function ViewPdfPage() {
     const fetchDetail = async () => {
       setLoading(true);
       setErrorMsg(null);
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
       try {
         const res = await fetch(`${BASE_API_URL}/complaints/${complaintId}`, {
@@ -94,9 +92,7 @@ function ViewPdfPage() {
 
         const json = await res.json().catch(() => null);
         if (!res.ok || !json) {
-          throw new Error(
-            json?.message || `Gagal memuat dokumen (Status: ${res.status})`
-          );
+          throw new Error(json?.message || `Gagal memuat dokumen (Status: ${res.status})`);
         }
 
         const item = json.data ?? json.complaint ?? json;
@@ -172,9 +168,7 @@ function ViewPdfPage() {
               {/* Rincian Atas: Jenis Layanan & Tanggal Pelaporan */}
               <div className="space-y-1.5 mb-6 text-gray-800">
                 <div className="flex">
-                  <span className="w-44 shrink-0 font-medium">
-                    Jenis Layanan Pengaduan
-                  </span>
+                  <span className="w-44 shrink-0 font-medium">Jenis Layanan Pengaduan</span>
                   <span className="w-4 shrink-0">:</span>
                   <span className="font-bold text-gray-900">
                     {category.category_name ||
@@ -184,47 +178,30 @@ function ViewPdfPage() {
                   </span>
                 </div>
                 <div className="flex">
-                  <span className="w-44 shrink-0 font-medium">
-                    Tanggal Pelaporan
-                  </span>
+                  <span className="w-44 shrink-0 font-medium">Tanggal Pelaporan</span>
                   <span className="w-4 shrink-0">:</span>
-                  <span>
-                    {formatDateWithTime(
-                      detail.complaint_date || detail.created_at
-                    )}
-                  </span>
+                  <span>{formatDateWithTime(detail.complaint_date || detail.created_at)}</span>
                 </div>
               </div>
 
               {/* Section 1: Biodata Pelapor */}
               <div className="mb-6">
-                <h2 className="text-[12px] font-bold text-gray-900 mb-2">
-                  Biodata Pelapor
-                </h2>
+                <h2 className="text-[12px] font-bold text-gray-900 mb-2">Biodata Pelapor</h2>
                 <div className="space-y-1.5 text-gray-800">
                   <div className="flex">
-                    <span className="w-44 shrink-0 font-medium text-gray-600">
-                      Nama Pelapor
-                    </span>
+                    <span className="w-44 shrink-0 font-medium text-gray-600">Nama Pelapor</span>
                     <span className="w-4 shrink-0">:</span>
                     <span className="font-medium">
-                      {complainant.nama_lengkap ||
-                        complainant.nama ||
-                        detail.nama_pelapor ||
-                        "-"}
+                      {complainant.nama_lengkap || complainant.nama || detail.nama_pelapor || "-"}
                     </span>
                   </div>
                   <div className="flex">
-                    <span className="w-44 shrink-0 font-medium text-gray-600">
-                      NIK
-                    </span>
+                    <span className="w-44 shrink-0 font-medium text-gray-600">NIK</span>
                     <span className="w-4 shrink-0">:</span>
                     <span>{complainant.nik || detail.nik || "-"}</span>
                   </div>
                   <div className="flex">
-                    <span className="w-44 shrink-0 font-medium text-gray-600">
-                      No Telp
-                    </span>
+                    <span className="w-44 shrink-0 font-medium text-gray-600">No Telp</span>
                     <span className="w-4 shrink-0">:</span>
                     <span>{complainant.no_telp || detail.no_telp || "-"}</span>
                   </div>
@@ -233,14 +210,10 @@ function ViewPdfPage() {
 
               {/* Section 2: Biodata Perusahaan */}
               <div className="mb-6">
-                <h2 className="text-[12px] font-bold text-gray-900 mb-2">
-                  Biodata Perusahaan
-                </h2>
+                <h2 className="text-[12px] font-bold text-gray-900 mb-2">Biodata Perusahaan</h2>
                 <div className="space-y-1.5 text-gray-800">
                   <div className="flex">
-                    <span className="w-44 shrink-0 font-medium text-gray-600">
-                      Nama Perusahaan
-                    </span>
+                    <span className="w-44 shrink-0 font-medium text-gray-600">Nama Perusahaan</span>
                     <span className="w-4 shrink-0">:</span>
                     <span className="font-medium">
                       {company.nama_perusahaan || detail.nama_perusahaan || "-"}
@@ -269,13 +242,9 @@ function ViewPdfPage() {
 
               {/* Section 3: Pengaduan */}
               <div className="mb-8">
-                <h2 className="text-[12px] font-bold text-gray-900 mb-2">
-                  Pengaduan
-                </h2>
+                <h2 className="text-[12px] font-bold text-gray-900 mb-2">Pengaduan</h2>
                 <div className="flex items-start text-gray-800">
-                  <span className="w-44 shrink-0 font-medium text-gray-600">
-                    Deskripsi Aduan
-                  </span>
+                  <span className="w-44 shrink-0 font-medium text-gray-600">Deskripsi Aduan</span>
                   <span className="w-4 shrink-0">:</span>
                   <span className="flex-1 text-justify leading-relaxed">
                     {detail.description || detail.deskripsi || "-"}
@@ -286,8 +255,8 @@ function ViewPdfPage() {
               {/* Kalimat Penutup */}
               <div className="mb-14 text-gray-700">
                 <p>
-                  Demikian pengaduan ini saya buat. Atas perhatian Bapak/Ibu, saya
-                  ucapkan terima kasih..
+                  Demikian pengaduan ini saya buat. Atas perhatian Bapak/Ibu, saya ucapkan terima
+                  kasih..
                 </p>
               </div>
 
@@ -297,10 +266,7 @@ function ViewPdfPage() {
                 <div className="flex flex-col items-center justify-between min-h-[220px]">
                   <div>
                     <p>
-                      Jakarta,{" "}
-                      {formatDateIndoShort(
-                        detail.complaint_date || detail.created_at
-                      )}
+                      Jakarta, {formatDateIndoShort(detail.complaint_date || detail.created_at)}
                     </p>
                     <p className="mt-1">Petugas PTSA,</p>
                   </div>
@@ -332,10 +298,7 @@ function ViewPdfPage() {
 
                   <div className="text-center w-full">
                     <p className="font-bold text-gray-900">
-                      {complainant.nama_lengkap ||
-                        complainant.nama ||
-                        detail.nama_pelapor ||
-                        "-"}
+                      {complainant.nama_lengkap || complainant.nama || detail.nama_pelapor || "-"}
                     </p>
                     <p className="mt-0.5 text-gray-600">
                       NIK. {complainant.nik || detail.nik || "-"}

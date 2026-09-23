@@ -1,16 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Search,
-  Download,
-  FileText,
-  Eye,
-  Trash2,
-  Loader2,
-} from "lucide-react";
+import { Search, Download, FileText, Eye, Trash2, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-
-const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api";
+import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
+import { pageWindow } from "@/lib/pagination";
 
 const CATEGORY_MAP: Record<number, { title: string; shortName: string }> = {
   1: { title: "Wajib Lapor Ketenagakerjaan", shortName: "WLKP" },
@@ -119,10 +112,9 @@ function DetailKategoriPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const fetchCategoryComplaints = async () => {
+  const fetchCategoryComplaints = useCallback(async () => {
     setLoading(true);
-    const token =
-      localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     const authHeaders = {
       "Content-Type": "application/json",
@@ -137,7 +129,7 @@ function DetailKategoriPage() {
         {
           method: "GET",
           headers: authHeaders,
-        }
+        },
       );
 
       if (res.ok) {
@@ -145,12 +137,36 @@ function DetailKategoriPage() {
         const firstPageData = Array.isArray(json?.data)
           ? json.data
           : Array.isArray(json?.data?.data)
-          ? json.data.data
-          : Array.isArray(json)
-          ? json
-          : [];
+            ? json.data.data
+            : Array.isArray(json)
+              ? json
+              : [];
 
         allData = [...firstPageData];
+
+        const meta = json?.meta ?? json?.data?.meta ?? {};
+        const lastPage = Number(meta?.last_page ?? json?.last_page ?? json?.data?.last_page ?? 1);
+        const total = Number(meta?.total ?? json?.total ?? json?.data?.total ?? allData.length);
+
+        if (lastPage > 1 && allData.length < total) {
+          for (let p = 2; p <= lastPage; p++) {
+            const nextRes = await fetch(
+              `${COMPLAINTS_API_URL}/complaints?category_id=${categoryId}&page=${p}&per_page=50`,
+              { method: "GET", headers: authHeaders },
+            );
+            if (nextRes.ok) {
+              const nextJson = await nextRes.json();
+              const nextItems = Array.isArray(nextJson?.data)
+                ? nextJson.data
+                : Array.isArray(nextJson?.data?.data)
+                  ? nextJson.data.data
+                  : Array.isArray(nextJson)
+                    ? nextJson
+                    : [];
+              allData = [...allData, ...nextItems];
+            }
+          }
+        }
 
         allData = allData.filter((item: any) => {
           const itemCatId = Number(item.category_id ?? item.category?.id);
@@ -164,11 +180,11 @@ function DetailKategoriPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [categoryId]);
 
   useEffect(() => {
     fetchCategoryComplaints();
-  }, [categoryId]);
+  }, [fetchCategoryComplaints, categoryId]);
 
   const filteredComplaints = useMemo(() => {
     return complaints.filter((item) => {
@@ -176,7 +192,7 @@ function DetailKategoriPage() {
       const pelapor = String(item.complainant?.nama_lengkap ?? "").toLowerCase();
       const perusahaan = String(item.company?.nama_perusahaan ?? "").toLowerCase();
       const jenis = String(
-        item.category?.category_name ?? item.category?.category_code ?? ""
+        item.category?.category_name ?? item.category?.category_code ?? "",
       ).toLowerCase();
       const ticket = String(item.ticket_number ?? "").toLowerCase();
 
@@ -214,11 +230,12 @@ function DetailKategoriPage() {
   const totalData = filteredComplaints.length;
   const totalPages = Math.max(1, Math.ceil(totalData / itemsPerPage));
   const displayedRows = useMemo(() => {
-    return filteredComplaints.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    );
+    return filteredComplaints.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   }, [filteredComplaints, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
 
   const handleFilter = () => {
     setAppliedFilters({ search: searchInput, month, year });
@@ -233,22 +250,18 @@ function DetailKategoriPage() {
     setCurrentPage(1);
   };
 
-const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
+  const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
     try {
       setDownloadingId(complaintId);
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-      const response = await fetch(
-        `http://192.168.147.199:8000/api/complaints/${complaintId}/pdf`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/pdf, application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      const response = await fetch(apiUrl(`complaints/${complaintId}/pdf`), {
+        method: "GET",
+        headers: {
+          Accept: "application/pdf, application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
       if (!response.ok) throw new Error("Gagal mengunduh PDF");
 
@@ -275,9 +288,7 @@ const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => 
 
       // Kasus 2: Backend mengembalikan Binary Stream File PDF murni
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(
-        new Blob([blob], { type: "application/pdf" })
-      );
+      const downloadUrl = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
       const a = document.createElement("a");
       a.href = downloadUrl;
       a.download = `Pengaduan_${ticketNumber ?? complaintId}.pdf`;
@@ -296,8 +307,7 @@ const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => 
   const handleDelete = async (deleteId: number) => {
     if (!window.confirm("Apakah Anda yakin ingin menghapus pengaduan ini?")) return;
 
-    const token =
-      localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     try {
       const res = await fetch(`${COMPLAINTS_API_URL}/complaints/${deleteId}`, {
@@ -335,8 +345,12 @@ const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => 
               <input
                 type="text"
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleFilter()}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSearchInput(v);
+                  setAppliedFilters((prev) => ({ ...prev, search: v }));
+                  setCurrentPage(1);
+                }}
                 placeholder="Cari pengaduan..."
                 className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-4 py-2 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#007A64]"
               />
@@ -433,25 +447,14 @@ const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => 
                       currentCategory.shortName;
                     const pelapor = item.complainant?.nama_lengkap ?? "-";
                     const perusahaan = item.company?.nama_perusahaan ?? "-";
-                    const tanggal = formatDateIndo(
-                      item.complaint_date ?? item.created_at
-                    );
+                    const tanggal = formatDateIndo(item.complaint_date ?? item.created_at);
 
                     return (
-                      <tr
-                        key={item.id ?? index}
-                        className="hover:bg-gray-50/60 transition-colors"
-                      >
-                        <td className="px-6 py-3.5 text-gray-600 font-medium">
-                          {rowNumber}
-                        </td>
+                      <tr key={item.id ?? index} className="hover:bg-gray-50/60 transition-colors">
+                        <td className="px-6 py-3.5 text-gray-600 font-medium">{rowNumber}</td>
                         <td className="px-6 py-3.5 text-gray-700">{tanggal}</td>
-                        <td className="px-6 py-3.5 text-gray-700 font-medium">
-                          {jenis}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-800 font-medium">
-                          {pelapor}
-                        </td>
+                        <td className="px-6 py-3.5 text-gray-700 font-medium">{jenis}</td>
+                        <td className="px-6 py-3.5 text-gray-800 font-medium">{pelapor}</td>
                         <td className="px-6 py-3.5 text-gray-700">{perusahaan}</td>
                         <td className="px-6 py-3.5">
                           <div className="flex items-center justify-end gap-1.5">
@@ -460,9 +463,7 @@ const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => 
                               type="button"
                               title="Unduh PDF"
                               disabled={downloadingId === item.id}
-                              onClick={() =>
-                                handleDownloadPdf(item.id, item.ticket_number)
-                              }
+                              onClick={() => handleDownloadPdf(item.id, item.ticket_number)}
                               className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer disabled:opacity-50"
                             >
                               {downloadingId === item.id ? (
@@ -519,12 +520,8 @@ const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => 
         {/* Footer Pagination */}
         <div className="flex items-center justify-between px-1">
           <p className="text-[11px] text-gray-500">
-            Menampilkan{" "}
-            {displayedRows.length
-              ? (currentPage - 1) * itemsPerPage + 1
-              : 0}{" "}
-            to {(currentPage - 1) * itemsPerPage + displayedRows.length} dari{" "}
-            {totalData} data
+            Menampilkan {displayedRows.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to{" "}
+            {(currentPage - 1) * itemsPerPage + displayedRows.length} dari {totalData} data
           </p>
 
           <div className="flex items-center gap-1.5">
@@ -537,22 +534,20 @@ const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => 
               ‹
             </button>
 
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map(
-              (page) => (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => setCurrentPage(page)}
-                  className={`grid h-7 w-7 place-items-center rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                    currentPage === page
-                      ? "bg-[#007A64] text-white"
-                      : "text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
-                  {page}
-                </button>
-              )
-            )}
+            {pageWindow(currentPage, totalPages).map((page) => (
+              <button
+                key={page}
+                type="button"
+                onClick={() => setCurrentPage(page)}
+                className={`grid h-7 w-7 place-items-center rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
+                  currentPage === page
+                    ? "bg-[#007A64] text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {page}
+              </button>
+            ))}
 
             <button
               type="button"

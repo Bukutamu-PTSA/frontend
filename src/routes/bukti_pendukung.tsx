@@ -3,17 +3,18 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Building2,
   Camera,
-  Video,
   X,
   ArrowLeft,
   Loader2,
   FileCheck,
   MapPin,
   Mail,
-  Twitter,
   Facebook,
   Instagram,
+  Upload,
 } from "lucide-react";
+import { XIcon } from "@/components/x-icon";
+import { apiUrl } from "@/lib/api";
 
 export const Route = createFileRoute("/bukti_pendukung")({
   head: () => ({
@@ -26,13 +27,13 @@ export const Route = createFileRoute("/bukti_pendukung")({
   component: BuktiPendukungPage,
 });
 
-const COMPLAINTS_API_URL = "http://192.168.147.199:8000/api/complaints";
+const COMPLAINTS_API_URL = apiUrl("complaints");
 
-// Helper konversi base64 kamera menjadi File objek
+// Helper konversi base64 hasil kamera menjadi File objek.
 function dataURLtoFile(dataurl: string, filename: string): File {
   const arr = dataurl.split(",");
   const mimeMatch = arr[0]?.match(/:(.*?);/);
-  const mime = mimeMatch?.[1] || "image/jpeg";
+  const mime = mimeMatch?.[1] || "image/jpeg, application/pdf";
   const bstr = atob(arr[1] || "");
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
@@ -48,58 +49,43 @@ function BuktiPendukungPage() {
   const [deskripsiAduan, setDeskripsiAduan] = useState("");
   const [selectedDocument, setSelectedDocument] = useState<File | null>(null);
 
-  // Camera state
-  const [cameraActive, setCameraActive] = useState(false);
+  // Camera state (native capture: input type=file + capture)
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [capturedFile, setCapturedFile] = useState<File | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-    if (cameraActive) {
-      navigator.mediaDevices
-        ?.getUserMedia({ video: { facingMode: "user" } })
-        .then((s) => {
-          stream = s;
-          if (videoRef.current) {
-            videoRef.current.srcObject = s;
-          }
-        })
-        .catch((err) => {
-          console.warn("Akses kamera tidak diizinkan atau tidak tersedia:", err);
-          setCameraActive(false);
-        });
-    }
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [cameraActive]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCapture = () => {
-    if (!cameraActive) {
-      setCameraActive(true);
+    cameraInputRef.current?.click();
+  };
+
+  const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (
+      !/\.(jpe?g|png|pdf)$/i.test(file.name) &&
+      !["image/jpeg", "image/png", "application/pdf"].includes(file.type)
+    ) {
+      alert("Bukti foto harus berupa file JPG/JPEG atau PDF.");
       return;
     }
 
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL("image/jpeg");
-        setCapturedPhoto(dataUrl);
-        setCameraActive(false);
-      }
-    }
+    setCapturedFile(file);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCapturedPhoto(String(reader.result ?? ""));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleClearPhoto = () => {
+    setCapturedPhoto(null);
+    setCapturedFile(null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,6 +103,15 @@ function BuktiPendukungPage() {
     setIsSubmitting(true);
 
     try {
+      if (
+        selectedDocument &&
+        !/\.(pdf|jpe?g|png)$/i.test(selectedDocument.name) &&
+        !["application/pdf", "image/jpeg", "image/png"].includes(selectedDocument.type)
+      ) {
+        alert("Hanya file PDF, JPG, JPEG, atau PNG yang diizinkan.");
+        return;
+      }
+
       const formData = new FormData();
 
       // 1. Root Complaint Fields
@@ -124,7 +119,7 @@ function BuktiPendukungPage() {
       formData.append("description", deskripsiAduan);
       formData.append(
         "complaint_date",
-        draftData.tanggalPelaporan || new Date().toISOString().split("T")[0]
+        draftData.tanggalPelaporan || new Date().toISOString().split("T")[0],
       );
 
       // 2. Complainant Nested Fields
@@ -133,7 +128,7 @@ function BuktiPendukungPage() {
       formData.append("complainant[alamat]", draftData.alamatPelapor || "");
       formData.append(
         "complainant[jenis_kelamin]",
-        (draftData.jenisKelamin || "Laki-laki").toLowerCase()
+        (draftData.jenisKelamin || "Laki-laki").toLowerCase(),
       );
       formData.append("complainant[jabatan]", draftData.jabatan || "");
       formData.append("complainant[no_telp]", draftData.noTelpPelapor || "");
@@ -152,16 +147,14 @@ function BuktiPendukungPage() {
       formData.append("company[email]", draftData.emailPerusahaan || "");
 
       // 4. Attachments (attachments[])
-      if (capturedPhoto) {
-        const photoFile = dataURLtoFile(capturedPhoto, "foto.jpg");
-        formData.append("attachments[]", photoFile);
+      if (capturedFile) {
+        formData.append("attachments[]", capturedFile);
       }
       if (selectedDocument) {
         formData.append("attachments[]", selectedDocument);
       }
 
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
       const res = await fetch(COMPLAINTS_API_URL, {
         method: "POST",
@@ -180,7 +173,7 @@ function BuktiPendukungPage() {
           ? Object.entries(responseData.errors)
               .map(
                 ([field, msgs]: [string, any]) =>
-                  `• ${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`
+                  `• ${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`,
               )
               .join("\n")
           : responseData?.message || "Data formulir tidak memenuhi validasi server.";
@@ -191,7 +184,7 @@ function BuktiPendukungPage() {
 
       sessionStorage.removeItem("draft_pengaduan");
       alert("Pengaduan berhasil disimpan!");
-      navigate({ to: "/admin/reportpengaduan" });
+      navigate({ to: "/" });
     } catch (err) {
       console.error("Gagal mengirim pengaduan:", err);
       alert("Terjadi kendala jaringan saat menghubungi server.");
@@ -240,7 +233,8 @@ function BuktiPendukungPage() {
                 Detail Aduan & Bukti Pendukung
               </h1>
               <p className="mt-1 text-[11px] text-gray-500">
-                Lengkapi informasi di bawah ini dengan sejelas-jelasnya untuk memudahkan proses investigasi.
+                Lengkapi informasi di bawah ini dengan sejelas-jelasnya untuk memudahkan proses
+                investigasi.
               </p>
             </div>
 
@@ -250,7 +244,8 @@ function BuktiPendukungPage() {
                 Deskripsi Aduan <span className="text-red-500">*</span>
               </label>
               <p className="text-[10px] text-gray-400 leading-tight">
-                Uraikan kronologi kejadian, pihak yang terlibat, dan kerugian yang dialami. Hindari penggunaan singkatan yang tidak umum.
+                Uraikan kronologi kejadian, pihak yang terlibat, dan kerugian yang dialami. Hindari
+                penggunaan singkatan yang tidak umum.
               </p>
               <textarea
                 rows={5}
@@ -265,7 +260,7 @@ function BuktiPendukungPage() {
             {/* Upload Dokumen */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-semibold text-gray-800">
-                Bukti Pendukung (JPG/PDF)
+                Bukti Pendukung (PDF/JPG/PNG)
               </label>
               <p className="text-[10px] text-gray-400 leading-tight">
                 Masukkan dokumen bukti pendukung yang telah dikirimkan via email.
@@ -324,48 +319,44 @@ function BuktiPendukungPage() {
                 Bukti Foto (Opsional namun sangat disarankan)
               </label>
               <p className="text-[10px] text-gray-400 leading-tight">
-                Gunakan kamera perangkat untuk mengambil foto Anda.
+                Di HP: langsung buka kamera. Di laptop: pilih file gambar.
               </p>
 
-              <div className="relative mx-auto mt-3 h-52 max-w-md overflow-hidden rounded-xl bg-[#2D3748] flex items-center justify-center">
-                <div className="pointer-events-none absolute inset-4 border border-white/20 rounded-lg">
-                  <div className="absolute top-0 left-0 h-4 w-4 border-t-2 border-l-2 border-white/60" />
-                  <div className="absolute top-0 right-0 h-4 w-4 border-t-2 border-r-2 border-white/60" />
-                  <div className="absolute bottom-0 left-0 h-4 w-4 border-b-2 border-l-2 border-white/60" />
-                  <div className="absolute bottom-0 right-0 h-4 w-4 border-b-2 border-r-2 border-white/60" />
-                </div>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg"
+                capture="environment"
+                onChange={handleCameraChange}
+                className="sr-only"
+              />
 
-                {capturedPhoto ? (
-                  <div className="relative h-full w-full">
-                    <img
-                      src={capturedPhoto}
-                      alt="Hasil Foto"
-                      className="h-full w-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setCapturedPhoto(null)}
-                      className="absolute top-2 right-2 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white hover:bg-black"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ) : cameraActive ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
+              {capturedPhoto ? (
+                <div className="relative mx-auto mt-3 h-52 max-w-md overflow-hidden rounded-xl bg-[#2D3748] flex items-center justify-center">
+                  <img
+                    src={capturedPhoto}
+                    alt="Hasil Foto"
                     className="h-full w-full object-cover"
                   />
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-white/50">
-                    <Video className="h-9 w-9 stroke-1" />
-                    <span className="text-[10.5px]">Kamera Siap</span>
-                  </div>
-                )}
-
-                <canvas ref={canvasRef} className="hidden" />
-              </div>
+                  <button
+                    type="button"
+                    onClick={handleClearPhoto}
+                    className="absolute top-2 right-2 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white hover:bg-black"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={handleCapture}
+                  className="mt-3 flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 bg-[#FAFBFD] text-gray-400 hover:bg-gray-50 hover:text-[#0E3B68] transition-colors"
+                >
+                  <Camera className="h-6 w-6" />
+                  <span className="text-[11px] font-medium">
+                    Ketuk untuk buka kamera / ambil foto
+                  </span>
+                </div>
+              )}
 
               <div className="flex justify-center pt-2">
                 <button
@@ -376,7 +367,7 @@ function BuktiPendukungPage() {
                   <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#0E3B68] text-white shadow-xs hover:bg-[#0a2c4e] transition-colors">
                     <Camera className="h-5 w-5" />
                   </div>
-                  <span>{capturedPhoto ? "Ambil Ulang Foto" : "Ambil Foto"}</span>
+                  <span>{capturedPhoto ? "Ambil Ulang Foto" : "Mulai Kamera"}</span>
                 </button>
               </div>
             </div>
@@ -419,28 +410,42 @@ function BuktiPendukungPage() {
                 BINWASNAKER & K3
               </h3>
               <p className="text-white/60 leading-relaxed">
-                Ditjen Binwasnaker & K3 adalah unsur pelaksana yang berada di bawah dan bertanggung jawab kepada Menteri Ketenagakerjaan.
+                Ditjen Binwasnaker & K3 adalah unsur pelaksana yang berada di bawah dan bertanggung
+                jawab kepada Menteri Ketenagakerjaan.
               </p>
               <div className="flex items-center gap-3 pt-2 text-white/70">
-                <a href="#" className="hover:text-white transition-colors">
-                  <Twitter className="h-4 w-4" />
+                <a
+                  href="https://x.com/KemnakerRI"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors"
+                >
+                  <XIcon className="h-4 w-4" />
                 </a>
-                <a href="#" className="hover:text-white transition-colors">
+                <a
+                  href="https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors"
+                >
                   <Facebook className="h-4 w-4" />
                 </a>
-                <a href="#" className="hover:text-white transition-colors">
+                <a
+                  href="https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ=="
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors"
+                >
                   <Instagram className="h-4 w-4" />
                 </a>
               </div>
             </div>
 
             <div className="space-y-3">
-              <h3 className="text-[12px] font-bold text-white tracking-wide">
-                Customer Support
-              </h3>
+              <h3 className="text-[12px] font-bold text-white tracking-wide">Customer Support</h3>
               <ul className="space-y-2 text-white/60">
                 <li>
-                  <Link to="/" className="hover:text-white transition-colors">
+                  <Link to="/faqpage" className="hover:text-white transition-colors">
                     › FAQ
                   </Link>
                 </li>
@@ -453,16 +458,20 @@ function BuktiPendukungPage() {
             </div>
 
             <div className="space-y-3">
-              <h3 className="text-[12px] font-bold text-white tracking-wide">
-                Have a Questions?
-              </h3>
+              <h3 className="text-[12px] font-bold text-white tracking-wide">Have a Questions?</h3>
               <div className="space-y-2 text-white/60">
-                <div className="flex items-start gap-2">
+                <a
+                  href="https://maps.app.goo.gl/QiLps9tsVMszzHf79"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-2 hover:text-white transition-colors"
+                >
                   <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
                   <p className="leading-snug">
-                    Jl. Gatot Subroto No.51, RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi, Kota Jakarta Selatan, Daerah Khusus Jakarta - 12950, Indonesia
+                    Jl. Gatot Subroto No.51, RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi, Kota
+                    Jakarta Selatan, Daerah Khusus Jakarta - 12950, Indonesia
                   </p>
-                </div>
+                </a>
                 <div className="flex items-center gap-2 pt-1">
                   <Mail className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                   <p>Pengaduan WLKP</p>

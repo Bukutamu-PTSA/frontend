@@ -3,7 +3,6 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import {
   Send,
   Building2,
-  Twitter,
   Facebook,
   MessageSquare,
   Instagram,
@@ -11,9 +10,9 @@ import {
   Mail,
   Loader2,
 } from "lucide-react";
+import { XIcon } from "@/components/x-icon";
 import logoKemnaker from "@/assets/kemnaker_logo.png";
-
-const BASE_API_URL = "http://192.168.147.199:8000/api";
+import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/survei")({
   head: () => ({
@@ -34,10 +33,16 @@ const navLinks = [
 ];
 
 const socials = [
-  { icon: Twitter, href: "#" },
-  { icon: Facebook, href: "#" },
+  { icon: XIcon, href: "https://x.com/KemnakerRI" },
+  {
+    icon: Facebook,
+    href: "https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr",
+  },
   { icon: MessageSquare, href: "#" },
-  { icon: Instagram, href: "#" },
+  {
+    icon: Instagram,
+    href: "https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ==",
+  },
 ];
 
 const ratingOptions = ["Baik", "Cukup", "Kurang"];
@@ -88,7 +93,7 @@ function FormSurveiPage() {
       try {
         // Endpoint petugas (sesuaikan dengan route backend jika ada nama route spesifik)
         const res = await fetch(`${BASE_API_URL}/officers`).catch(() =>
-          fetch(`${BASE_API_URL}/petugas`)
+          fetch(`${BASE_API_URL}/petugas`),
         );
 
         if (res && res.ok) {
@@ -122,7 +127,10 @@ function FormSurveiPage() {
     }));
   };
 
-  const handleRatingSelect = (field: "komunikasi_petugas" | "penjelasan_materi" | "sarana_prasarana", value: string) => {
+  const handleRatingSelect = (
+    field: "komunikasi_petugas" | "penjelasan_materi" | "sarana_prasarana",
+    value: string,
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -143,24 +151,40 @@ function FormSurveiPage() {
 
     setSubmitting(true);
     try {
+      // Kirim dalam format API baru: { responses: [{question_number, answer}] }.
+      const responses = [
+        { question_number: 1, answer: formData.officer_name },
+        { question_number: 2, answer: formData.komunikasi_petugas },
+        { question_number: 3, answer: formData.penjelasan_materi },
+        { question_number: 4, answer: formData.sarana_prasarana },
+        ...(formData.catatan ? [{ question_number: 5, answer: formData.catatan }] : []),
+      ];
+
       const response = await fetch(`${BASE_API_URL}/surveys`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ responses }),
       });
 
       if (!response.ok) {
-        throw new Error("Gagal mengirim survei");
+        let message = "Gagal mengirim survei";
+        try {
+          const json = await response.json();
+          if (json?.message) message = json.message;
+        } catch {
+          // biarkan pesan default
+        }
+        throw new Error(message);
       }
 
       alert("Terima kasih! Survei kepuasan layanan Anda berhasil dikirim.");
       navigate({ to: "/" });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Terjadi kendala saat mengirim survei. Silakan coba kembali.");
+      alert(error?.message || "Terjadi kendala saat mengirim survei. Silakan coba kembali.");
     } finally {
       setSubmitting(false);
     }
@@ -173,12 +197,13 @@ function FormSurveiPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
           <Link to="/" className="flex items-center gap-3">
             <img src={logoKemnaker} alt="Logo Kemnaker" className="h-8 w-8 object-contain" />
-            <span className="text-xl font-bold text-[#032749]">
-              Kementerian Ketenagakerjaan
-            </span>
+            <span className="text-xl font-bold text-[#032749]">Kementerian Ketenagakerjaan</span>
           </Link>
 
-          <nav aria-label="Navigasi utama" className="hidden items-center gap-8 md:flex text-[15px]">
+          <nav
+            aria-label="Navigasi utama"
+            className="hidden items-center gap-8 md:flex text-[15px]"
+          >
             {navLinks.map((link) => (
               <Link
                 key={link.to}
@@ -209,11 +234,10 @@ function FormSurveiPage() {
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#032749]">
               FORM SURVEI
             </h1>
-            <p className="text-sm font-bold text-[#032749]/80 mt-1">
-              #SURVEI LAYANAN PTSA
-            </p>
+            <p className="text-sm font-bold text-[#032749]/80 mt-1">#SURVEI LAYANAN PTSA</p>
             <p className="text-xs sm:text-sm text-gray-500 max-w-lg mx-auto mt-2 leading-relaxed">
-              Partisipasi Anda sangat berarti bagi kami untuk meningkatkan kualitas layanan Pelayanan Terpadu Satu Atap (PTSA) Kementerian Ketenagakerjaan.
+              Partisipasi Anda sangat berarti bagi kami untuk meningkatkan kualitas layanan
+              Pelayanan Terpadu Satu Atap (PTSA) Kementerian Ketenagakerjaan.
             </p>
           </div>
 
@@ -226,9 +250,7 @@ function FormSurveiPage() {
                   <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
                     1
                   </span>
-                  <label className="text-sm font-bold text-gray-900">
-                    Masukkan Nama Petugas:
-                  </label>
+                  <label className="text-sm font-bold text-gray-900">Masukkan Nama Petugas:</label>
                 </div>
                 <select
                   value={formData.officer_id}
@@ -236,9 +258,7 @@ function FormSurveiPage() {
                   required
                   className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm bg-white text-gray-700 focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
                 >
-                  <option value="">
-                    {loadingOfficers ? "Memuat petugas..." : "Pilih"}
-                  </option>
+                  <option value="">{loadingOfficers ? "Memuat petugas..." : "Pilih"}</option>
                   {officers.map((officer) => (
                     <option key={officer.id} value={officer.id}>
                       {officer.name}
@@ -346,9 +366,7 @@ function FormSurveiPage() {
                   <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
                     5
                   </span>
-                  <label className="text-sm font-bold text-gray-900">
-                    Catatan:
-                  </label>
+                  <label className="text-sm font-bold text-gray-900">Catatan:</label>
                 </div>
                 <textarea
                   rows={4}
@@ -393,14 +411,16 @@ function FormSurveiPage() {
                 BINWASNAKER <span className="text-emerald-400">&amp; K3</span>
               </h3>
               <p className="mt-4 text-sm leading-relaxed text-gray-300">
-                Ditjen Binwasnaker &amp; K3 adalah unsur pelaksana yang berada di bawah
-                dan bertanggung jawab kepada Menteri Ketenagakerjaan.
+                Ditjen Binwasnaker &amp; K3 adalah unsur pelaksana yang berada di bawah dan
+                bertanggung jawab kepada Menteri Ketenagakerjaan.
               </p>
               <div className="mt-6 flex gap-3">
                 {socials.map(({ icon: Icon, href }, i) => (
                   <a
                     key={i}
                     href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
                   >
                     <Icon className="size-4" />
@@ -415,11 +435,15 @@ function FormSurveiPage() {
               <ul className="mt-5 space-y-3 text-sm text-gray-300">
                 <li className="flex items-center gap-2">
                   <span className="text-emerald-400">›</span>
-                  <a href="#" className="hover:text-emerald-400 transition-colors">FAQ</a>
+                  <Link to="/faqpage" className="hover:text-emerald-400 transition-colors">
+                    FAQ
+                  </Link>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-emerald-400">›</span>
-                  <a href="#" className="hover:text-emerald-400 transition-colors">Contact Us</a>
+                  <a href="#" className="hover:text-emerald-400 transition-colors">
+                    Contact Us
+                  </a>
                 </li>
               </ul>
             </div>
@@ -427,17 +451,24 @@ function FormSurveiPage() {
             <div>
               <h4 className="text-lg font-semibold">Have a Questions?</h4>
               <hr className="mt-4 border-white/15" />
-              <div className="mt-5 flex gap-3 text-sm text-gray-300">
+              <a
+                href="https://maps.app.goo.gl/QiLps9tsVMszzHf79"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex gap-3 text-sm text-gray-300 transition-colors hover:text-emerald-400"
+              >
                 <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
                 <p className="leading-relaxed">
-                  Jl. Gatot Subroto No.51, RT.5/RW.4, Kuningan Timur.
-                  Kecamatan Setiabudi, Kota Jakarta Selatan, Daerah Khusus
-                  Jakarta - 12950 Jakarta - Indonesia
+                  Jl. Gatot Subroto No.51, RT.5/RW.4, Kuningan Timur. Kecamatan Setiabudi, Kota
+                  Jakarta Selatan, Daerah Khusus Jakarta - 12950 Jakarta - Indonesia
                 </p>
-              </div>
+              </a>
               <div className="mt-4 flex items-center gap-3 text-sm">
                 <Mail className="size-5 text-emerald-400" />
-                <a href="#" className="text-gray-300 hover:text-emerald-400 transition-colors">
+                <a
+                  href="mailto:pengaduanwlkp@gmail.com"
+                  className="text-gray-300 hover:text-emerald-400 transition-colors"
+                >
                   Pengaduan WLKP
                 </a>
               </div>

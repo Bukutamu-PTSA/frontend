@@ -18,9 +18,7 @@ function EditSurveiPage() {
   const { id } = Route.useSearch();
 
   // TODO(backend): fetch data survei berdasarkan `id` untuk mengisi nilai awal.
-  const [pertanyaan, setPertanyaan] = useState(
-    "Bagaimana Sarana dan Prasarana layanan PTSA?"
-  );
+  const [pertanyaan, setPertanyaan] = useState("Bagaimana Sarana dan Prasarana layanan PTSA?");
   const [optionA, setOptionA] = useState("Baik");
   const [optionB, setOptionB] = useState("Cukup");
   const [optionC, setOptionC] = useState("Kurang");

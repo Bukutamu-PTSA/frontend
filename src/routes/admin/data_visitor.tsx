@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/app-shell";
+import { useTableExport } from "@/lib/export-utils";
+import { pageWindow } from "@/lib/pagination";
 
 export const Route = createFileRoute("/admin/data_visitor")({
   head: () => ({
@@ -21,7 +23,6 @@ interface VisitorItem {
 // TODO(backend): ganti dengan data dari API visitor / analytics.
 const INITIAL_DATA: VisitorItem[] = [];
 
-const EXPORT_ACTIONS = ["Copy", "CSV", "Excel", "PDF", "Print"];
 const ITEMS_PER_PAGE = 10;
 
 function DataVisitorPage() {
@@ -32,26 +33,36 @@ function DataVisitorPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.ip.toLowerCase().includes(q) || r.page.toLowerCase().includes(q)
-    );
+    return rows.filter((r) => r.ip.toLowerCase().includes(q) || r.page.toLowerCase().includes(q));
   }, [rows, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const displayed = filtered.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE
-  );
+  const displayed = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+  const buildExport = useMemo(() => {
+    const headers = ["NO", "TANGGAL VISITOR", "IP MDB", "PAGE", "WAKTU"];
+    const rows: (string | number)[][] = filtered.map((item, index) => [
+      index + 1,
+      item.tanggal,
+      item.ip,
+      item.page,
+      item.waktu,
+    ]);
+    return { headers, rows };
+  }, [filtered]);
+
+  const { copied, handleCopy, handleCsv, handleExcel, handlePrint } = useTableExport({
+    baseName: "Data_Visitor",
+    headers: buildExport.headers,
+    rows: buildExport.rows,
+  });
 
   return (
     <AppShell title="Data Visitor" breadcrumb="Data Visitor">
       <div className="space-y-5">
         {/* Judul */}
         <div className="rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
-          <h1 className="text-[17px] font-bold tracking-tight text-gray-900">
-            Data Visitor
-          </h1>
+          <h1 className="text-[17px] font-bold tracking-tight text-gray-900">Data Visitor</h1>
           <p className="mt-1 text-[12px] text-gray-500">
             Statistik kunjungan dan buku tamu digital.
           </p>
@@ -60,15 +71,41 @@ function DataVisitorPage() {
         {/* Toolbar */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-1.5">
-            {EXPORT_ACTIONS.map((label) => (
-              <button
-                key={label}
-                type="button"
-                className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
-              >
-                {label}
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+            <button
+              type="button"
+              onClick={handleCsv}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={handleExcel}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              Excel
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              PDF
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+            >
+              Print
+            </button>
           </div>
 
           <input
@@ -136,7 +173,7 @@ function DataVisitorPage() {
             >
               ‹
             </button>
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((p) => (
+            {pageWindow(page, totalPages).map((p) => (
               <button
                 key={p}
                 type="button"

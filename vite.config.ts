@@ -6,6 +6,17 @@ import tsConfigPaths from "vite-tsconfig-paths";
 import { nitro } from "nitro/vite";
 
 export default defineConfig({
+  server: {
+    // Dev server frontend berjalan di port 8080 (samakan dengan yang kamu pakai).
+    host: true,
+    port: 8080,
+    // Gagal (bukan pindah port) bila 8080 sudah dipakai, biar konsisten.
+    strictPort: true,
+  },
+  preview: {
+    port: 8080,
+    strictPort: true,
+  },
   plugins: [
     // Resolve TypeScript path aliases (e.g. "@/...").
     tsConfigPaths(),

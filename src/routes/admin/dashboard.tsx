@@ -5,26 +5,23 @@ import {
   Download,
   FileText,
   Star,
-  WalletCards,
-  ShieldCheck,
+  TrendingDown,
   TrendingUp,
   ArrowRight,
   ChevronLeft,
   ChevronRight,
   Layers,
-  Handshake,
-  PersonStanding,
-  Clock3,
-  Scale,
-  BriefcaseBusiness,
-  HeartPulse,
-  Baby,
-  Award,
-  FileCheck,
+  Search,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { apiUrl, authHeaders } from "@/lib/api";
+import { computeGrowth, formatGrowth } from "@/lib/growth";
+import { fetchSatisfactionSummary, type SatisfactionSummary } from "@/lib/satisfaction";
 
-const SUMMARY_API_URL = "http://192.168.147.199:8000/api/dashboard/complaint-summary";
+const SUMMARY_API_URL = apiUrl("dashboard/complaint-summary");
+const PROVINCE_SUMMARY_API_URL = apiUrl("dashboard/province-summary");
+const COMPLAINTS_API_URL = apiUrl("complaints");
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({
@@ -43,44 +40,103 @@ interface CategoryConfig {
   id: number;
   code: string;
   title: string;
-  icon: React.ElementType;
-  iconColor: string;
-  bgColor: string;
 }
 
 const ALL_CATEGORIES: CategoryConfig[] = [
-  { id: 1, code: "WAJIB_LAPOR", title: "WAJIB LAPOR KETENAGAKERJAAN", icon: FileText, iconColor: "text-red-500", bgColor: "bg-red-50" },
-  { id: 2, code: "UPAH_KERJA", title: "Upah Kerja", icon: WalletCards, iconColor: "text-slate-700", bgColor: "bg-slate-100" },
-  { id: 3, code: "JAMINAN_SOSIAL", title: "Jaminan Sosial", icon: ShieldCheck, iconColor: "text-emerald-600", bgColor: "bg-emerald-50" },
-  { id: 4, code: "HUBUNGAN_KERJA", title: "Hubungan Kerja", icon: Handshake, iconColor: "text-purple-600", bgColor: "bg-purple-50" },
-  { id: 5, code: "KECELAKAAN_KERJA", title: "Kecelakaan Kerja", icon: PersonStanding, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
-  { id: 6, code: "WAKTU_KERJA", title: "Waktu Kerja & Istirahat", icon: Clock3, iconColor: "text-amber-500", bgColor: "bg-amber-50" },
-  { id: 7, code: "KADER_NORMA", title: "Kader Norma Kerja", icon: Scale, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
-  { id: 8, code: "PENEMPATAN_TK", title: "Penempatan Tenaga Kerja", icon: BriefcaseBusiness, iconColor: "text-cyan-600", bgColor: "bg-cyan-50" },
-  { id: 9, code: "K3", title: "Keselamatan & Kesehatan (K3)", icon: HeartPulse, iconColor: "text-red-500", bgColor: "bg-red-50" },
-  { id: 10, code: "PEREMPUAN_ANAK", title: "Perlindungan Perempuan & Anak", icon: Baby, iconColor: "text-purple-600", bgColor: "bg-purple-50" },
-  { id: 11, code: "NORMA_K3", title: "Kader Norma K3", icon: Award, iconColor: "text-amber-700", bgColor: "bg-amber-50" },
-  { id: 12, code: "SKP", title: "SKP", icon: FileCheck, iconColor: "text-slate-600", bgColor: "bg-slate-100" },
+  { id: 1, code: "WAJIB_LAPOR", title: "WAJIB LAPOR KETENAGAKERJAAN" },
+  { id: 2, code: "UPAH_KERJA", title: "Upah Kerja" },
+  { id: 3, code: "JAMINAN_SOSIAL", title: "Jaminan Sosial" },
+  { id: 4, code: "HUBUNGAN_KERJA", title: "Hubungan Kerja" },
+  { id: 5, code: "KECELAKAAN_KERJA", title: "Kecelakaan Kerja" },
+  { id: 6, code: "WAKTU_KERJA", title: "Waktu Kerja & Istirahat" },
+  { id: 7, code: "KADER_NORMA", title: "Kader Norma Kerja" },
+  { id: 8, code: "PENEMPATAN_TK", title: "Penempatan Tenaga Kerja" },
+  { id: 9, code: "K3", title: "Keselamatan & Kesehatan (K3)" },
+  { id: 10, code: "PEREMPUAN_ANAK", title: "Perlindungan Perempuan & Anak" },
+  { id: 11, code: "NORMA_K3", title: "Kader Norma K3" },
+  { id: 12, code: "SKP", title: "SKP" },
 ];
 
-const WILAYAH_DATA = [
-  { no: 1, provinsi: "Jawa Barat", total: 1243 },
-  { no: 2, provinsi: "Jawa Timur", total: 324 },
-  { no: 3, provinsi: "Jawa Tengah", total: 532 },
-  { no: 4, provinsi: "Kalimantan Tengah", total: 342 },
-  { no: 5, provinsi: "DKI Jakarta", total: 890 },
-  { no: 6, provinsi: "Sumatera Utara", total: 215 },
-  { no: 7, provinsi: "Banten", total: 430 },
-  { no: 8, provinsi: "Bali", total: 180 },
-];
+interface WilayahRow {
+  no: number;
+  provinsi: string;
+  total: number;
+}
+
+// Rapikan nama provinsi (Title Case + normalisasi DKI Jakarta).
+function toTitleCase(str: string): string {
+  if (!str) return "-";
+  return str
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function normalizeProvinsi(raw: string): string {
+  const name = toTitleCase(raw || "-");
+  const upper = name.toUpperCase();
+  if (upper.includes("DKI") || upper.includes("IBUKOTA") || upper.includes("JAKARTA")) {
+    return "Daerah Khusus Ibukota Jakarta";
+  }
+  return name;
+}
+
+/** Label indeks kepuasan berdasarkan skor skala 1-5. */
+function ikmLabel(score: number): string {
+  if (score >= 4.5) return "Sangat Baik";
+  if (score >= 3.5) return "Baik";
+  if (score >= 2.5) return "Cukup";
+  return "Kurang";
+}
 
 function DashboardExecutive() {
   const navigate = useNavigate();
-  const [timeFilter, setTimeFilter] = useState("Hari Ini");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 4;
+  const [wilayahSearch, setWilayahSearch] = useState("");
+
+  const formatDisplayDate = (dateStr: string | null) => {
+    if (!dateStr) return "Semua Waktu";
+    const parts = dateStr.split("-").map(Number);
+    const year = parts[0] ?? new Date().getFullYear();
+    const month = (parts[1] ?? 1) - 1;
+    const day = parts[2] ?? 1;
+
+    return new Date(year, month, day).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const handleOpenCalendar = () => {
+    if (dateInputRef.current) {
+      if ("showPicker" in HTMLInputElement.prototype) {
+        dateInputRef.current.showPicker();
+      } else {
+        dateInputRef.current.focus();
+      }
+    }
+  };
+
+  const handleClearDate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedDate(null);
+    if (dateInputRef.current) dateInputRef.current.value = "";
+  };
+
+  // Data provinsi diambil dari API (bukan hardcode).
+  const [wilayahData, setWilayahData] = useState<WilayahRow[]>([]);
 
   const [totalAduan, setTotalAduan] = useState(12450);
+  // Persentase kenaikan/penurunan aduan (dihitung riil, sama seperti page Grafik).
+  const [growth, setGrowth] = useState<number | null>(null);
+  // Indeks kepuasan: endpoint agregat bila ada, fallback hitung dari respons survei.
+  const [satisfaction, setSatisfaction] = useState<SatisfactionSummary | null>(null);
   const [categoryCounts, setCategoryCounts] = useState<Record<number, number>>({
     1: 11267,
     2: 245,
@@ -97,17 +153,81 @@ function DashboardExecutive() {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [hasMoved, setHasMoved] = useState(false);
 
+  // Sinkronisasi data dashboard terpusat. Kalau filter kalender aktif
+  // (tanggal/bulan/tahun), total aduan & jumlah per kategori dihitung dari
+  // daftar aduan yang dipotong prefix tanggal, dan pertumbuhan membandingkan
+  // periode terpilih dengan periode sebelumnya yang sebanding.
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
-      const headers = {
-        Accept: "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
+    const headers = authHeaders();
+    const prefix = selectedDate;
 
+    const extractList = (json: any): any[] =>
+      Array.isArray(json?.data)
+        ? json.data
+        : Array.isArray(json?.data?.data)
+          ? json.data.data
+          : Array.isArray(json)
+            ? json
+            : Array.isArray(json?.complaints)
+              ? json.complaints
+              : [];
+
+    const fetchAll = async () => {
       try {
-        const res = await fetch(SUMMARY_API_URL, { headers });
+        const first = await fetch(`${COMPLAINTS_API_URL}?per_page=100`, {
+          headers,
+        });
+        if (!first.ok) return;
+
+        const firstJson = await first.json();
+        let rawList: any[] = [...extractList(firstJson)];
+
+        const lastPage = Number(
+          firstJson?.meta?.last_page ?? firstJson?.last_page ?? firstJson?.data?.last_page ?? 1,
+        );
+        if (Number.isFinite(lastPage) && lastPage > 1) {
+          const pages = Array.from({ length: lastPage - 1 }, (_, i) => i + 2);
+          const results = await Promise.all(
+            pages.map((p) =>
+              fetch(`${COMPLAINTS_API_URL}?page=${p}&per_page=100`, { headers })
+                .then((r) => (r.ok ? r.json() : null))
+                .catch(() => null),
+            ),
+          );
+          results.forEach((json) => {
+            if (json) rawList = rawList.concat(extractList(json));
+          });
+        }
+
+        if (!prefix) {
+          setGrowth(computeGrowth(rawList, null));
+          return;
+        }
+
+        const filtered = rawList.filter((it: any) =>
+          String(it.complaint_date ?? it.created_at ?? "").startsWith(prefix),
+        );
+        setTotalAduan(filtered.length);
+        setGrowth(computeGrowth(rawList, prefix));
+
+        const newCounts: Record<number, number> = {};
+        filtered.forEach((it: any) => {
+          const code = String(it.category?.category_code ?? it.category?.code ?? "").toUpperCase();
+          const match = ALL_CATEGORIES.find((c) => c.code === code);
+          if (match) newCounts[match.id] = (newCounts[match.id] ?? 0) + 1;
+        });
+        setCategoryCounts(newCounts);
+      } catch (err) {
+        console.error("Gagal menyinkronkan data dashboard:", err);
+      }
+    };
+
+    const fetchSummary = async () => {
+      try {
+        const url = prefix
+          ? `${SUMMARY_API_URL}?date=${encodeURIComponent(prefix)}`
+          : SUMMARY_API_URL;
+        const res = await fetch(url, { headers });
         if (res.ok) {
           const json = await res.json();
           const items = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
@@ -131,8 +251,71 @@ function DashboardExecutive() {
       }
     };
 
-    fetchDashboardData();
-  }, [timeFilter]);
+    fetchAll();
+    if (!prefix) fetchSummary();
+  }, [selectedDate]);
+
+  // Indeks kepuasan: ambil ringkasan secara terpusat (agregat + fallback respons).
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const summary = await fetchSatisfactionSummary();
+      if (!cancelled) setSatisfaction(summary);
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Ambil SEMUA data provinsi dari API (endpoint sama dengan halaman Wilayah),
+  // lalu urutkan dari total terbesar. Paginasi ditangani di sisi klien.
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      const perPage = 100;
+      const prefix = selectedDate;
+      const buildUrl = (page: number) =>
+        `${PROVINCE_SUMMARY_API_URL}?page=${page}&per_page=${perPage}${
+          prefix ? `&date=${encodeURIComponent(prefix)}` : ""
+        }`;
+
+      const fetchPage = async (page: number) => {
+        const res = await fetch(buildUrl(page), { headers: authHeaders() });
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        return res.json();
+      };
+
+      try {
+        const first = await fetchPage(1);
+        const collected: any[] = Array.isArray(first?.data) ? [...first.data] : [];
+
+        const lastPage = Number(first?.meta?.last_page ?? first?.last_page ?? 1);
+        if (Number.isFinite(lastPage) && lastPage > 1) {
+          const pages = Array.from({ length: lastPage - 1 }, (_, i) => i + 2);
+          const results = await Promise.all(pages.map((p) => fetchPage(p)));
+          results.forEach((json) => {
+            if (Array.isArray(json?.data)) collected.push(...json.data);
+          });
+        }
+
+        const rows: WilayahRow[] = collected
+          .map((item: any) => ({
+            provinsi: normalizeProvinsi(item.provinsi || "-"),
+            total: Number(item.count ?? item.total ?? 0),
+          }))
+          .sort((a, b) => b.total - a.total)
+          .map((row, idx) => ({ no: idx + 1, ...row }));
+
+        setWilayahData(rows);
+        setCurrentPage(1);
+      } catch (err) {
+        console.error("Gagal memuat data provinsi:", err);
+        setWilayahData([]);
+      }
+    };
+
+    fetchProvinces();
+  }, [selectedDate]);
 
   // Urutkan kategori dari yang paling banyak ke paling sedikit (Descending)
   const sortedCategories = useMemo(() => {
@@ -142,6 +325,16 @@ function DashboardExecutive() {
       return countB - countA;
     });
   }, [categoryCounts]);
+
+  // Tampilkan hanya 5 kategori dengan jumlah pengaduan terbanyak.
+  const topCategories = useMemo(() => sortedCategories.slice(0, 5), [sortedCategories]);
+
+  // Filter table wilayah berdasarkan keyword provinsi.
+  const filteredWilayah = useMemo(() => {
+    const q = wilayahSearch.trim().toLowerCase();
+    if (!q) return wilayahData;
+    return wilayahData.filter((w) => w.provinsi.toLowerCase().includes(q));
+  }, [wilayahData, wilayahSearch]);
 
   // Handlers untuk Drag-to-Scroll
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -182,22 +375,25 @@ function DashboardExecutive() {
     });
   };
 
-  const totalItems = 128;
-  const totalPages = Math.ceil(WILAYAH_DATA.length / itemsPerPage);
-  const displayedWilayah = WILAYAH_DATA.slice(
+  const totalItems = filteredWilayah.length;
+  const totalPages = Math.max(1, Math.ceil(filteredWilayah.length / itemsPerPage));
+  const displayedWilayah = filteredWilayah.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const handleExportLaporan = () => {
     const csvContent =
       "data:text/csv;charset=utf-8," +
       "NO,PROVINSI,TOTAL\n" +
-      WILAYAH_DATA.map((w) => `${w.no},${w.provinsi},${w.total}`).join("\n");
+      filteredWilayah.map((w) => `${w.no},${w.provinsi},${w.total}`).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Laporan_Wilayah_${timeFilter.replace(/\s+/g, "_")}.csv`);
+    link.setAttribute(
+      "download",
+      `Laporan_Wilayah_${formatDisplayDate(selectedDate).replace(/\s+/g, "_")}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -219,20 +415,33 @@ function DashboardExecutive() {
 
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <select
-                value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value)}
-                className="appearance-none rounded-lg border border-gray-200 bg-white pl-8 pr-7 py-1.5 text-[11px] font-medium text-gray-700 shadow-2xs hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#007A64] cursor-pointer"
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={selectedDate ?? ""}
+                onChange={(e) => setSelectedDate(e.target.value || null)}
+                className="sr-only absolute"
+                tabIndex={-1}
+              />
+              <button
+                type="button"
+                onClick={handleOpenCalendar}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-[11px] font-medium text-gray-700 shadow-xs hover:bg-gray-50 transition-colors cursor-pointer"
               >
-                <option value="Hari Ini">Hari Ini</option>
-                <option value="Minggu Ini">Minggu Ini</option>
-                <option value="Bulan Ini">Bulan Ini</option>
-                <option value="Tahun Ini">Tahun Ini</option>
-              </select>
-              <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
-              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[8px] text-gray-400">
-                ▼
-              </span>
+                <CalendarDays className="h-3.5 w-3.5 text-gray-500" />
+                <span>{formatDisplayDate(selectedDate)}</span>
+                {selectedDate ? (
+                  <span
+                    onClick={handleClearDate}
+                    title="Kembali ke Semua Waktu"
+                    className="ml-0.5 rounded-full p-0.5 hover:bg-gray-200 text-gray-400 hover:text-gray-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-gray-400">▼</span>
+                )}
+              </button>
             </div>
 
             <button
@@ -253,9 +462,17 @@ function DashboardExecutive() {
               <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
                 <FileText className="h-5 w-5" />
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
-                <TrendingUp className="h-3 w-3" />
-                +5%
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  (growth ?? 0) >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
+                }`}
+              >
+                {(growth ?? 0) >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                {formatGrowth(growth)}
               </span>
             </div>
             <div className="mt-4">
@@ -273,17 +490,23 @@ function DashboardExecutive() {
                 <Star className="h-5 w-5 fill-blue-600/20" />
               </div>
               <span className="rounded-md bg-blue-50 px-2.5 py-0.5 text-[10px] font-semibold text-blue-600">
-                Sangat Baik
+                {satisfaction?.index != null ? ikmLabel(satisfaction.index) : "Belum Ada"}
               </span>
             </div>
             <div className="mt-4">
               <p className="text-[11px] text-gray-500 font-medium">Indeks Kepuasan</p>
               <p className="text-[26px] font-bold text-gray-900 tracking-tight mt-0.5">
-                4.82{" "}
-                <span className="text-[13px] font-normal text-gray-400">/ 5.00</span>
+                {satisfaction?.index != null ? satisfaction.index.toFixed(2) : "-"}{" "}
+                <span className="text-[13px] font-normal text-gray-400">
+                  / {(satisfaction?.scale ?? 5).toFixed(2)}
+                </span>
               </p>
               <p className="text-[10px] text-gray-400 mt-1">
-                Berdasarkan survei masyarakat
+                {satisfaction?.index != null && satisfaction.responses > 0
+                  ? `Berbasis ${nf.format(satisfaction.responses)} responden${
+                      satisfaction.source === "aggregate" ? " hari ini" : ""
+                    }`
+                  : "Belum ada data survei"}
               </p>
             </div>
           </div>
@@ -294,9 +517,7 @@ function DashboardExecutive() {
           <div className="flex items-center justify-between mb-3.5">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-gray-700" />
-              <h2 className="text-[13px] font-bold text-gray-800">
-                Rekapitulasi Layanan Kategori
-              </h2>
+              <h2 className="text-[13px] font-bold text-gray-800">Rekapitulasi Layanan Kategori</h2>
             </div>
             <div className="flex items-center gap-2">
               {/* Tombol Panah Scroll */}
@@ -342,8 +563,7 @@ function DashboardExecutive() {
               [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
             `}
           >
-            {sortedCategories.map((item) => {
-              const Icon = item.icon;
+            {topCategories.map((item) => {
               const count = categoryCounts[item.id] ?? 0;
 
               return (
@@ -352,16 +572,9 @@ function DashboardExecutive() {
                   className="min-w-[280px] md:min-w-[320px] shrink-0 bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
                 >
                   <div>
-                    <div className="flex items-center gap-3.5 mb-4">
-                      <div
-                        className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${item.bgColor} ${item.iconColor}`}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <h3 className="text-[11px] font-bold text-gray-800 leading-snug uppercase tracking-tight">
-                        {item.title}
-                      </h3>
-                    </div>
+                    <h3 className="text-[11px] font-bold text-gray-800 leading-snug uppercase tracking-tight mb-4">
+                      {item.title}
+                    </h3>
                     <p className="text-[12px] text-gray-600 mb-5 font-medium">
                       <span className="font-bold text-gray-900 text-[13px]">
                         {nf.format(count)}
@@ -394,13 +607,28 @@ function DashboardExecutive() {
                 Report Pelayanan Pengaduan Berdasarkan Wilayah
               </h2>
             </div>
-            <Link
-              to="/admin/wilayah"
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-[#007A64] transition-colors"
-            >
-              <span>Lihat Semua</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={wilayahSearch}
+                  onChange={(e) => {
+                    setWilayahSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Cari provinsi…"
+                  className="w-44 rounded-lg border border-gray-200 bg-white py-1.5 pl-8 pr-3 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#007A64]"
+                />
+              </div>
+              <Link
+                to="/admin/wilayah"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-[#007A64] transition-colors"
+              >
+                <span>Lihat Semua</span>
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
@@ -413,17 +641,25 @@ function DashboardExecutive() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 text-[12px]">
-                {displayedWilayah.map((row) => (
-                  <tr key={row.provinsi} className="hover:bg-gray-50/60 transition-colors">
-                    <td className="px-8 py-4 text-gray-600 font-medium">{row.no}</td>
-                    <td className="px-8 py-4 text-center text-gray-800 font-medium">
-                      {row.provinsi}
-                    </td>
-                    <td className="px-8 py-4 text-right text-gray-700 font-semibold">
-                      {nf.format(row.total)}
+                {displayedWilayah.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-8 py-10 text-center text-gray-400">
+                      Belum ada data provinsi.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  displayedWilayah.map((row) => (
+                    <tr key={row.no} className="hover:bg-gray-50/60 transition-colors">
+                      <td className="px-8 py-4 text-gray-600 font-medium">{row.no}</td>
+                      <td className="px-8 py-4 text-center text-gray-800 font-medium">
+                        {row.provinsi}
+                      </td>
+                      <td className="px-8 py-4 text-right text-gray-700 font-semibold">
+                        {nf.format(row.total)}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -431,7 +667,7 @@ function DashboardExecutive() {
           {/* Pagination Footer */}
           <div className="flex items-center justify-between pt-4 px-2">
             <p className="text-[11px] text-gray-500">
-              Menampilkan {displayedWilayah.length} dari {totalItems} data {timeFilter.toLowerCase()}
+              Menampilkan {displayedWilayah.length} dari {totalItems} provinsi
             </p>
 
             <div className="flex items-center gap-1.5">
@@ -443,21 +679,6 @@ function DashboardExecutive() {
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => setCurrentPage(page)}
-                  className={`grid h-7 w-7 place-items-center rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${
-                    currentPage === page
-                      ? "bg-[#007A64] text-white"
-                      : "text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
 
               <button
                 type="button"

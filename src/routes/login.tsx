@@ -1,20 +1,26 @@
-import React, { useState } from 'react';
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
-import { AtSign, Eye, EyeOff, Building2, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
-import logo from '../assets/kemnaker_logo.png';
+import React, { useState, useEffect } from "react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { AtSign, Eye, EyeOff, Building2, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import logo from "../assets/kemnaker_logo.png";
+import { AUTH_BASE_URL as BASE_API_URL, getAuthToken } from "@/lib/api";
 
-const BASE_API_URL = "http://192.168.147.199:8000/api/v1/auth";
-
-export const Route = createFileRoute('/login')({
+export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
 function LoginPage() {
   const navigate = useNavigate();
 
+  // Jika masih ada token aktif (mis. dari "Remember me"), lewati login
+  useEffect(() => {
+    if (getAuthToken()) {
+      navigate({ to: "/admin/dashboard", replace: true });
+    }
+  }, [navigate]);
+
   // State Form
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -31,10 +37,10 @@ function LoginPage() {
 
     try {
       const response = await fetch(`${BASE_API_URL}/login`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({
           email: email,
@@ -47,7 +53,7 @@ function LoginPage() {
 
       // Validasi respons berdasarkan struktur backend ("success": true)
       if (!response.ok || result.success === false) {
-        throw new Error(result.message || 'Email atau password yang Anda masukkan salah.');
+        throw new Error(result.message || "Email atau password yang Anda masukkan salah.");
       }
 
       // Ambil token dan data user
@@ -56,23 +62,23 @@ function LoginPage() {
 
       if (token) {
         if (remember) {
-          localStorage.setItem('auth_token', token);
-          if (user) localStorage.setItem('auth_user', JSON.stringify(user));
+          localStorage.setItem("auth_token", token);
+          if (user) localStorage.setItem("auth_user", JSON.stringify(user));
         } else {
-          sessionStorage.setItem('auth_token', token);
-          if (user) sessionStorage.setItem('auth_user', JSON.stringify(user));
+          sessionStorage.setItem("auth_token", token);
+          if (user) sessionStorage.setItem("auth_user", JSON.stringify(user));
         }
       }
 
-      setSuccessMessage(result.message || 'Login berhasil! Mengalihkan ke dashboard...');
+      setSuccessMessage(result.message || "Login berhasil! Mengalihkan ke dashboard...");
 
       // Redirect ke /dashboard setelah notifikasi muncul
       setTimeout(() => {
-        navigate({ to: '/admin/dashboard' });
+        navigate({ to: "/admin/dashboard" });
       }, 800);
     } catch (err: any) {
-      console.error('Login error:', err);
-      setErrorMessage(err.message || 'Email atau password yang Anda masukkan salah.');
+      console.error("Login error:", err);
+      setErrorMessage(err.message || "Email atau password yang Anda masukkan salah.");
     } finally {
       setLoading(false);
     }
@@ -89,9 +95,15 @@ function LoginPage() {
           </span>
         </Link>
         <nav className="flex items-center gap-8 text-[15px] font-semibold text-gray-500">
-          <Link to="/" className="hover:text-[#032749] transition-colors">Beranda</Link>
-          <Link to="/pengaduan" className="hover:text-[#032749] transition-colors">Pengaduan</Link>
-          <Link to="/survei" className="hover:text-[#032749] transition-colors">Survei</Link>
+          <Link to="/" className="hover:text-[#032749] transition-colors">
+            Beranda
+          </Link>
+          <Link to="/pengaduan" className="hover:text-[#032749] transition-colors">
+            Pengaduan
+          </Link>
+          <Link to="/survei" className="hover:text-[#032749] transition-colors">
+            Survei
+          </Link>
         </nav>
       </header>
 
@@ -153,7 +165,7 @@ function LoginPage() {
               <div className="relative flex items-center">
                 <input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Masukkan password Anda"
@@ -167,7 +179,7 @@ function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   suppressHydrationWarning
                   className="absolute right-4 text-gray-500 hover:text-[#032749] focus:outline-hidden"
-                  aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                  aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
                 >
                   {showPassword ? (
                     <EyeOff className="size-5 stroke-[1.75]" />
@@ -188,7 +200,10 @@ function LoginPage() {
                 suppressHydrationWarning
                 className="size-4.5 rounded-sm border-gray-400 text-[#032749] focus:ring-[#032749] cursor-pointer"
               />
-              <label htmlFor="remember" className="ml-2.5 text-[14px] font-bold text-[#032749] cursor-pointer select-none">
+              <label
+                htmlFor="remember"
+                className="ml-2.5 text-[14px] font-bold text-[#032749] cursor-pointer select-none"
+              >
                 Remember me
               </label>
             </div>
@@ -207,16 +222,9 @@ function LoginPage() {
                     Memverifikasi...
                   </>
                 ) : (
-                  'Masuk'
+                  "Masuk"
                 )}
               </button>
-            </div>
-
-            {/* Lupa Password */}
-            <div className="text-center pt-1">
-              <a href="#" className="text-[14px] font-semibold text-[#1D74E7] hover:underline">
-                Lupa password?
-              </a>
             </div>
           </form>
         </div>
@@ -230,15 +238,24 @@ function LoginPage() {
             <span className="text-[15px] font-bold">Kemnaker RI</span>
           </div>
           <p className="text-gray-300">
-            © 2024 Kementerian Ketenagakerjaan Republik Indonesia. Seluruh Hak Cipta Dilindungi Undang-Undang.
+            © 2024 Kementerian Ketenagakerjaan Republik Indonesia. Seluruh Hak Cipta Dilindungi
+            Undang-Undang.
           </p>
         </div>
 
         <div className="flex flex-wrap justify-center gap-6 text-gray-300 font-normal">
-          <a href="#" className="hover:text-white transition-colors">Kebijakan Privasi</a>
-          <a href="#" className="hover:text-white transition-colors">Syarat &amp; Ketentuan</a>
-          <a href="#" className="hover:text-white transition-colors">Peta Situs</a>
-          <a href="#" className="hover:text-white transition-colors">Hubungi Kami</a>
+          <a href="#" className="hover:text-white transition-colors">
+            Kebijakan Privasi
+          </a>
+          <a href="#" className="hover:text-white transition-colors">
+            Syarat &amp; Ketentuan
+          </a>
+          <a href="#" className="hover:text-white transition-colors">
+            Peta Situs
+          </a>
+          <a href="#" className="hover:text-white transition-colors">
+            Hubungi Kami
+          </a>
         </div>
       </footer>
     </div>
