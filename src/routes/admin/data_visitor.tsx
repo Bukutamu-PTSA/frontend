@@ -51,7 +51,7 @@ function DataVisitorPage() {
     return { headers, rows };
   }, [filtered]);
 
-  const { copied, handleCopy, handleCsv, handleExcel, handlePrint } = useTableExport({
+  const { copied, handleCopy, handleCsv, handleExcel, handlePdf, handlePrint } = useTableExport({
     baseName: "Data_Visitor",
     headers: buildExport.headers,
     rows: buildExport.rows,
@@ -94,7 +94,7 @@ function DataVisitorPage() {
             </button>
             <button
               type="button"
-              onClick={handlePrint}
+              onClick={handlePdf}
               className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
             >
               PDF

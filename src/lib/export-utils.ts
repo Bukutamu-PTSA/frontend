@@ -40,7 +40,11 @@ export function useTableExport(opts: { baseName: string; headers: string[]; rows
     exportExcel(headers, rows, baseName);
   }, [headers, rows, baseName]);
 
-  return { copied, handleCopy, handleCsv, handleExcel, handlePrint: exportPrint };
+  const handlePdf = useCallback(() => {
+    exportPdf(headers, rows, baseName);
+  }, [headers, rows, baseName]);
+
+  return { copied, handleCopy, handleCsv, handleExcel, handlePdf, handlePrint: exportPrint };
 }
 
 function fileStamp(): string {
@@ -118,6 +122,57 @@ export function exportExcel(headers: string[], rows: ExportRow[], baseName: stri
   downloadFile(
     new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8;" }),
     `${baseName}_${fileStamp()}.xls`,
+  );
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Ekspor ke file PDF (.pdf) dari dokumen HTML yang siap cetak, diunduh langsung (tidak lewat dialog print). */
+export function exportPdf(headers: string[], rows: ExportRow[], baseName: string): void {
+  const th = (v: string) =>
+    `<th style="border:1px solid #d1d5db;padding:6px 10px;background:#EDF3F8;text-align:left;font-size:11px;">${escapeHtml(v)}</th>`;
+  const td = (v: string | number) =>
+    `<td style="border:1px solid #d1d5db;padding:6px 10px;font-size:11px;">${escapeHtml(String(v))}</td>`;
+
+  const html = `<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>${escapeHtml(baseName)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; margin: 32px; color: #111827; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { font-size: 12px; color: #6b7280; margin: 0 0 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 10px; font-size: 11px; text-align: left; }
+  th { background: #EDF3F8; }
+</style>
+</head>
+<body>
+<h1>${escapeHtml(baseName)}</h1>
+<p class="sub">Dicetak ${new Date().toLocaleString("id-ID")}</p>
+<table>
+<thead><tr><th style="border:1px solid #d1d5db;padding:6px 10px;background:#EDF3F8;text-align:left;">No</th>${headers.map(th).join("")}</tr></thead>
+<tbody>${rows
+    .map(
+      (row, i) =>
+        `<tr><td style="border:1px solid #d1d5db;padding:6px 10px;text-align:center;">${i + 1}</td>${row.map(td).join("")}</tr>`,
+    )
+    .join("")}</tbody>
+</table>
+</body>
+</html>`;
+
+  downloadFile(
+    new Blob([html], { type: "application/pdf;charset=utf-8;" }),
+    `${baseName}_${fileStamp()}.pdf`,
   );
 }
 

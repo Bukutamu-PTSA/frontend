@@ -482,18 +482,13 @@ function ReportSurveiPage() {
 <thead><tr><th style="border:1px solid #d1d5db;padding:6px 10px;background:#EDF3F8;text-align:left;">No</th>${headers.map(th).join("")}</tr></thead>
 <tbody>${rows.map((row, i) => `<tr><td style="border:1px solid #d1d5db;padding:6px 10px;">${i + 1}</td>${row.map(td).join("")}</tr>`).join("")}</tbody>
 </table>
-<script>window.addEventListener("load", function () { window.print(); });</script>
 </body>
 </html>`;
 
-    const win = window.open("", "_blank", "width=960,height=640");
-    if (!win) {
-      alert("Popup diblokir. Izinkan popup agar laporan dapat dicetak/diunduh sebagai PDF.");
-      return;
-    }
-    win.document.write(html);
-    win.document.close();
-    win.focus();
+    downloadFile(
+      new Blob([html], { type: "application/pdf;charset=utf-8;" }),
+      `Report_Survei_${fileStamp()}.pdf`,
+    );
   };
 
   const summaryCards = [
