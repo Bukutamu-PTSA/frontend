@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { AtSign, Eye, EyeOff, Building2, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import logo from "../assets/kemnaker_logo.png";
-import { AUTH_BASE_URL as BASE_API_URL, getAuthToken } from "@/lib/api";
+import { AUTH_BASE_URL as BASE_API_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -10,13 +10,6 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-
-  // Jika masih ada token aktif (mis. dari "Remember me"), lewati login
-  useEffect(() => {
-    if (getAuthToken()) {
-      navigate({ to: "/admin/dashboard", replace: true });
-    }
-  }, [navigate]);
 
   // State Form
   const [email, setEmail] = useState("");
