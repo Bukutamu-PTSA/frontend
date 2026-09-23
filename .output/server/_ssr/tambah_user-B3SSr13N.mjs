@@ -3,9 +3,9 @@ import { n as AUTH_BASE_URL } from "./api-BipEh2FU.mjs";
 import { n as require_jsx_runtime } from "../_libs/react+tanstack__react-query.mjs";
 import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].mjs";
 import { _ as useNavigate } from "../_libs/@tanstack/react-router+[...].mjs";
-import { v as Save } from "../_libs/lucide-react.mjs";
+import { J as EyeOff, q as Eye, v as Save } from "../_libs/lucide-react.mjs";
 import { t as AppShell } from "./app-shell-CVfVOAjz.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/tambah_user-CMlkHGu-.js
+//#region node_modules/.nitro/vite/services/ssr/assets/tambah_user-B3SSr13N.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var ROLE_OPTIONS = ["Super Admin", "Admin"];
@@ -14,6 +14,7 @@ function TambahUserPage() {
 	const [nama, setNama] = (0, import_react.useState)("");
 	const [email, setEmail] = (0, import_react.useState)("");
 	const [password, setPassword] = (0, import_react.useState)("");
+	const [showPassword, setShowPassword] = (0, import_react.useState)(false);
 	const [role, setRole] = (0, import_react.useState)(ROLE_OPTIONS[0]);
 	const [saving, setSaving] = (0, import_react.useState)(false);
 	const [errorMessage, setErrorMessage] = (0, import_react.useState)(null);
@@ -100,12 +101,21 @@ function TambahUserPage() {
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
 							className: "mb-1.5 block text-xs font-bold text-gray-700",
 							children: "Password"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							type: "password",
-							value: password,
-							onChange: (e) => setPassword(e.target.value),
-							placeholder: "••••••••",
-							className: "w-full rounded-full border border-gray-300 px-4 py-2.5 text-sm focus:border-[#016A61] focus:outline-none focus:ring-1 focus:ring-[#016A61]"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "relative flex items-center",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+								type: showPassword ? "text" : "password",
+								value: password,
+								onChange: (e) => setPassword(e.target.value),
+								placeholder: "••••••••",
+								className: "w-full rounded-full border border-gray-300 py-2.5 pl-4 pr-12 text-sm focus:border-[#016A61] focus:outline-none focus:ring-1 focus:ring-[#016A61]"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								onClick: () => setShowPassword(!showPassword),
+								"aria-label": showPassword ? "Sembunyikan password" : "Tampilkan password",
+								className: "absolute right-4 text-gray-500 hover:text-[#016A61] focus:outline-none",
+								children: showPassword ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EyeOff, { className: "size-5 stroke-[1.75]" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, { className: "size-5 stroke-[1.75]" })
+							})]
 						})] }),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
 							className: "mb-1.5 block text-xs font-bold text-gray-700",

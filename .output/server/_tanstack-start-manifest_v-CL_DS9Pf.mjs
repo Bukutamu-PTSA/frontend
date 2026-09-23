@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-TwDywAe6.js
+//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-CL_DS9Pf.js
 var tsrStartManifest = () => ({ routes: {
 	__root__: {
 		filePath: "C:/Users/samue/Downloads/KEMANKER/BUKU TAMU PTSA/frontend/src/routes/__root.tsx",
@@ -31,7 +31,7 @@ var tsrStartManifest = () => ({ routes: {
 			"/admin/wilayah"
 		],
 		preloads: [
-			"/assets/index-B8CKIABn.js",
+			"/assets/index-t9oI0p-t.js",
 			"/assets/link-B930kiir.js",
 			"/assets/preload-helper-DShYQjDK.js",
 			"/assets/useMatch-ro4qkhDm.js",
@@ -45,7 +45,7 @@ var tsrStartManifest = () => ({ routes: {
 		scripts: [{ attrs: {
 			type: "module",
 			async: !0,
-			src: "/assets/index-B8CKIABn.js"
+			src: "/assets/index-t9oI0p-t.js"
 		} }]
 	},
 	"/": {
@@ -380,10 +380,12 @@ var tsrStartManifest = () => ({ routes: {
 		filePath: "C:/Users/samue/Downloads/KEMANKER/BUKU TAMU PTSA/frontend/src/routes/admin/tambah_user.tsx",
 		children: void 0,
 		preloads: [
-			"/assets/tambah_user-CqXjuDd7.js",
+			"/assets/tambah_user-ChrVrcHJ.js",
 			"/assets/useNavigate-DXq9gZpr.js",
 			"/assets/app-shell-BecVJd25.js",
 			"/assets/api-DYVK2XtC.js",
+			"/assets/eye-off-Bd3IbmYH.js",
+			"/assets/eye-CCBdFSI7.js",
 			"/assets/save-CHbTL7ex.js"
 		]
 	},

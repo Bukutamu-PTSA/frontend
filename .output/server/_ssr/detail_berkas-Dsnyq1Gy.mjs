@@ -5,8 +5,8 @@ import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].
 import { _ as useNavigate } from "../_libs/@tanstack/react-router+[...].mjs";
 import { P as LoaderCircle, a as User, nt as CircleAlert, ut as Building2 } from "../_libs/lucide-react.mjs";
 import { t as AppShell } from "./app-shell-CVfVOAjz.mjs";
-import { s as Route$15 } from "./router-D45Wgedp.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/detail_berkas-B7LWJEs7.js
+import { s as Route$15 } from "./router-3tZmzy1J.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/detail_berkas-Dsnyq1Gy.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function DetailBerkasPage() {

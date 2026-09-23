@@ -4,8 +4,8 @@ import { n as require_jsx_runtime } from "../_libs/react+tanstack__react-query.m
 import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].mjs";
 import { _ as useNavigate } from "../_libs/@tanstack/react-router+[...].mjs";
 import { t as AppShell } from "./app-shell-CVfVOAjz.mjs";
-import { a as Route$13 } from "./router-D45Wgedp.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/edit_skala-C2x74h1g.js
+import { a as Route$13 } from "./router-3tZmzy1J.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/edit_skala-CCGMZvhM.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var COMPANY_SIZES_API_URL = apiUrl("v1/company-sizes");

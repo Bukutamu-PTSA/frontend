@@ -5,8 +5,8 @@ import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].
 import { H as FileText, P as LoaderCircle, X as Download, g as Search, q as Eye, u as Trash2 } from "../_libs/lucide-react.mjs";
 import { t as AppShell } from "./app-shell-CVfVOAjz.mjs";
 import { t as pageWindow } from "./pagination-ChhiJOl5.mjs";
-import { o as Route$14 } from "./router-D45Wgedp.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/detail_kategori_pelayanan-1K74fS33.js
+import { o as Route$14 } from "./router-3tZmzy1J.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/detail_kategori_pelayanan-BMlCq9QQ.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var CATEGORY_MAP = {

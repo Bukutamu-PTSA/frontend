@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Save } from "lucide-react";
+import { Save, Eye, EyeOff } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { AUTH_BASE_URL } from "@/lib/api";
@@ -19,6 +19,7 @@ function TambahUserPage() {
   const [nama, setNama] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState(ROLE_OPTIONS[0]);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -108,13 +109,27 @@ function TambahUserPage() {
 
           <div>
             <label className="mb-1.5 block text-xs font-bold text-gray-700">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-full border border-gray-300 px-4 py-2.5 text-sm focus:border-[#016A61] focus:outline-none focus:ring-1 focus:ring-[#016A61]"
-            />
+            <div className="relative flex items-center">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-full border border-gray-300 py-2.5 pl-4 pr-12 text-sm focus:border-[#016A61] focus:outline-none focus:ring-1 focus:ring-[#016A61]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                className="absolute right-4 text-gray-500 hover:text-[#016A61] focus:outline-none"
+              >
+                {showPassword ? (
+                  <EyeOff className="size-5 stroke-[1.75]" />
+                ) : (
+                  <Eye className="size-5 stroke-[1.75]" />
+                )}
+              </button>
+            </div>
           </div>
 
           <div>
