@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
   Building2,
-  CircleHelp,
   ClipboardList,
   MonitorSmartphone,
   AlertTriangle,
@@ -15,21 +14,14 @@ import { AppShell } from "@/components/app-shell";
 export const Route = createFileRoute("/admin/setting")({
   head: () => ({
     meta: [
-      { title: "Setting Apps · PTSA-KEMNAKER" },
       {
-        name: "description",
-        content:
-          "Pusat pengaturan aplikasi layanan pengaduan: halaman beranda, data survei, userlogin, QR, dan master pengaduan.",
-      },
-      { property: "og:title", content: "Setting Apps · PTSA-KEMNAKER" },
-      {
-        property: "og:description",
-        content: "Kelola konfigurasi aplikasi layanan pengaduan ketenagakerjaan.",
+        title: "Setting Apps - PTSA KEMNAKER",
       },
     ],
   }),
   component: SettingPage,
 });
+
 
 interface SettingCard {
   title: string;
@@ -58,12 +50,6 @@ const SECTIONS: SettingSection[] = [
         desc: "Pengaturan data kunjungan dan buku tamu digital.",
         icon: MonitorSmartphone,
         to: "/admin/data_visitor",
-      },
-      {
-        title: "FAQ",
-        desc: "Kelola pertanyaan dan jawaban yang sering ditanyakan.",
-        icon: CircleHelp,
-        to: "/admin/faq",
       },
     ],
   },
@@ -104,7 +90,9 @@ function SettingPage() {
       <div className="space-y-6">
         {/* Kartu judul */}
         <div className="rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
-          <h1 className="text-[20px] font-bold tracking-tight text-gray-900">Pengaturan</h1>
+          <h1 className="text-[20px] font-bold tracking-tight text-gray-900">
+            Pengaturan
+          </h1>
           <p className="mt-1 text-[12px] text-gray-500">
             Kelola konfigurasi layanan pengaduan ketenagakerjaan.
           </p>

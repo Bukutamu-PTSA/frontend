@@ -5,7 +5,6 @@ import { Pencil, Trash2, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
 import { useTableExport } from "@/lib/export-utils";
-import { pageWindow } from "@/lib/pagination";
 
 export const Route = createFileRoute("/admin/manajemen_user")({
   head: () => ({
@@ -23,9 +22,9 @@ interface UserItem {
 
 // TODO(backend): ganti dengan data dari API user.
 const INITIAL_DATA: UserItem[] = [
-  { id: 1, nama: "Budi Santoso", email: "budi.santoso@kemnaker.go.id", role: "Administrator" },
-  { id: 2, nama: "Siti Aisyah", email: "siti.aisyah@kemnaker.go.id", role: "Pengawas" },
-  { id: 3, nama: "Agus Wijaya", email: "agus.wijaya@kemnaker.go.id", role: "Petugas" },
+  { id: 1, nama: "Budi Santoso", email: "budi.santoso@kemnaker.go.id", role: "Super Admin" },
+  { id: 2, nama: "Siti Aisyah", email: "siti.aisyah@kemnaker.go.id", role: "Admin" },
+  { id: 3, nama: "Agus Wijaya", email: "agus.wijaya@kemnaker.go.id", role: "Admin" },
 ];
 
 const USERS_API_URL = apiUrl("users");
@@ -33,17 +32,8 @@ const USERS_API_URL = apiUrl("users");
 const ITEMS_PER_PAGE = 10;
 
 const ROLE_STYLE: Record<string, string> = {
-  super_admin: "bg-purple-50 text-purple-600",
-  Administrator: "bg-purple-50 text-purple-600",
-  admin: "bg-blue-50 text-blue-600",
-  Pengawas: "bg-blue-50 text-blue-600",
-  Petugas: "bg-emerald-50 text-emerald-600",
-};
-
-const ROLE_LABEL: Record<string, string> = {
-  super_admin: "Super Admin",
-  administrator: "Super Admin",
-  admin: "Admin",
+  "Super Admin": "bg-purple-50 text-purple-600",
+  "Admin": "bg-blue-50 text-blue-600",
 };
 
 function ManajemenUserPage() {
@@ -73,10 +63,7 @@ function ManajemenUserPage() {
               ? json.users
               : [];
 
-        if (list.length === 0) {
-          setRows([]);
-          return;
-        }
+        if (list.length === 0) return;
 
         setRows(
           list.map((item) => {
@@ -88,7 +75,7 @@ function ManajemenUserPage() {
               id: Number(item.id),
               nama: String(item.username ?? item.name ?? item.nama ?? ""),
               email: String(item.email ?? ""),
-              role: role || "admin",
+              role: role || "Pengawas",
             };
           }),
         );
@@ -105,24 +92,16 @@ function ManajemenUserPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter((r) => {
-      const role = String(r.role);
-      const roleLabel = (ROLE_LABEL[role.toLowerCase()] ?? role).toLowerCase();
-      return (
+    return rows.filter(
+      (r) =>
         r.nama.toLowerCase().includes(q) ||
         r.email.toLowerCase().includes(q) ||
-        role.toLowerCase().includes(q) ||
-        roleLabel.includes(q)
-      );
-    });
+        r.role.toLowerCase().includes(q),
+    );
   }, [rows, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const displayed = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-
-  useEffect(() => {
-    setPage((p) => Math.min(p, totalPages));
-  }, [totalPages]);
 
   const buildExport = useMemo(() => {
     const headers = ["NO", "NAMA", "EMAIL", "ROLE"];
@@ -276,10 +255,10 @@ function ManajemenUserPage() {
                       <td className="px-5 py-3.5">
                         <span
                           className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                            ROLE_STYLE[item.role.toLowerCase()] ?? "bg-slate-100 text-slate-600"
+                            ROLE_STYLE[item.role] ?? "bg-slate-100 text-slate-600"
                           }`}
                         >
-                          {ROLE_LABEL[item.role.toLowerCase()] ?? item.role}
+                          {item.role}
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
@@ -330,7 +309,7 @@ function ManajemenUserPage() {
             >
               ‹
             </button>
-            {pageWindow(page, totalPages).map((p) => (
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((p) => (
               <button
                 key={p}
                 type="button"
