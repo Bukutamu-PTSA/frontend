@@ -1,14 +1,59 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { t as API_BASE_URL } from "./api-BipEh2FU.mjs";
-import { n as require_jsx_runtime } from "../_libs/react+tanstack__react-query.mjs";
+import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].mjs";
 import { _ as useNavigate } from "../_libs/@tanstack/react-router+[...].mjs";
-import { P as LoaderCircle, a as User, nt as CircleAlert, ut as Building2 } from "../_libs/lucide-react.mjs";
+import { a as DialogOverlay$1, i as DialogDescription$1, n as DialogClose, o as DialogPortal$1, r as DialogContent$1, s as DialogTitle$1, t as Dialog$1 } from "../_libs/@radix-ui/react-dialog+[...].mjs";
+import { P as LoaderCircle, a as User, nt as CircleAlert, t as X, tt as CircleCheck, ut as Building2 } from "../_libs/lucide-react.mjs";
+import { t as cn } from "./utils-C_uf36nf.mjs";
 import { t as AppShell } from "./app-shell-CVfVOAjz.mjs";
-import { s as Route$15 } from "./router-3tZmzy1J.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/detail_berkas-Dsnyq1Gy.js
+import { s as Route$15 } from "./router-Dr0ZvI5T.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/detail_berkas-7ukeK2nl.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
+var Dialog = Dialog$1;
+var DialogPortal = DialogPortal$1;
+var DialogOverlay = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogOverlay$1, {
+	ref,
+	className: cn("fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0", className),
+	...props
+}));
+DialogOverlay.displayName = DialogOverlay$1.displayName;
+var DialogContent = import_react.forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogPortal, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogOverlay, {}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent$1, {
+	ref,
+	className: cn("fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg", className),
+	...props,
+	children: [children, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogClose, {
+		className: "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "h-4 w-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+			className: "sr-only",
+			children: "Close"
+		})]
+	})]
+})] }));
+DialogContent.displayName = DialogContent$1.displayName;
+var DialogHeader = ({ className, ...props }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	className: cn("flex flex-col space-y-1.5 text-center sm:text-left", className),
+	...props
+});
+DialogHeader.displayName = "DialogHeader";
+var DialogFooter = ({ className, ...props }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	className: cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className),
+	...props
+});
+DialogFooter.displayName = "DialogFooter";
+var DialogTitle = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle$1, {
+	ref,
+	className: cn("text-lg font-semibold leading-none tracking-tight", className),
+	...props
+}));
+DialogTitle.displayName = DialogTitle$1.displayName;
+var DialogDescription = import_react.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription$1, {
+	ref,
+	className: cn("text-sm text-muted-foreground", className),
+	...props
+}));
+DialogDescription.displayName = DialogDescription$1.displayName;
 function DetailBerkasPage() {
 	const search = Route$15.useSearch();
 	const navigate = useNavigate();
@@ -17,7 +62,7 @@ function DetailBerkasPage() {
 	const [loading, setLoading] = (0, import_react.useState)(true);
 	const [errorMsg, setErrorMsg] = (0, import_react.useState)(null);
 	const [saving, setSaving] = (0, import_react.useState)(false);
-	const [agreedTerms, setAgreedTerms] = (0, import_react.useState)(false);
+	const [confirmOpen, setConfirmOpen] = (0, import_react.useState)(false);
 	const [data, setData] = (0, import_react.useState)(null);
 	(0, import_react.useEffect)(() => {
 		if (!complaintId) {
@@ -82,13 +127,14 @@ function DetailBerkasPage() {
 		};
 		fetchDetail();
 	}, [complaintId]);
-	const handleSaveEdit = async (e) => {
+	const handleSaveEdit = (e) => {
 		e.preventDefault();
 		if (!data) return;
-		if (!agreedTerms) {
-			alert("Harap centang persetujuan 'terms and conditions' terlebih dahulu.");
-			return;
-		}
+		setConfirmOpen(true);
+	};
+	const performSave = async () => {
+		if (!data) return;
+		setConfirmOpen(false);
 		setSaving(true);
 		const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 		const payload = {
@@ -138,7 +184,7 @@ function DetailBerkasPage() {
 			setSaving(false);
 		}
 	};
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppShell, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(AppShell, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "space-y-4",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
 			className: "text-[20px] font-normal text-gray-800 tracking-tight",
@@ -771,27 +817,6 @@ function DetailBerkasPage() {
 									className: "flex-1 rounded-md border border-gray-300 bg-white p-3 text-[12px] text-gray-800 focus:border-[#0B3B70] focus:outline-none resize-none"
 								})]
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "pt-2 flex items-center justify-start gap-2 sm:pl-[200px]",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-									type: "checkbox",
-									id: "terms",
-									checked: agreedTerms,
-									onChange: (e) => setAgreedTerms(e.target.checked),
-									className: "h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-									htmlFor: "terms",
-									className: "text-[11px] text-gray-500 cursor-pointer select-none",
-									children: [
-										"I agree to the",
-										" ",
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											className: "text-blue-500 hover:underline",
-											children: "terms and conditions"
-										})
-									]
-								})]
-							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "pt-3 sm:pl-[200px]",
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -806,7 +831,47 @@ function DetailBerkasPage() {
 				})]
 			})]
 		})]
-	}) });
+	}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+		open: confirmOpen,
+		onOpenChange: (open) => {
+			if (!saving) setConfirmOpen(open);
+		},
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+			className: "max-w-sm rounded-2xl",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, {
+				className: "text-center sm:text-center",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E8F5F1]",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, { className: "h-7 w-7 text-[#007A64]" })
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
+						className: "text-[15px] font-bold text-gray-900 pt-2",
+						children: "Konfirmasi Simpan Perubahan"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, {
+						className: "text-[12px] text-gray-500 leading-relaxed",
+						children: "Apakah Anda yakin ingin menyimpan perubahan data pengaduan ini?"
+					})
+				]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogFooter, {
+				className: "mt-2 flex-row gap-2 sm:justify-center",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
+					onClick: () => setConfirmOpen(false),
+					disabled: saving,
+					className: "flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50",
+					children: "Batal"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					onClick: performSave,
+					disabled: saving,
+					className: "flex-1 rounded-lg bg-[#007A64] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[#006550] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5",
+					children: [saving && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "h-3.5 w-3.5 animate-spin" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Simpan" })]
+				})]
+			})]
+		})
+	})] });
 }
 //#endregion
 export { DetailBerkasPage as component };

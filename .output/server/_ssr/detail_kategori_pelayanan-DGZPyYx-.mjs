@@ -1,13 +1,64 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { r as apiUrl, t as API_BASE_URL } from "./api-BipEh2FU.mjs";
-import { n as require_jsx_runtime } from "../_libs/react+tanstack__react-query.mjs";
+import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].mjs";
 import { H as FileText, P as LoaderCircle, X as Download, g as Search, q as Eye, u as Trash2 } from "../_libs/lucide-react.mjs";
 import { t as AppShell } from "./app-shell-CVfVOAjz.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/reportpengaduan-DGTqzoBe.js
+import { t as pageWindow } from "./pagination-ChhiJOl5.mjs";
+import { o as Route$14 } from "./router-Dr0ZvI5T.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/detail_kategori_pelayanan-DGZPyYx-.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
-var nf = new Intl.NumberFormat("id-ID");
+var CATEGORY_MAP = {
+	1: {
+		title: "Wajib Lapor Ketenagakerjaan",
+		shortName: "WLKP"
+	},
+	2: {
+		title: "Upah Kerja",
+		shortName: "Upah Kerja"
+	},
+	3: {
+		title: "Jaminan Sosial",
+		shortName: "Jaminan Sosial"
+	},
+	4: {
+		title: "Hubungan Kerja",
+		shortName: "Hubungan Kerja"
+	},
+	5: {
+		title: "Kecelakaan Kerja",
+		shortName: "Kecelakaan Kerja"
+	},
+	6: {
+		title: "Waktu Kerja & Istirahat",
+		shortName: "Waktu Kerja & Waktu Istirahat"
+	},
+	7: {
+		title: "Kader Norma Ketenagakerjaan",
+		shortName: "Kader Norma Ketenagakerjaan"
+	},
+	8: {
+		title: "Penempatan TK Dalam & LN",
+		shortName: "Penempatan TK"
+	},
+	9: {
+		title: "K3",
+		shortName: "K3"
+	},
+	10: {
+		title: "Perempuan & Anak",
+		shortName: "Perempuan & Anak"
+	},
+	11: {
+		title: "Norma K3",
+		shortName: "Norma K3"
+	},
+	12: {
+		title: "SKP",
+		shortName: "SKP"
+	}
+};
 var MONTH_OPTIONS = [
 	"Semua Bulan",
 	"Januari",
@@ -58,11 +109,17 @@ function formatDateIndo(dateStr) {
 		return dateStr;
 	}
 }
-function ReportPengaduanPage() {
+function DetailKategoriPage() {
+	const search = Route$14.useSearch();
+	const categoryId = Number(search["id"] ?? 1);
+	const currentCategory = CATEGORY_MAP[categoryId] ?? {
+		title: `Kategori #${categoryId}`,
+		shortName: `Kategori #${categoryId}`
+	};
 	const [complaints, setComplaints] = (0, import_react.useState)([]);
 	const [loading, setLoading] = (0, import_react.useState)(true);
 	const [downloadingId, setDownloadingId] = (0, import_react.useState)(null);
-	const [search, setSearch] = (0, import_react.useState)("");
+	const [searchInput, setSearchInput] = (0, import_react.useState)("");
 	const [month, setMonth] = (0, import_react.useState)("Semua Bulan");
 	const [year, setYear] = (0, import_react.useState)("2026");
 	const [appliedFilters, setAppliedFilters] = (0, import_react.useState)({
@@ -72,7 +129,7 @@ function ReportPengaduanPage() {
 	});
 	const [currentPage, setCurrentPage] = (0, import_react.useState)(1);
 	const itemsPerPage = 10;
-	const fetchComplaints = async () => {
+	const fetchCategoryComplaints = (0, import_react.useCallback)(async () => {
 		setLoading(true);
 		const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 		const authHeaders = {
@@ -82,33 +139,41 @@ function ReportPengaduanPage() {
 		};
 		try {
 			let allData = [];
-			const res = await fetch(`${API_BASE_URL}/complaints?per_page=50`, {
+			const res = await fetch(`${API_BASE_URL}/complaints?category_id=${categoryId}&per_page=50`, {
 				method: "GET",
 				headers: authHeaders
 			});
 			if (res.ok) {
 				const json = await res.json();
 				allData = [...Array.isArray(json?.data) ? json.data : Array.isArray(json?.data?.data) ? json.data.data : Array.isArray(json) ? json : []];
-				const lastPage = Number(json?.last_page ?? json?.data?.last_page ?? 1);
-				if (lastPage > 1 && allData.length < Number(json?.total ?? json?.data?.total ?? 0)) for (let p = 2; p <= lastPage; p++) {
-					const nextRes = await fetch(`${API_BASE_URL}/complaints?page=${p}&per_page=50`, { headers: authHeaders });
+				const meta = json?.meta ?? json?.data?.meta ?? {};
+				const lastPage = Number(meta?.last_page ?? json?.last_page ?? json?.data?.last_page ?? 1);
+				const total = Number(meta?.total ?? json?.total ?? json?.data?.total ?? allData.length);
+				if (lastPage > 1 && allData.length < total) for (let p = 2; p <= lastPage; p++) {
+					const nextRes = await fetch(`${API_BASE_URL}/complaints?category_id=${categoryId}&page=${p}&per_page=50`, {
+						method: "GET",
+						headers: authHeaders
+					});
 					if (nextRes.ok) {
 						const nextJson = await nextRes.json();
-						const nextItems = Array.isArray(nextJson?.data) ? nextJson.data : Array.isArray(nextJson?.data?.data) ? nextJson.data.data : [];
+						const nextItems = Array.isArray(nextJson?.data) ? nextJson.data : Array.isArray(nextJson?.data?.data) ? nextJson.data.data : Array.isArray(nextJson) ? nextJson : [];
 						allData = [...allData, ...nextItems];
 					}
 				}
+				allData = allData.filter((item) => {
+					return Number(item.category_id ?? item.category?.id) === categoryId;
+				});
 			}
 			setComplaints(allData);
 		} catch (err) {
-			console.error("Gagal mengambil data report pengaduan:", err);
+			console.error("Gagal menarik data pengaduan kategori:", err);
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [categoryId]);
 	(0, import_react.useEffect)(() => {
-		fetchComplaints();
-	}, []);
+		fetchCategoryComplaints();
+	}, [fetchCategoryComplaints, categoryId]);
 	const filteredComplaints = (0, import_react.useMemo)(() => {
 		return complaints.filter((item) => {
 			const q = appliedFilters.search.trim().toLowerCase();
@@ -129,42 +194,6 @@ function ReportPengaduanPage() {
 			return true;
 		});
 	}, [complaints, appliedFilters]);
-	const scaleStats = (0, import_react.useMemo)(() => {
-		let mikro = 0;
-		let kecil = 0;
-		let menengah = 0;
-		let besar = 0;
-		filteredComplaints.forEach((item) => {
-			const naker = Number(item.company?.jumlah_naker ?? item.jumlah_naker ?? 0);
-			if (naker > 1 && naker < 4) mikro++;
-			else if (naker >= 5 && naker < 19) kecil++;
-			else if (naker >= 20 && naker < 99) menengah++;
-			else if (naker >= 100) besar++;
-			else mikro++;
-		});
-		return [
-			{
-				key: "mikro",
-				label: "MIKRO",
-				total: mikro
-			},
-			{
-				key: "kecil",
-				label: "KECIL",
-				total: kecil
-			},
-			{
-				key: "menengah",
-				label: "MENENGAH",
-				total: menengah
-			},
-			{
-				key: "besar",
-				label: "BESAR",
-				total: besar
-			}
-		];
-	}, [filteredComplaints]);
 	const totalData = filteredComplaints.length;
 	const totalPages = Math.max(1, Math.ceil(totalData / itemsPerPage));
 	const displayedRows = (0, import_react.useMemo)(() => {
@@ -174,16 +203,19 @@ function ReportPengaduanPage() {
 		currentPage,
 		itemsPerPage
 	]);
+	(0, import_react.useEffect)(() => {
+		setCurrentPage((p) => Math.min(p, totalPages));
+	}, [totalPages]);
 	const handleFilter = () => {
 		setAppliedFilters({
-			search,
+			search: searchInput,
 			month,
 			year
 		});
 		setCurrentPage(1);
 	};
 	const handleReset = () => {
-		setSearch("");
+		setSearchInput("");
 		setMonth("Semua Bulan");
 		setYear("2026");
 		setAppliedFilters({
@@ -192,22 +224,6 @@ function ReportPengaduanPage() {
 			year: "2026"
 		});
 		setCurrentPage(1);
-	};
-	const handleDelete = async (id) => {
-		if (!window.confirm("Apakah Anda yakin ingin menghapus pengaduan ini?")) return;
-		const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
-		try {
-			if ((await fetch(`${API_BASE_URL}/complaints/${id}`, {
-				method: "DELETE",
-				headers: {
-					Accept: "application/json",
-					...token ? { Authorization: `Bearer ${token}` } : {}
-				}
-			})).ok) setComplaints((prev) => prev.filter((item) => item.id !== id));
-			else alert("Gagal menghapus aduan.");
-		} catch (e) {
-			console.error("Gagal menghapus aduan:", e);
-		}
 	};
 	const handleDownloadPdf = async (complaintId, ticketNumber) => {
 		try {
@@ -252,12 +268,28 @@ function ReportPengaduanPage() {
 			setDownloadingId(null);
 		}
 	};
+	const handleDelete = async (deleteId) => {
+		if (!window.confirm("Apakah Anda yakin ingin menghapus pengaduan ini?")) return;
+		const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+		try {
+			if ((await fetch(`${API_BASE_URL}/complaints/${deleteId}`, {
+				method: "DELETE",
+				headers: {
+					Accept: "application/json",
+					...token ? { Authorization: `Bearer ${token}` } : {}
+				}
+			})).ok) setComplaints((prev) => prev.filter((item) => item.id !== deleteId));
+			else alert("Gagal menghapus aduan.");
+		} catch (e) {
+			console.error("Gagal menghapus aduan:", e);
+		}
+	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppShell, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "space-y-5",
 		children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h1", {
 				className: "text-[15px] font-bold text-gray-800 tracking-tight",
-				children: "All Report Pengaduan"
+				children: ["Report Pengaduan ", currentCategory.shortName]
 			}) }),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "bg-white rounded-xl border border-gray-100 p-3 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]",
@@ -268,10 +300,17 @@ function ReportPengaduanPage() {
 							className: "relative flex-1",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 								type: "text",
-								value: search,
-								onChange: (e) => setSearch(e.target.value),
-								onKeyDown: (e) => e.key === "Enter" && handleFilter(),
-								placeholder: "Cari pelapor, perusahaan, atau jenis...",
+								value: searchInput,
+								onChange: (e) => {
+									const v = e.target.value;
+									setSearchInput(v);
+									setAppliedFilters((prev) => ({
+										...prev,
+										search: v
+									}));
+									setCurrentPage(1);
+								},
+								placeholder: "Cari pengaduan...",
 								className: "w-full rounded-lg border border-gray-200 bg-white pl-9 pr-4 py-2 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#007A64]"
 							})]
 						}),
@@ -321,26 +360,6 @@ function ReportPengaduanPage() {
 				})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "grid grid-cols-2 lg:grid-cols-4 gap-4",
-				children: scaleStats.map((stat) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] text-center",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "text-[10px] font-bold tracking-wider text-gray-400 uppercase",
-						children: stat.label
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-						className: "mt-2 text-[18px] font-bold text-gray-900 leading-none",
-						children: [
-							nf.format(stat.total),
-							" ",
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "text-[12px] font-medium text-gray-500",
-								children: "Pengaduan"
-							})
-						]
-					})]
-				}, stat.key))
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 					className: "overflow-x-auto",
@@ -386,10 +405,10 @@ function ReportPengaduanPage() {
 							}) }) : displayedRows.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
 								colSpan: 6,
 								className: "px-6 py-10 text-center text-gray-400",
-								children: "Tidak ada data pengaduan yang ditemukan."
+								children: "Tidak ada data pengaduan untuk kategori ini."
 							}) }) : displayedRows.map((item, index) => {
 								const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
-								const jenis = item.category?.category_name ?? item.category?.category_code ?? item.kategori ?? "-";
+								const jenis = item.category?.category_name ?? item.category?.category_code ?? currentCategory.shortName;
 								const pelapor = item.complainant?.nama_lengkap ?? "-";
 								const perusahaan = item.company?.nama_perusahaan ?? "-";
 								const tanggal = formatDateIndo(item.complaint_date ?? item.created_at);
@@ -431,20 +450,20 @@ function ReportPengaduanPage() {
 													}),
 													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 														type: "button",
-														title: "Detail Berkas",
-														onClick: () => {
-															window.location.assign(`/admin/detail_berkas?id=${item.id}`);
-														},
-														className: "grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer",
-														children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, { className: "h-3.5 w-3.5" })
-													}),
-													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-														type: "button",
 														title: "Lihat",
 														onClick: () => {
 															window.location.assign(`/admin/view_pdf?id=${item.id}`);
 														},
-														className: "grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer",
+														className: "grid h-7 w-7 place-items-center rounded-md bg-[#14B846] text-white hover:bg-[#12A63C] transition-colors cursor-pointer",
+														children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, { className: "h-3.5 w-3.5" })
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+														type: "button",
+														title: "Detail Berkas",
+														onClick: () => {
+															window.location.assign(`/admin/detail_berkas?id=${item.id}`);
+														},
+														className: "grid h-7 w-7 place-items-center rounded-md bg-[#14B846] text-white hover:bg-[#12A63C] transition-colors cursor-pointer",
 														children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, { className: "h-3.5 w-3.5" })
 													}),
 													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
@@ -474,9 +493,8 @@ function ReportPengaduanPage() {
 						" to",
 						" ",
 						(currentPage - 1) * itemsPerPage + displayedRows.length,
-						" dari",
-						" ",
-						nf.format(totalData),
+						" dari ",
+						totalData,
 						" data"
 					]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -489,7 +507,7 @@ function ReportPengaduanPage() {
 							className: "grid h-7 w-7 place-items-center rounded-md text-[11px] text-gray-500 hover:bg-gray-200 transition-colors cursor-pointer disabled:opacity-40",
 							children: "‹"
 						}),
-						Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						pageWindow(currentPage, totalPages).map((page) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							type: "button",
 							onClick: () => setCurrentPage(page),
 							className: `grid h-7 w-7 place-items-center rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${currentPage === page ? "bg-[#007A64] text-white" : "text-gray-600 hover:bg-gray-100"}`,
@@ -509,4 +527,4 @@ function ReportPengaduanPage() {
 	}) });
 }
 //#endregion
-export { ReportPengaduanPage as component };
+export { DetailKategoriPage as component };

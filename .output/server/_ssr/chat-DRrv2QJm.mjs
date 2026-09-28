@@ -1,5 +1,5 @@
 import { i as __toESM } from "../_runtime.mjs";
-import { n as require_jsx_runtime } from "../_libs/react+tanstack__react-query.mjs";
+import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].mjs";
 import { S as Phone, T as Paperclip, Y as EllipsisVertical, bt as ArrowLeft, g as Search, h as Send, r as Video } from "../_libs/lucide-react.mjs";
 import { t as cn } from "./utils-C_uf36nf.mjs";

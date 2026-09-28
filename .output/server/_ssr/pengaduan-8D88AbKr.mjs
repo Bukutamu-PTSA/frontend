@@ -1,6 +1,6 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { t as API_BASE_URL } from "./api-BipEh2FU.mjs";
-import { n as require_jsx_runtime } from "../_libs/react+tanstack__react-query.mjs";
+import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].mjs";
 import { _ as useNavigate, g as Link } from "../_libs/@tanstack/react-router+[...].mjs";
 import { H as FileText, P as LoaderCircle, a as User, bt as ArrowLeft, s as TriangleAlert, ut as Building2, yt as ArrowRight } from "../_libs/lucide-react.mjs";

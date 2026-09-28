@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { User, Building2, Loader2, AlertCircle } from "lucide-react";
+import { User, Building2, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export type DetailBerkasSearch = {
   id?: string | number;
@@ -62,7 +70,7 @@ function DetailBerkasPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Inisialisasi awal kosong tanpa data dummy Budi
   const [data, setData] = useState<ComplaintDetailData | null>(null);
@@ -158,15 +166,15 @@ function DetailBerkasPage() {
     fetchDetail();
   }, [complaintId]);
 
-  const handleSaveEdit = async (e: React.FormEvent) => {
+  const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!data) return;
+    setConfirmOpen(true);
+  };
 
-    if (!agreedTerms) {
-      alert("Harap centang persetujuan 'terms and conditions' terlebih dahulu.");
-      return;
-    }
-
+  const performSave = async () => {
+    if (!data) return;
+    setConfirmOpen(false);
     setSaving(true);
     const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
@@ -664,23 +672,6 @@ function DetailBerkasPage() {
                       />
                     </div>
 
-                    <div className="pt-2 flex items-center justify-start gap-2 sm:pl-[200px]">
-                      <input
-                        type="checkbox"
-                        id="terms"
-                        checked={agreedTerms}
-                        onChange={(e) => setAgreedTerms(e.target.checked)}
-                        className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <label
-                        htmlFor="terms"
-                        className="text-[11px] text-gray-500 cursor-pointer select-none"
-                      >
-                        I agree to the{" "}
-                        <span className="text-blue-500 hover:underline">terms and conditions</span>
-                      </label>
-                    </div>
-
                     <div className="pt-3 sm:pl-[200px]">
                       <button
                         type="submit"
@@ -698,6 +689,46 @@ function DetailBerkasPage() {
           </div>
         )}
       </div>
+
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!saving) setConfirmOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader className="text-center sm:text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E8F5F1]">
+              <CheckCircle2 className="h-7 w-7 text-[#007A64]" />
+            </div>
+            <DialogTitle className="text-[15px] font-bold text-gray-900 pt-2">
+              Konfirmasi Simpan Perubahan
+            </DialogTitle>
+            <DialogDescription className="text-[12px] text-gray-500 leading-relaxed">
+              Apakah Anda yakin ingin menyimpan perubahan data pengaduan ini?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-2 flex-row gap-2 sm:justify-center">
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              disabled={saving}
+              className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={performSave}
+              disabled={saving}
+              className="flex-1 rounded-lg bg-[#007A64] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[#006550] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              <span>Simpan</span>
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }

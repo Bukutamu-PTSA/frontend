@@ -1,6 +1,6 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { r as apiUrl } from "./api-BipEh2FU.mjs";
-import { n as require_jsx_runtime } from "../_libs/react+tanstack__react-query.mjs";
+import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { t as XIcon } from "./x-icon-LOvW3t4T.mjs";
 import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].mjs";
 import { _ as useNavigate, g as Link } from "../_libs/@tanstack/react-router+[...].mjs";

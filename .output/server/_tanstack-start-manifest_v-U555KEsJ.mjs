@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-CL_DS9Pf.js
+//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-U555KEsJ.js
 var tsrStartManifest = () => ({ routes: {
 	__root__: {
 		filePath: "C:/Users/samue/Downloads/KEMANKER/BUKU TAMU PTSA/frontend/src/routes/__root.tsx",
@@ -31,12 +31,12 @@ var tsrStartManifest = () => ({ routes: {
 			"/admin/wilayah"
 		],
 		preloads: [
-			"/assets/index-t9oI0p-t.js",
+			"/assets/index-Dr3JMWzq.js",
 			"/assets/link-B930kiir.js",
 			"/assets/preload-helper-DShYQjDK.js",
 			"/assets/useMatch-ro4qkhDm.js",
-			"/assets/detail_berkas-Bc0xBBOG.js",
-			"/assets/detail_kategori_pelayanan-DHRqd8T8.js",
+			"/assets/detail_berkas-DZBb-mms.js",
+			"/assets/detail_kategori_pelayanan-Cq_cUenQ.js",
 			"/assets/edit_skala-CgBWTmHF.js",
 			"/assets/edit_survei-Dml1Itw2.js",
 			"/assets/edit_user-B0zXg0T4.js",
@@ -45,21 +45,22 @@ var tsrStartManifest = () => ({ routes: {
 		scripts: [{ attrs: {
 			type: "module",
 			async: !0,
-			src: "/assets/index-t9oI0p-t.js"
+			src: "/assets/index-Dr3JMWzq.js"
 		} }]
 	},
 	"/": {
 		filePath: "C:/Users/samue/Downloads/KEMANKER/BUKU TAMU PTSA/frontend/src/routes/index.tsx",
 		children: void 0,
 		preloads: [
-			"/assets/routes-nFOsFgOW.js",
+			"/assets/routes-DVq_b_hh.js",
 			"/assets/useNavigate-DXq9gZpr.js",
 			"/assets/api-DYVK2XtC.js",
 			"/assets/x-icon-BN2obDzD.js",
 			"/assets/file-text-D2Fybh77.js",
 			"/assets/message-square-D0f3FCLW.js",
 			"/assets/utils-DojpP95n.js",
-			"/assets/kemnaker_logo-ChH1M5jk.js"
+			"/assets/kemnaker_logo-ChH1M5jk.js",
+			"/assets/dist-DpNY2lgo.js"
 		]
 	},
 	"/bukti_pendukung": {
@@ -93,11 +94,12 @@ var tsrStartManifest = () => ({ routes: {
 		filePath: "C:/Users/samue/Downloads/KEMANKER/BUKU TAMU PTSA/frontend/src/routes/login.tsx",
 		children: void 0,
 		preloads: [
-			"/assets/login-wRQtBDLd.js",
+			"/assets/login-D2KwAK1k.js",
 			"/assets/useNavigate-DXq9gZpr.js",
 			"/assets/api-DYVK2XtC.js",
 			"/assets/building-2-CzDLnh1L.js",
 			"/assets/circle-alert-e3S4Zg0a.js",
+			"/assets/circle-check-DxLwzC4h.js",
 			"/assets/eye-off-Bd3IbmYH.js",
 			"/assets/eye-CCBdFSI7.js",
 			"/assets/loader-circle-Dd3f1QJB.js",
@@ -197,21 +199,25 @@ var tsrStartManifest = () => ({ routes: {
 		filePath: "C:/Users/samue/Downloads/KEMANKER/BUKU TAMU PTSA/frontend/src/routes/admin/detail_berkas.tsx",
 		children: void 0,
 		preloads: [
-			"/assets/detail_berkas-BfC5JRcs.js",
+			"/assets/detail_berkas-DXT9WJw8.js",
 			"/assets/useNavigate-DXq9gZpr.js",
 			"/assets/app-shell-BecVJd25.js",
 			"/assets/api-DYVK2XtC.js",
 			"/assets/building-2-CzDLnh1L.js",
 			"/assets/circle-alert-e3S4Zg0a.js",
+			"/assets/circle-check-DxLwzC4h.js",
 			"/assets/loader-circle-Dd3f1QJB.js",
-			"/assets/user-CTHR0Fnx.js"
+			"/assets/user-CTHR0Fnx.js",
+			"/assets/x-CmlmSbAM.js",
+			"/assets/utils-DojpP95n.js",
+			"/assets/dist-DpNY2lgo.js"
 		]
 	},
 	"/admin/detail_kategori_pelayanan": {
 		filePath: "C:/Users/samue/Downloads/KEMANKER/BUKU TAMU PTSA/frontend/src/routes/admin/detail_kategori_pelayanan.tsx",
 		children: void 0,
 		preloads: [
-			"/assets/detail_kategori_pelayanan-U75hFR4d.js",
+			"/assets/detail_kategori_pelayanan-DY95ZGG-.js",
 			"/assets/app-shell-BecVJd25.js",
 			"/assets/api-DYVK2XtC.js",
 			"/assets/download-CIDeP-fu.js",
@@ -335,7 +341,7 @@ var tsrStartManifest = () => ({ routes: {
 		filePath: "C:/Users/samue/Downloads/KEMANKER/BUKU TAMU PTSA/frontend/src/routes/admin/reportpengaduan.tsx",
 		children: void 0,
 		preloads: [
-			"/assets/reportpengaduan-C0GMfQ2z.js",
+			"/assets/reportpengaduan-haKw5NB4.js",
 			"/assets/app-shell-BecVJd25.js",
 			"/assets/api-DYVK2XtC.js",
 			"/assets/download-CIDeP-fu.js",

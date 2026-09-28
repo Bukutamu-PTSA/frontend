@@ -473,26 +473,26 @@ function DetailKategoriPage() {
                               )}
                             </button>
 
-                            {/* Tombol Menuju Halaman Detail Berkas */}
-                            <button
-                              type="button"
-                              title="Detail Berkas"
-                              onClick={() => {
-                                window.location.assign(`/admin/detail_berkas?id=${item.id}`);
-                              }}
-                              className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                            </button>
-
-                            {/* Lihat */}
+                            {/* Tombol Menuju Halaman PDF */}
                             <button
                               type="button"
                               title="Lihat"
                               onClick={() => {
                                 window.location.assign(`/admin/view_pdf?id=${item.id}`);
                               }}
-                              className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer"
+                              className="grid h-7 w-7 place-items-center rounded-md bg-[#14B846] text-white hover:bg-[#12A63C] transition-colors cursor-pointer"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                            </button>
+
+                            {/* Lihat Detail */}
+                            <button
+                              type="button"
+                              title="Detail Berkas"
+                              onClick={() => {
+                                window.location.assign(`/admin/detail_berkas?id=${item.id}`);
+                              }}
+                              className="grid h-7 w-7 place-items-center rounded-md bg-[#14B846] text-white hover:bg-[#12A63C] transition-colors cursor-pointer"
                             >
                               <Eye className="h-3.5 w-3.5" />
                             </button>
