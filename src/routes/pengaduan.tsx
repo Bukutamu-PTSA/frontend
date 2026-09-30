@@ -8,6 +8,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Loader2,
+  XIcon,
+  Facebook,
+  Instagram,
+  MapPin,
+  Mail,
 } from "lucide-react";
 import kemnakerLogo from "@/assets/kemnaker_logo.png";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
@@ -898,6 +903,92 @@ function FormulirPengaduanPage() {
           </div>
         </form>
       </main>
+
+      {/* --- FOOTER --- */}
+      <footer className="bg-[#032749] text-white mt-16">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
+            {/* Kolom 1: Brand */}
+            <div>
+              <h3 className="text-xl font-bold">
+                BINWASNAKER <span className="text-emerald-400">& K3</span>
+              </h3>
+              <p className="mt-4 text-sm leading-relaxed text-gray-300">
+                Ditjen Binwasnaker & K3 adalah unsur pelaksana yang berada di bawah dan
+                bertanggung jawab kepada Menteri Ketenagakerjaan.
+              </p>
+              <div className="mt-6 flex gap-3">
+                <a
+                  href="https://x.com/KemnakerRI"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
+                >
+                  <XIcon className="size-4" />
+                </a>
+                <a
+                  href="https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
+                >
+                  <Facebook className="size-4" />
+                </a>
+                <a
+                  href="https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ=="
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
+                >
+                  <Instagram className="size-4" />
+                </a>
+              </div>
+            </div>
+
+            {/* Kolom 2: Kontak & Bantuan */}
+            <div>
+              <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
+              <hr className="mt-4 border-white/15" />
+              <a
+                href="https://maps.app.goo.gl/QiLps9tsVMszzHf79"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex gap-3 text-sm text-gray-300 transition-colors hover:text-emerald-400"
+              >
+                <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
+                <p className="leading-relaxed">
+                  Jl. Jend. Gatot Subroto Kav. 51, RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi,
+                  Kota Jakarta Selatan, DKI Jakarta 12950
+                </p>
+              </a>
+              <div className="mt-4 flex items-center gap-3 text-sm">
+                <Mail className="size-5 text-emerald-400" />
+                <a
+                  href="mailto:pengaduanwlkp@gmail.com"
+                  className="text-gray-300 hover:text-emerald-400 transition-colors"
+                >
+                  Pengaduan WLKP
+                </a>
+              </div>
+              {/* FAQ di bawah kontak */}
+              <div className="mt-6 pt-4 border-t border-white/15">
+                <Link
+                  to="/faqpage"
+                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-emerald-400 transition-colors"
+                >
+                  <span className="text-emerald-400">›</span> FAQ
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <hr className="mt-10 border-white/15" />
+
+          <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
+            <p>© 2024–2026 Kementerian Ketenagakerjaan RI. Seluruh Hak Cipta Dilindungi.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

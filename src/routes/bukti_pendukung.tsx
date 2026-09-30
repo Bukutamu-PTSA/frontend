@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { XIcon } from "@/components/x-icon";
 import { apiUrl } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/bukti_pendukung")({
   head: () => ({
@@ -29,18 +30,45 @@ export const Route = createFileRoute("/bukti_pendukung")({
 
 const COMPLAINTS_API_URL = apiUrl("complaints");
 
-// Helper konversi base64 hasil kamera menjadi File objek.
-function dataURLtoFile(dataurl: string, filename: string): File {
-  const arr = dataurl.split(",");
-  const mimeMatch = arr[0]?.match(/:(.*?);/);
-  const mime = mimeMatch?.[1] || "image/jpeg, application/pdf";
-  const bstr = atob(arr[1] || "");
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
+/** Batas ukuran satu file bukti: 5 MB. */
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+/** Ekstensi & MIME yang diterima untuk bukti pendukung. */
+const ALLOWED_EXTENSIONS = /\.(jpe?g|png|pdf)$/i;
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+
+/**
+ * Validasi satu file bukti. Pesan dikembalikan sebagai string agar bisa dipakai
+ * baik untuk alert maupunSTATE error di UI.
+ *
+ * Kalau file punya ekstensi yang benar tapi browser melaporkan MIME kosong
+ * (serang terjadi di Windows), MIME diabaikan — ekstensi sudah cukup.
+ */
+function validateEvidenceFile(file: File): string | null {
+  const byExtension = ALLOWED_EXTENSIONS.test(file.name);
+  const byMime = file.type === "" || ALLOWED_MIME_TYPES.includes(file.type);
+
+  if (!byExtension && !byMime) {
+    return "Bukti pendukung harus berupa file JPG/JPEG, PNG, atau PDF.";
   }
-  return new File([u8arr], filename, { type: mime });
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    const mb = (file.size / (1024 * 1024)).toFixed(1);
+    return `Ukuran file ${mb} MB melebihi batas 5 MB.`;
+  }
+
+  if (file.size === 0) {
+    return "File yang dipilih kosong (0 byte).";
+  }
+
+  return null;
+}
+
+/** Format ukuran file untuk ditampilkan di UI. */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function BuktiPendukungPage() {
@@ -56,30 +84,35 @@ function BuktiPendukungPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const handleCapture = () => {
     cameraInputRef.current?.click();
   };
 
-  const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  /** Terapkan file ke input kamera (dipakai oleh pilih-file maupun drop). */
+  const applyCameraFile = (file: File | undefined) => {
     if (!file) return;
 
-    if (
-      !/\.(jpe?g|png|pdf)$/i.test(file.name) &&
-      !["image/jpeg", "image/png", "application/pdf"].includes(file.type)
-    ) {
-      alert("Bukti foto harus berupa file JPG/JPEG atau PDF.");
+    const problem = validateEvidenceFile(file);
+    if (problem) {
+      setFileError(problem);
       return;
     }
 
+    setFileError(null);
     setCapturedFile(file);
 
     const reader = new FileReader();
-    reader.onload = () => {
-      setCapturedPhoto(String(reader.result ?? ""));
-    };
+    reader.onload = () => setCapturedPhoto(String(reader.result ?? ""));
     reader.readAsDataURL(file);
+  };
+
+  const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    applyCameraFile(e.target.files?.[0]);
+    // Reset nilai input supaya memilih file yang sama dua kali tetap memicu
+    // event change (tanpa ini, pilih kedua diam-diam diabaikan browser).
     e.target.value = "";
   };
 
@@ -88,10 +121,31 @@ function BuktiPendukungPage() {
     setCapturedFile(null);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedDocument(e.target.files[0]);
+  /** Terapkan file ke input dokumen (dipakai oleh pilih-file maupun drop). */
+  const applyDocumentFile = (file: File | undefined) => {
+    if (!file) return;
+
+    const problem = validateEvidenceFile(file);
+    if (problem) {
+      setFileError(problem);
+      return;
     }
+
+    setFileError(null);
+    setSelectedDocument(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    applyDocumentFile(e.target.files?.[0]);
+    // Sama seperti kamera: reset supaya file yang sama bisa dipilih ulang.
+    e.target.value = "";
+  };
+
+  /** Drop file langsung ke area upload (diodPromisekan dari teks "Drag a file"). */
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    applyDocumentFile(e.dataTransfer.files?.[0]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,14 +157,18 @@ function BuktiPendukungPage() {
     setIsSubmitting(true);
 
     try {
-      if (
-        selectedDocument &&
-        !/\.(pdf|jpe?g|png)$/i.test(selectedDocument.name) &&
-        !["application/pdf", "image/jpeg", "image/png"].includes(selectedDocument.type)
-      ) {
-        alert("Hanya file PDF, JPG, JPEG, atau PNG yang diizinkan.");
-        return;
+      // Validasi ulang di sisi submit supaya file yang lolos filter UI (mis.
+      // ditambahkan lewat drop) tetapTERcek.
+      for (const file of [selectedDocument, capturedFile]) {
+        if (!file) continue;
+        const problem = validateEvidenceFile(file);
+        if (problem) {
+          setFileError(problem);
+          setIsSubmitting(false);
+          return;
+        }
       }
+      setFileError(null);
 
       const formData = new FormData();
 
@@ -276,17 +334,32 @@ function BuktiPendukungPage() {
 
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-2 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-[#FAFBFD] p-8 text-center hover:bg-gray-50 transition-colors cursor-pointer"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={cn(
+                  "mt-2 flex flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center transition-colors cursor-pointer",
+                  isDragging
+                    ? "border-[#0E3B68] bg-[#0E3B68]/5"
+                    : "border-gray-300 bg-[#FAFBFD] hover:bg-gray-50",
+                )}
               >
                 {selectedDocument ? (
                   <div className="flex items-center gap-2 text-[11px] text-emerald-700 font-medium">
                     <FileCheck className="h-4 w-4" />
-                    <span>{selectedDocument.name}</span>
+                    <span className="max-w-[220px] truncate">{selectedDocument.name}</span>
+                    <span className="shrink-0 text-emerald-500/80">
+                      ({formatFileSize(selectedDocument.size)})
+                    </span>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedDocument(null);
+                        setFileError(null);
                       }}
                       className="ml-2 text-gray-400 hover:text-red-500"
                     >
@@ -295,8 +368,14 @@ function BuktiPendukungPage() {
                   </div>
                 ) : (
                   <>
+                    <Upload
+                      className={cn(
+                        "mb-2 h-6 w-6",
+                        isDragging ? "text-[#0E3B68]" : "text-gray-300",
+                      )}
+                    />
                     <p className="text-[11px] text-gray-500 font-medium">
-                      Drag a file here to upload or
+                      {isDragging ? "Lepaskan file di sini" : "Tarik file ke sini atau"}
                     </p>
                     <button
                       type="button"
@@ -308,6 +387,9 @@ function BuktiPendukungPage() {
                     >
                       Browse...
                     </button>
+                    <p className="mt-2 text-[10px] text-gray-400">
+                      JPG, PNG, atau PDF &middot; maksimal 5 MB
+                    </p>
                   </>
                 )}
               </div>
@@ -402,87 +484,88 @@ function BuktiPendukungPage() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-12 border-t border-[#092847] bg-[#071F38] text-white/80">
-        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3 text-[11px]">
-            <div className="space-y-3">
-              <h3 className="text-[12px] font-bold text-emerald-400 tracking-wide">
-                BINWASNAKER & K3
+      <footer className="bg-[#032749] text-white mt-12">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
+            {/* Kolom 1: Brand */}
+            <div>
+              <h3 className="text-xl font-bold">
+                BINWASNAKER <span className="text-emerald-400">& K3</span>
               </h3>
-              <p className="text-white/60 leading-relaxed">
-                Ditjen Binwasnaker & K3 adalah unsur pelaksana yang berada di bawah dan bertanggung
-                jawab kepada Menteri Ketenagakerjaan.
+              <p className="mt-4 text-sm leading-relaxed text-gray-300">
+                Ditjen Binwasnaker & K3 adalah unsur pelaksana yang berada di bawah dan
+                bertanggung jawab kepada Menteri Ketenagakerjaan.
               </p>
-              <div className="flex items-center gap-3 pt-2 text-white/70">
+              <div className="mt-6 flex gap-3">
                 <a
                   href="https://x.com/KemnakerRI"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
                 >
-                  <XIcon className="h-4 w-4" />
+                  <XIcon className="size-4" />
                 </a>
                 <a
                   href="https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
                 >
-                  <Facebook className="h-4 w-4" />
+                  <Facebook className="size-4" />
                 </a>
                 <a
                   href="https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ=="
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
+                  className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
                 >
-                  <Instagram className="h-4 w-4" />
+                  <Instagram className="size-4" />
                 </a>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h3 className="text-[12px] font-bold text-white tracking-wide">Customer Support</h3>
-              <ul className="space-y-2 text-white/60">
-                <li>
-                  <Link to="/faqpage" className="hover:text-white transition-colors">
-                    › FAQ
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/" className="hover:text-white transition-colors">
-                    › Contact Us
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-[12px] font-bold text-white tracking-wide">Have a Questions?</h3>
-              <div className="space-y-2 text-white/60">
+            {/* Kolom 2: Kontak & Bantuan (FAQ di bawah) */}
+            <div>
+              <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
+              <hr className="mt-4 border-white/15" />
+              <a
+                href="https://maps.app.goo.gl/QiLps9tsVMszzHf79"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex gap-3 text-sm text-gray-300 transition-colors hover:text-emerald-400"
+              >
+                <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
+                <p className="leading-relaxed">
+                  Jl. Jend. Gatot Subroto Kav. 51, RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi,
+                  Kota Jakarta Selatan, DKI Jakarta 12950
+                </p>
+              </a>
+              <div className="mt-4 flex items-center gap-3 text-sm">
+                <Mail className="size-5 text-emerald-400" />
                 <a
-                  href="https://maps.app.goo.gl/QiLps9tsVMszzHf79"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start gap-2 hover:text-white transition-colors"
+                  href="mailto:pengaduanwlkp@gmail.com"
+                  className="text-gray-300 hover:text-emerald-400 transition-colors"
                 >
-                  <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <p className="leading-snug">
-                    Jl. Gatot Subroto No.51, RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi, Kota
-                    Jakarta Selatan, Daerah Khusus Jakarta - 12950, Indonesia
-                  </p>
+                  Pengaduan WLKP
                 </a>
-                <div className="flex items-center gap-2 pt-1">
-                  <Mail className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <p>Pengaduan WLKP</p>
-                </div>
+              </div>
+              {/* FAQ di bawah kontak */}
+              <div className="mt-6 pt-4 border-t border-white/15">
+                <Link
+                  to="/faqpage"
+                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-emerald-400 transition-colors"
+                >
+                  <span className="text-emerald-400">›</span> FAQ
+                </Link>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 border-t border-white/10 pt-5 text-center text-[10px] text-white/40">
-            <p>Copyright © BINSIS || 2024 - 2026</p>
-            <p className="mt-0.5">Designed by TUBSPK</p>
+          <hr className="mt-10 border-white/15" />
+
+          <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
+            <p>Copyright © BINSIS || 2024–2026</p>
+            <p>Designed by TUBSPK</p>
           </div>
         </div>
       </footer>

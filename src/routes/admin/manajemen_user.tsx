@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Pencil, Trash2, UserPlus } from "lucide-react";
+import { Download, Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
-import { useTableExport } from "@/lib/export-utils";
+import { useTableExport } from "@/lib/use-table-export";
 
 export const Route = createFileRoute("/admin/manajemen_user")({
   head: () => ({
@@ -28,6 +28,8 @@ const INITIAL_DATA: UserItem[] = [
 ];
 
 const USERS_API_URL = apiUrl("users");
+// Ekspor daftar user dalam bentuk PDF dari backend.
+const USERS_PDF_API_URL = apiUrl("users/pdf");
 
 const ITEMS_PER_PAGE = 10;
 
@@ -42,6 +44,7 @@ function ManajemenUserPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Ambil daftar user dari API: GET /api/users.
   useEffect(() => {
@@ -114,11 +117,100 @@ function ManajemenUserPage() {
     return { headers, rows };
   }, [filtered]);
 
-  const { copied, handleCopy, handleCsv, handleExcel, handlePdf, handlePrint } = useTableExport({
+  const { copied, handleCopy, handleCsv, handleExcel, handlePrint } = useTableExport({
     baseName: "Manajemen_User",
     headers: buildExport.headers,
     rows: buildExport.rows,
   });
+
+  const fileStamp = () => new Date().toISOString().split("T")[0];
+
+  // Unduh daftar user sebagai PDF dari endpoint backend: GET /api/users/pdf.
+  const handleExportPdf = async () => {
+    if (downloadingPdf) return;
+
+    setDownloadingPdf(true);
+    try {
+      const response = await fetch(USERS_PDF_API_URL, {
+        method: "GET",
+        headers: {
+          Accept: "application/pdf, application/json",
+          ...authHeaders(),
+        },
+      });
+
+      if (!response.ok) {
+        let message = `Gagal mengunduh PDF (HTTP ${response.status}).`;
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const json = await response.json().catch(() => null);
+          message =
+            json?.message ||
+            json?.data?.message ||
+            (json?.errors && typeof json.errors === "object"
+              ? Object.values(json.errors).flat().join(", ")
+              : "") ||
+            message;
+        }
+        throw new Error(message);
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      const filename = `Manajemen_User_${fileStamp()}.pdf`;
+
+      if (response.redirected) {
+        const a = document.createElement("a");
+        a.href = response.url;
+        a.target = "_blank";
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
+      }
+
+      // Kasus 1: backend membalas JSON berisi URL file di storage.
+      if (contentType.includes("application/json")) {
+        const json = await response.json();
+        const fileUrl = json?.url || json?.data?.url || json?.pdf_url || json?.download_url;
+
+        if (fileUrl) {
+          const a = document.createElement("a");
+          a.href = fileUrl;
+          a.target = "_blank";
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          return;
+        }
+
+        throw new Error(json?.message || "Format data JSON tidak memuat URL file PDF.");
+      }
+
+      // Kasus 2: backend membalas binary stream PDF.
+      if (!contentType.includes("application/pdf")) {
+        throw new Error(
+          `Respons tidak dikenali (${contentType || "tanpa content-type"}). Periksa endpoint backend.`,
+        );
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error("Export PDF user error:", err);
+      alert(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Hapus user ini?")) return;
@@ -185,10 +277,16 @@ function ManajemenUserPage() {
             </button>
             <button
               type="button"
-              onClick={handlePdf}
-              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50"
+              onClick={handleExportPdf}
+              disabled={downloadingPdf}
+              className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-xs hover:bg-gray-50 disabled:opacity-60"
             >
-              PDF
+              {downloadingPdf ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Download className="h-3 w-3" />
+              )}
+              {downloadingPdf ? "Memuat…" : "PDF"}
             </button>
             <button
               type="button"

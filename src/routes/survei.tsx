@@ -4,13 +4,12 @@ import {
   Send,
   Building2,
   Facebook,
-  MessageSquare,
   Instagram,
   MapPin,
   Mail,
   Loader2,
+  XIcon,
 } from "lucide-react";
-import { XIcon } from "@/components/x-icon";
 import logoKemnaker from "@/assets/kemnaker_logo.png";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
 
@@ -38,7 +37,6 @@ const socials = [
     icon: Facebook,
     href: "https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr",
   },
-  { icon: MessageSquare, href: "#" },
   {
     icon: Instagram,
     href: "https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ==",
@@ -402,16 +400,17 @@ function FormSurveiPage() {
         </div>
       </main>
 
-      {/* --- FOOTER --- */}
+{/* --- FOOTER --- */}
       <footer className="bg-[#032749] text-white mt-16">
         <div className="mx-auto max-w-6xl px-6 py-14">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
+            {/* Kolom 1: Brand */}
             <div>
               <h3 className="text-xl font-bold">
-                BINWASNAKER <span className="text-emerald-400">&amp; K3</span>
+                BINWASNAKER <span className="text-emerald-400">& K3</span>
               </h3>
               <p className="mt-4 text-sm leading-relaxed text-gray-300">
-                Ditjen Binwasnaker &amp; K3 adalah unsur pelaksana yang berada di bawah dan
+                Ditjen Binwasnaker & K3 adalah unsur pelaksana yang berada di bawah dan
                 bertanggung jawab kepada Menteri Ketenagakerjaan.
               </p>
               <div className="mt-6 flex gap-3">
@@ -429,27 +428,9 @@ function FormSurveiPage() {
               </div>
             </div>
 
+            {/* Kolom 2: Kontak & Bantuan (FAQ di bawah) */}
             <div>
-              <h4 className="text-lg font-semibold">Customer Support</h4>
-              <hr className="mt-4 border-white/15" />
-              <ul className="mt-5 space-y-3 text-sm text-gray-300">
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400">›</span>
-                  <Link to="/faqpage" className="hover:text-emerald-400 transition-colors">
-                    FAQ
-                  </Link>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400">›</span>
-                  <a href="#" className="hover:text-emerald-400 transition-colors">
-                    Contact Us
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold">Have a Questions?</h4>
+              <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
               <hr className="mt-4 border-white/15" />
               <a
                 href="https://maps.app.goo.gl/QiLps9tsVMszzHf79"
@@ -459,8 +440,8 @@ function FormSurveiPage() {
               >
                 <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
                 <p className="leading-relaxed">
-                  Jl. Gatot Subroto No.51, RT.5/RW.4, Kuningan Timur. Kecamatan Setiabudi, Kota
-                  Jakarta Selatan, Daerah Khusus Jakarta - 12950 Jakarta - Indonesia
+                  Jl. Jend. Gatot Subroto Kav. 51, RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi,
+                  Kota Jakarta Selatan, DKI Jakarta 12950
                 </p>
               </a>
               <div className="mt-4 flex items-center gap-3 text-sm">
@@ -472,13 +453,22 @@ function FormSurveiPage() {
                   Pengaduan WLKP
                 </a>
               </div>
+              {/* FAQ di bawah kontak */}
+              <div className="mt-6 pt-4 border-t border-white/15">
+                <Link
+                  to="/faqpage"
+                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-emerald-400 transition-colors"
+                >
+                  <span className="text-emerald-400">›</span> FAQ
+                </Link>
+              </div>
             </div>
           </div>
 
           <hr className="mt-10 border-white/15" />
 
           <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
-            <p>Copyright © BINSIS || 2024 – 2026</p>
+            <p>Copyright © BINSIS || 2024–2026</p>
             <p>
               Designed by <span className="text-emerald-400">TUBSPK</span>
             </p>

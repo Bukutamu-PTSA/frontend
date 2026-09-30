@@ -7,6 +7,7 @@ import {
   Star,
   TrendingDown,
   TrendingUp,
+  Minus,
   ArrowRight,
   ChevronLeft,
   ChevronRight,
@@ -463,11 +464,22 @@ function DashboardExecutive() {
                 <FileText className="h-5 w-5" />
               </div>
               <span
+                title={
+                  growth === null
+                    ? "Bulan sebelumnya tidak ada aduan, jadi persentasenya belum bisa dihitung"
+                    : "Perubahan jumlah aduan bulan ini dibanding bulan sebelumnya"
+                }
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  (growth ?? 0) >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
+                  growth === null
+                    ? "bg-gray-100 text-gray-500"
+                    : growth >= 0
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "bg-red-50 text-red-500"
                 }`}
               >
-                {(growth ?? 0) >= 0 ? (
+                {growth === null ? (
+                  <Minus className="h-3 w-3" />
+                ) : growth >= 0 ? (
                   <TrendingUp className="h-3 w-3" />
                 ) : (
                   <TrendingDown className="h-3 w-3" />
@@ -480,7 +492,11 @@ function DashboardExecutive() {
               <p className="text-[26px] font-bold text-gray-900 tracking-tight mt-0.5">
                 {nf.format(totalAduan)}
               </p>
-              <p className="text-[10px] text-gray-400 mt-1">Periode tahun berjalan</p>
+              <p className="text-[10px] text-gray-400 mt-1">
+                {selectedDate
+                  ? `Total periode ${formatDisplayDate(selectedDate)}`
+                  : "Periode tahun berjalan"}
+              </p>
             </div>
           </div>
 

@@ -19,50 +19,9 @@ import { useState, useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 // Pastikan aset logo sesuai di foldermu
 import logokemnaker from "@/assets/kemnaker_logo.png";
-import { AUTH_BASE_URL as BASE_API_URL, storageUrl } from "@/lib/api";
+import { AUTH_BASE_URL as BASE_API_URL } from "@/lib/api";
+import { clearSession, isSuperAdminOnlyPath, normalizeRole, readStoredUser, type AuthUser } from "@/lib/auth";
 import { fetchNotifications } from "@/lib/notifications";
-
-/** Data user yang login, dinormalisasi dari auth_user di storage. */
-interface AuthUser {
-  name: string;
-  role: string;
-  avatar: string;
-}
-
-/** Ambil & normalisasi user login dari localStorage/sessionStorage. */
-function readAuthUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-
-  const raw = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
-  if (!raw) return null;
-
-  try {
-    const u = JSON.parse(raw);
-
-    const name = String(u.name ?? u.nama ?? u.nama_lengkap ?? u.username ?? u.email ?? "Pengguna");
-
-    const role = String(
-      u.role_name ??
-        u.role ??
-        u.jabatan ??
-        u.position ??
-        (typeof u.role === "object" ? u.role?.name : "") ??
-        "Petugas",
-    );
-
-    // Avatar bisa berupa URL penuh atau path storage relatif.
-    const rawAvatar = String(u.avatar ?? u.photo ?? u.foto ?? u.image ?? "");
-    const avatar = rawAvatar
-      ? /^https?:\/\//.test(rawAvatar)
-        ? rawAvatar
-        : storageUrl(rawAvatar)
-      : "";
-
-    return { name, role, avatar };
-  } catch {
-    return null;
-  }
-}
 
 /** Inisial dari nama untuk fallback avatar (mis. "Budi Santoso" -> "BS"). */
 function getInitials(name: string): string {
@@ -157,10 +116,14 @@ export function AppShell({
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  // null selama SSR/belum mount, lalu diisi role sebenarnya.
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Baca user yang login setelah mount (menghindari mismatch SSR/hydration).
   useEffect(() => {
-    setAuthUser(readAuthUser());
+    const user = readStoredUser();
+    setAuthUser(user);
+    setIsSuperAdmin(user !== null && normalizeRole(user.role) === "super_admin");
   }, []);
 
   // Hitung ulang notifikasi belum dibaca setiap kali berpindah halaman,
@@ -221,10 +184,7 @@ export function AppShell({
     } catch (err) {
       console.warn("Logout notice:", err);
     } finally {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("auth_user");
-      sessionStorage.removeItem("auth_token");
-      sessionStorage.removeItem("auth_user");
+      clearSession();
       window.location.href = "/";
     }
   };
@@ -301,13 +261,22 @@ export function AppShell({
 
         {/* Menu Navigasi Samping */}
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-6">
-          {nav.map((group) => (
+          {nav.map((group) => {
+            // Sembunyikan grup yang isinya seluruhnya khusus super admin, dan
+            // sembunyikan item terkunci dari grup campuran. Guard route tetap
+            // tetap jadi pengaman kalau URL diketik langsung.
+            const visibleItems = group.items.filter(
+              (item) => isSuperAdmin || !isSuperAdminOnlyPath(item.to),
+            );
+            if (visibleItems.length === 0) return null;
+
+            return (
             <div key={group.label}>
               <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/40">
                 {group.label}
               </p>
               <ul className="space-y-1">
-                {group.items.map((item) => {
+                {visibleItems.map((item) => {
                   const active = isActive(item);
                   const Icon = item.icon;
                   return (
@@ -340,7 +309,8 @@ export function AppShell({
                 })}
               </ul>
             </div>
-          ))}
+            );
+          })}
 
           <button
             type="button"

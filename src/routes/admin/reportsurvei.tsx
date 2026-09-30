@@ -19,7 +19,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { API_BASE_URL as SURVEY_API_URL } from "@/lib/api";
+import { API_BASE_URL, authHeaders } from "@/lib/api";
 import { pageWindow } from "@/lib/pagination";
 
 export const Route = createFileRoute("/admin/reportsurvei")({
@@ -34,6 +34,9 @@ export const Route = createFileRoute("/admin/reportsurvei")({
 });
 
 const nf = new Intl.NumberFormat("id-ID");
+
+// Ekspor rekap respons survei dalam bentuk PDF dari backend.
+const SURVEY_RESPONSES_PDF_API_URL = `${API_BASE_URL}/surveys/responses/pdf`;
 
 interface SurveyRespondent {
   id?: number | string;
@@ -242,24 +245,19 @@ function ReportSurveiPage() {
   const [viewItem, setViewItem] = useState<SurveyRespondent | null>(null);
   const [copied, setCopied] = useState(false);
   const [columnsOpen, setColumnsOpen] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMN_DEFS.map((c) => c.key));
   const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchSurveys = async () => {
       setLoading(true);
-      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
-
-      const authHeaders = {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
+      const headers = authHeaders({ "Content-Type": "application/json" });
 
       try {
-        const res = await fetch(`${SURVEY_API_URL}/surveys/responses?per_page=100`, {
+        const res = await fetch(`${API_BASE_URL}/surveys/responses?per_page=100`, {
           method: "GET",
-          headers: authHeaders,
+          headers,
         });
 
         if (res.ok) {
@@ -277,10 +275,10 @@ function ReportSurveiPage() {
           if (lastPage > 1 && allRespondents.length < total) {
             for (let p = 2; p <= lastPage; p++) {
               const nextRes = await fetch(
-                `${SURVEY_API_URL}/surveys/responses?page=${p}&per_page=100`,
+                `${API_BASE_URL}/surveys/responses?page=${p}&per_page=100`,
                 {
                   method: "GET",
-                  headers: authHeaders,
+                  headers,
                 },
               );
               if (nextRes.ok) {
@@ -453,42 +451,85 @@ function ReportSurveiPage() {
     );
   };
 
-  const handlePrintPdf = () => {
-    const { headers, rows } = buildExportTable();
-    const th = (v: string) =>
-      `<th style="border:1px solid #d1d5db;padding:6px 10px;background:#EDF3F8;text-align:left;font-size:11px;">${escapeHtml(v)}</th>`;
-    const td = (v: string) =>
-      `<td style="border:1px solid #d1d5db;padding:6px 10px;font-size:11px;">${escapeHtml(v)}</td>`;
+  // Unduh rekap respons survei sebagai PDF dari endpoint backend:
+  // GET /api/surveys/responses/pdf.
+  const handleExportPdf = async () => {
+    if (downloadingPdf) return;
 
-    const html = `<!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8" />
-<title>Report Survei Pelayanan</title>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; margin: 32px; color: #111827; }
-  h1 { font-size: 18px; margin: 0 0 4px; }
-  .sub { font-size: 12px; color: #6b7280; margin: 0 0 20px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #d1d5db; padding: 6px 10px; font-size: 11px; text-align: left; }
-  th { background: #EDF3F8; }
-</style>
-</head>
-<body>
-<h1>Report Survei Pelayanan</h1>
-<p class="sub">${nf.format(totalData)} responden &middot; Dicetak ${new Date().toLocaleString("id-ID")}</p>
-<table>
-<thead><tr><th style="border:1px solid #d1d5db;padding:6px 10px;background:#EDF3F8;text-align:left;">No</th>${headers.map(th).join("")}</tr></thead>
-<tbody>${rows.map((row, i) => `<tr><td style="border:1px solid #d1d5db;padding:6px 10px;">${i + 1}</td>${row.map(td).join("")}</tr>`).join("")}</tbody>
-</table>
-</body>
-</html>`;
+    setDownloadingPdf(true);
+    try {
+      const response = await fetch(SURVEY_RESPONSES_PDF_API_URL, {
+        method: "GET",
+        headers: {
+          Accept: "application/pdf, application/json",
+          ...authHeaders(),
+        },
+      });
 
-    downloadFile(
-      new Blob([html], { type: "application/pdf;charset=utf-8;" }),
-      `Report_Survei_${fileStamp()}.pdf`,
-    );
+      if (!response.ok) {
+        let message = `Gagal mengunduh PDF (HTTP ${response.status}).`;
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const json = await response.json().catch(() => null);
+          message =
+            json?.message ||
+            json?.data?.message ||
+            (json?.errors && typeof json.errors === "object"
+              ? Object.values(json.errors).flat().join(", ")
+              : "") ||
+            message;
+        }
+        throw new Error(message);
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      const filename = `Report_Survei_${fileStamp()}.pdf`;
+
+      if (response.redirected) {
+        const a = document.createElement("a");
+        a.href = response.url;
+        a.target = "_blank";
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
+      }
+
+      // Kasus 1: backend membalas JSON berisi URL file di storage.
+      if (contentType.includes("application/json")) {
+        const json = await response.json();
+        const fileUrl = json?.url || json?.data?.url || json?.pdf_url || json?.download_url;
+
+        if (fileUrl) {
+          const a = document.createElement("a");
+          a.href = fileUrl;
+          a.target = "_blank";
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          return;
+        }
+
+        throw new Error(json?.message || "Format data JSON tidak memuat URL file PDF.");
+      }
+
+      // Kasus 2: backend membalas binary stream PDF.
+      if (!contentType.includes("application/pdf")) {
+        throw new Error(
+          `Respons tidak dikenali (${contentType || "tanpa content-type"}). Periksa endpoint backend.`,
+        );
+      }
+
+      const blob = await response.blob();
+      downloadFile(blob, filename);
+    } catch (err: any) {
+      console.error("Export PDF survei error:", err);
+      alert(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   const summaryCards = [
@@ -615,10 +656,16 @@ function ReportSurveiPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handlePrintPdf}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-[#EF4444] transition-colors hover:bg-red-50 cursor-pointer"
+                  onClick={handleExportPdf}
+                  disabled={downloadingPdf}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-[#EF4444] transition-colors hover:bg-red-50 disabled:opacity-60 cursor-pointer"
                 >
-                  <FileDown className="h-3.5 w-3.5" /> PDF
+                  {downloadingPdf ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileDown className="h-3.5 w-3.5" />
+                  )}
+                  {downloadingPdf ? "Memuat…" : "PDF"}
                 </button>
 
                 {/* Pilih kolom */}

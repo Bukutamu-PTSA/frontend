@@ -36,7 +36,7 @@ function EditUserPage() {
   const [nama, setNama] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState(ROLE_OPTIONS[0].value);
+  const [role, setRole] = useState(ROLE_OPTIONS[0]?.value ?? "admin");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

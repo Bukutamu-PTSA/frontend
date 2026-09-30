@@ -5,13 +5,14 @@
  * diturunkan dari data pengaduan (GET /api/complaints) yang sudah ada:
  * setiap aduan baru direpresentasikan sebagai satu notifikasi "Aduan Baru".
  *
- * Status dibaca/diabaikan disimpan lokal (localStorage) sehingga tetap
- * bertahan antar sesi.
+ * Status dibaca/diabaikan disimpan lokal, lihat `./notification-status`.
  */
 import { apiUrl, authHeaders } from "@/lib/api";
+import { extractList, isRecord } from "@/lib/json";
+import { loadNotifStatus, type NotifStatus } from "@/lib/notification-status";
 
 export interface NotificationItem {
-  id: number | string;
+  id: string;
   title: string;
   description: string;
   ticket: string;
@@ -22,77 +23,31 @@ export interface NotificationItem {
   dismissed: boolean;
 }
 
-const READ_IDS_KEY = "ptsa_notif_read_ids";
-const DISMISSED_IDS_KEY = "ptsa_notif_dismissed_ids";
+type RawComplaint = {
+  id?: unknown;
+  ticket_number?: unknown;
+  created_at?: unknown;
+  complaint_date?: unknown;
+  complainant?: unknown;
+  company?: unknown;
+  category?: unknown;
+  [key: string]: unknown;
+};
 
-function readIds(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(READ_IDS_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.map(String) : [];
-  } catch {
-    return [];
+/** Parser tanggal tangguh: ISO (termasuk UTC/Z), "YYYY-MM-DD", atau "DD/MM/YYYY". */
+function parseDate(value: string | null | undefined): Date | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  // ISO dengan timezone eksplisit (Z atau +HH:MM / -HH:MM) → biarkan Date
+  // native yang handle UTC dengan benar.
+  if (/Z$|[+-]\d{2}:?\d{2}$/.test(text)) {
+    const d = new Date(text);
+    return Number.isNaN(d.getTime()) ? null : d;
   }
-}
 
-function parseIdList(value: string | null): string[] {
-  try {
-    const parsed: unknown = value ? JSON.parse(value) : [];
-    return Array.isArray(parsed) ? parsed.map(String) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveIds(key: string, ids: string[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(ids));
-}
-
-export function isNotifRead(id: number | string): boolean {
-  return readIds().includes(String(id));
-}
-
-export function markNotifRead(ids: (number | string)[]): void {
-  const next = new Set(readIds());
-  ids.forEach((id) => next.add(String(id)));
-  saveIds(READ_IDS_KEY, [...next]);
-}
-
-export function markAllNotifRead(list: Pick<NotificationItem, "id">[]): void {
-  markNotifRead(list.map((n) => n.id));
-}
-
-export function dismissNotif(ids: (number | string)[]): void {
-  const next = new Set(parseIdList(localStorage.getItem(DISMISSED_IDS_KEY)));
-  ids.forEach((id) => next.add(String(id)));
-  saveIds(DISMISSED_IDS_KEY, [...next]);
-}
-
-export function isNotifDismissed(id: number | string): boolean {
-  if (typeof window === "undefined") return false;
-  return parseIdList(localStorage.getItem(DISMISSED_IDS_KEY)).includes(String(id));
-}
-
-/** Ambil daftar JSON apa pun bentuknya (Laravel paginate / raw array / wrapper). */
-function extractList(json: unknown): unknown[] {
-  const obj = json as Record<string, unknown> | null;
-  if (Array.isArray(json)) return json;
-  if (!obj) return [];
-  if (Array.isArray(obj["data"])) return obj["data"] as unknown[];
-  if (Array.isArray(obj["notifications"])) return obj["notifications"] as unknown[];
-  const nested = obj["data"] as Record<string, unknown> | null;
-  if (nested && Array.isArray(nested["data"])) return nested["data"] as unknown[];
-  return [];
-}
-
-/** Parser tanggal tangguh: ISO, "YYYY-MM-DD", atau "DD/MM/YYYY". */
-function parseDate(value: string): Date | null {
-  const s = String(value ?? "").trim();
-  if (!s) return null;
-
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+  // ISO tanpa timezone → asumsikan lokal (perilaku lama).
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
   if (iso) {
     return new Date(
       Number(iso[1]),
@@ -104,23 +59,26 @@ function parseDate(value: string): Date | null {
     );
   }
 
-  const dateOnly = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const dateOnly = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (dateOnly) {
     return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
   }
 
-  const dmy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const dmy = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (dmy) {
     return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
   }
 
-  const parsed = new Date(s);
+  const parsed = new Date(text);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-/** Waktu relatif berbahasa Indonesia. */
-export function timeAgo(value: string | null | undefined): string {
-  const date = parseDate(value ?? "");
+function timeMs(value: string): number {
+  return parseDate(value)?.getTime() ?? 0;
+}
+
+function timeAgo(value: string | null | undefined): string {
+  const date = parseDate(value);
   if (!date) return "Baru saja";
 
   const diffMs = Date.now() - date.getTime();
@@ -140,43 +98,30 @@ export function timeAgo(value: string | null | undefined): string {
   return `${Math.floor(days / 365)} tahun yang lalu`;
 }
 
-interface RawComplaint {
-  id?: unknown;
-  ticket_number?: unknown;
-  created_at?: unknown;
-  complaint_date?: unknown;
-  complainant?: Record<string, unknown>;
-  company?: Record<string, unknown>;
-  category?: Record<string, unknown>;
+function firstValue(source: unknown, keys: readonly string[]): string | undefined {
+  if (!isRecord(source)) return undefined;
+  for (const key of keys) {
+    const value = source[key];
+    if (value != null) return String(value);
+  }
+  return undefined;
 }
 
-function toNotification(raw: RawComplaint): NotificationItem {
-  const id = String(raw?.id ?? raw?.ticket_number ?? Math.random().toString(36).slice(2));
+function toNotification(raw: RawComplaint, status: NotifStatus): NotificationItem {
+  const id = String(raw.id ?? raw.ticket_number ?? Math.random().toString(36).slice(2));
 
-  const complainant = raw?.complainant ?? {};
-  const company = raw?.company ?? {};
-  const category = raw?.category ?? {};
+  const complainantName =
+    firstValue(raw.complainant, ["nama_lengkap", "nama"]) ??
+    firstValue(raw, ["nama_pelapor"]) ??
+    "Pengunjung";
+  const companyName =
+    firstValue(raw.company, ["nama_perusahaan"]) ?? firstValue(raw, ["nama_perusahaan"]) ?? "";
+  const categoryName =
+    firstValue(raw.category, ["category_name", "category_code", "code"]) ??
+    firstValue(raw, ["jenis_pengaduan"]) ??
+    "Laporan";
 
-  const complainantName = String(
-    complainant["nama_lengkap"] ??
-      complainant["nama"] ??
-      (raw as Record<string, unknown>)["nama_pelapor"] ??
-      "Pengunjung",
-  );
-
-  const companyName = String(
-    company["nama_perusahaan"] ?? (raw as Record<string, unknown>)["nama_perusahaan"] ?? "",
-  );
-
-  const categoryName = String(
-    category["category_name"] ??
-      category["category_code"] ??
-      category["code"] ??
-      (raw as Record<string, unknown>)["jenis_pengaduan"] ??
-      "Laporan",
-  );
-
-  const dateStr = String(raw?.created_at ?? raw?.complaint_date ?? "");
+  const createdAt = String(raw.created_at ?? raw.complaint_date ?? "");
 
   return {
     id,
@@ -184,12 +129,12 @@ function toNotification(raw: RawComplaint): NotificationItem {
     description: companyName
       ? `Terdapat laporan baru dari ${complainantName} (${companyName}) yang perlu ditinjau.`
       : `Terdapat laporan baru dari ${complainantName} yang perlu ditinjau.`,
-    ticket: String(raw?.ticket_number ?? "-"),
+    ticket: String(raw.ticket_number ?? "-"),
     category: categoryName,
-    time: timeAgo(dateStr),
-    createdAt: dateStr,
-    read: isNotifRead(id),
-    dismissed: isNotifDismissed(id),
+    time: timeAgo(createdAt),
+    createdAt,
+    read: status.read.has(id),
+    dismissed: status.dismissed.has(id),
   };
 }
 
@@ -207,14 +152,10 @@ export async function fetchNotifications(limit = 50): Promise<NotificationItem[]
   }
 
   const json: unknown = await res.json();
-  const items = extractList(json)
-    .filter((it) => it && typeof it === "object")
-    .map((it) => toNotification(it as RawComplaint))
-    .sort((a, b) => {
-      const ta = parseDate(a.createdAt)?.getTime() ?? 0;
-      const tb = parseDate(b.createdAt)?.getTime() ?? 0;
-      return tb - ta;
-    });
+  const status = loadNotifStatus();
 
-  return items;
+  return extractList(json)
+    .filter(isRecord)
+    .map((raw) => toNotification(raw, status))
+    .sort((a, b) => timeMs(b.createdAt) - timeMs(a.createdAt));
 }

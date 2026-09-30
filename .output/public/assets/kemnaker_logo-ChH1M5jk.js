@@ -1,1 +1,0 @@
-var e=`/assets/kemnaker_logo-0DRbGcnj.png`;export{e as t};

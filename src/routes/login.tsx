@@ -5,11 +5,27 @@ import logo from "../assets/kemnaker_logo.png";
 import { AUTH_BASE_URL as BASE_API_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/login")({
+  // Tujuan halaman yang dicoba dibuka sebelum login, dipakai untuk kembali ke
+  // sana setelah berhasil masuk. Kosongkan bila user datang langsung ke /login.
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search["redirect"] === "string" ? search["redirect"] : undefined,
+  }),
   component: LoginPage,
 });
 
+/**
+ * Hanya izinkan redirect ke path internal. Menerima string dari URL berarti
+ * harus guarding terhadap open redirect (`?redirect=https://phishing.example`).
+ */
+function safeRedirectPath(raw: string | undefined): string {
+  if (!raw) return "/admin/dashboard";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/admin/dashboard";
+  return raw;
+}
+
 function LoginPage() {
   const navigate = useNavigate();
+  const { redirect: redirectTo } = Route.useSearch();
 
   // State Form
   const [email, setEmail] = useState("");
@@ -65,9 +81,9 @@ function LoginPage() {
 
       setSuccessMessage(result.message || "Login berhasil! Mengalihkan ke dashboard...");
 
-      // Redirect ke /dashboard setelah notifikasi muncul
+      // Kembali ke halaman yang tadi dicoba dibuka, kalau ada.
       setTimeout(() => {
-        navigate({ to: "/admin/dashboard" });
+        navigate({ to: safeRedirectPath(redirectTo) as "/admin/dashboard" });
       }, 800);
     } catch (err: any) {
       console.error("Login error:", err);
@@ -223,32 +239,34 @@ function LoginPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-[#032749] text-white py-6 px-12 flex flex-col md:flex-row justify-between items-center gap-4 mt-auto text-[13px]">
-        <div className="space-y-1 text-center md:text-left">
-          <div className="flex items-center justify-center md:justify-start gap-2">
-            <Building2 className="size-4.5" />
-            <span className="text-[15px] font-bold">Kemnaker RI</span>
-          </div>
-          <p className="text-gray-300">
-            © 2024 Kementerian Ketenagakerjaan Republik Indonesia. Seluruh Hak Cipta Dilindungi
-            Undang-Undang.
-          </p>
-        </div>
+{/* Footer */}
+      <footer className="bg-[#032749] text-white py-8 px-12 mt-auto">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-[13px]">
+            <div className="flex items-center gap-2">
+              <Building2 className="size-4.5" />
+              <span className="text-[15px] font-bold">Kemnaker RI</span>
+            </div>
 
-        <div className="flex flex-wrap justify-center gap-6 text-gray-300 font-normal">
-          <a href="#" className="hover:text-white transition-colors">
-            Kebijakan Privasi
-          </a>
-          <a href="#" className="hover:text-white transition-colors">
-            Syarat &amp; Ketentuan
-          </a>
-          <a href="#" className="hover:text-white transition-colors">
-            Peta Situs
-          </a>
-          <a href="#" className="hover:text-white transition-colors">
-            Hubungi Kami
-          </a>
+            <div className="flex flex-wrap justify-center gap-6 text-gray-300 font-normal">
+              <a href="#" className="hover:text-white transition-colors">
+                Kebijakan Privasi
+              </a>
+              <a href="#" className="hover:text-white transition-colors">
+                Syarat & Ketentuan
+              </a>
+              <a href="#" className="hover:text-white transition-colors">
+                FAQ
+              </a>
+              <a href="#" className="hover:text-white transition-colors">
+                Hubungi Kami
+              </a>
+            </div>
+
+            <p className="text-gray-300">
+              © 2024 Kementerian Ketenagakerjaan RI. Seluruh Hak Cipta Dilindungi.
+            </p>
+          </div>
         </div>
       </footer>
     </div>

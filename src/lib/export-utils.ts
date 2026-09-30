@@ -1,66 +1,35 @@
-import { useCallback, useRef, useState } from "react";
-
 /**
- * Helper ekspor data tabel (Copy / CSV / Excel / PDF / Print).
- * Pola sama dengan halaman Data Provinsi (wilayah.tsx).
+ * Helper ekspor data tabel (Copy / CSV / Excel / PDF / Print) yang tidak
+ * bergantung pada React, dipakai oleh `useTableExport`.
  */
 
 export type ExportRow = (string | number)[];
 
-/**
- * Hook ekspor tabel: menyediakan handler Copy/CSV/Excel/PDF/Print
- * beserta status "Copied!" untuk umpan balik tombol.
- */
-export function useTableExport(opts: { baseName: string; headers: string[]; rows: ExportRow[] }) {
-  const { baseName, headers, rows } = opts;
-  const [copied, setCopied] = useState(false);
-  const copyTimer = useRef<number | null>(null);
-
-  const showCopied = useCallback(() => {
-    setCopied(true);
-    if (copyTimer.current) window.clearTimeout(copyTimer.current);
-    copyTimer.current = window.setTimeout(() => setCopied(false), 2000);
-  }, []);
-
-  const handleCopy = useCallback(async () => {
-    try {
-      await copyToClipboard(headers, rows);
-      showCopied();
-    } catch (err) {
-      console.error("Gagal menyalin data:", err);
-      alert("Gagal menyalin data ke clipboard.");
-    }
-  }, [headers, rows, showCopied]);
-
-  const handleCsv = useCallback(() => {
-    exportCsv(headers, rows, baseName);
-  }, [headers, rows, baseName]);
-
-  const handleExcel = useCallback(() => {
-    exportExcel(headers, rows, baseName);
-  }, [headers, rows, baseName]);
-
-  const handlePdf = useCallback(() => {
-    exportPdf(headers, rows, baseName);
-  }, [headers, rows, baseName]);
-
-  return { copied, handleCopy, handleCsv, handleExcel, handlePdf, handlePrint: exportPrint };
-}
-
+/** Tanggal hari ini sebagai suffix nama file: "2026-08-12". */
 function fileStamp(): string {
-  return new Date().toISOString().split("T")[0] ?? "";
+  return new Date().toISOString().slice(0, 10);
 }
 
-export function downloadFile(blob: Blob, filename: string): void {
+function downloadFile(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-/** Teks tab-separated untuk aksi Copy (dibuat sinkron untuk fallback). */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Teks tab-separated untuk aksi Copy. */
 export function buildCopyText(headers: string[], rows: ExportRow[]): string {
   return `${headers.join("\t")}\n${rows.map((row) => row.join("\t")).join("\n")}`;
 }
@@ -77,7 +46,7 @@ export async function copyToClipboard(headers: string[], rows: ExportRow[]): Pro
     document.body.appendChild(textarea);
     textarea.select();
     const ok = document.execCommand("copy");
-    document.body.removeChild(textarea);
+    textarea.remove();
     return ok;
   };
 
@@ -109,11 +78,16 @@ export function exportExcel(headers: string[], rows: ExportRow[], baseName: stri
     <table border="1">
       <thead>
         <tr>${headers
-          .map((h) => `<th style="background:#EDF3F8;font-weight:bold;">${h}</th>`)
+          .map((h) => `<th style="background:#EDF3F8;font-weight:bold;">${escapeHtml(h)}</th>`)
           .join("")}</tr>
       </thead>
       <tbody>
-        ${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}
+        ${rows
+          .map(
+            (row) =>
+              `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join("")}</tr>`,
+          )
+          .join("")}
       </tbody>
     </table>`;
 
@@ -125,20 +99,17 @@ export function exportExcel(headers: string[], rows: ExportRow[], baseName: stri
   );
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+const CELL_BORDER = "border:1px solid #d1d5db;padding:6px 10px;";
+const TH_STYLE = `${CELL_BORDER}background:#EDF3F8;text-align:left;font-size:11px;`;
+const TD_STYLE = `${CELL_BORDER}font-size:11px;`;
+const NO_TH_STYLE = `${CELL_BORDER}background:#EDF3F8;text-align:left;`;
+const NO_TD_STYLE = `${CELL_BORDER}text-align:center;`;
 
-/** Ekspor ke file PDF (.pdf) dari dokumen HTML yang siap cetak, diunduh langsung (tidak lewat dialog print). */
+/** Unduh dokumen HTML siap cetak dengan ekstensi .pdf (dibuka lewat dialog print browser). */
 export function exportPdf(headers: string[], rows: ExportRow[], baseName: string): void {
-  const th = (v: string) =>
-    `<th style="border:1px solid #d1d5db;padding:6px 10px;background:#EDF3F8;text-align:left;font-size:11px;">${escapeHtml(v)}</th>`;
-  const td = (v: string | number) =>
-    `<td style="border:1px solid #d1d5db;padding:6px 10px;font-size:11px;">${escapeHtml(String(v))}</td>`;
+  const th = (value: string) => `<th style="${TH_STYLE}">${escapeHtml(value)}</th>`;
+  const td = (value: string | number) =>
+    `<td style="${TD_STYLE}">${escapeHtml(String(value))}</td>`;
 
   const html = `<!doctype html>
 <html lang="id">
@@ -159,11 +130,11 @@ export function exportPdf(headers: string[], rows: ExportRow[], baseName: string
 <h1>${escapeHtml(baseName)}</h1>
 <p class="sub">Dicetak ${new Date().toLocaleString("id-ID")}</p>
 <table>
-<thead><tr><th style="border:1px solid #d1d5db;padding:6px 10px;background:#EDF3F8;text-align:left;">No</th>${headers.map(th).join("")}</tr></thead>
+<thead><tr><th style="${NO_TH_STYLE}">No</th>${headers.map(th).join("")}</tr></thead>
 <tbody>${rows
     .map(
-      (row, i) =>
-        `<tr><td style="border:1px solid #d1d5db;padding:6px 10px;text-align:center;">${i + 1}</td>${row.map(td).join("")}</tr>`,
+      (row, index) =>
+        `<tr><td style="${NO_TD_STYLE}">${index + 1}</td>${row.map(td).join("")}</tr>`,
     )
     .join("")}</tbody>
 </table>

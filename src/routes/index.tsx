@@ -4,12 +4,11 @@ import {
   BadgeCheck,
   FileText,
   Facebook,
-  MessageSquare,
   Instagram,
   MapPin,
   Mail,
+  XIcon,
 } from "lucide-react";
-import { XIcon } from "@/components/x-icon";
 import { Button } from "@/components/ui/button";
 import { apiUrl, authHeaders } from "@/lib/api";
 
@@ -67,7 +66,6 @@ const socials = [
     icon: Facebook,
     href: "https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr",
   },
-  { icon: MessageSquare, href: "#" },
   {
     icon: Instagram,
     href: "https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ==",
@@ -151,7 +149,7 @@ function Index() {
 
             <Button
               size="sm"
-              onClick={() => navigate({ to: "/login" })}
+              onClick={() => navigate({ to: "/login", search: { redirect: undefined } })}
               className="bg-[#032749] hover:bg-blue-950 text-white rounded-md px-6 py-2 font-semibold shadow-sm transition-all"
             >
               Masuk
@@ -259,17 +257,17 @@ function Index() {
         </section>
       </main>
 
-      {/* --- FOOTER --- */}
+{/* --- FOOTER --- */}
       <footer className="bg-[#032749] text-white">
         <div className="mx-auto max-w-6xl px-6 py-14">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
-            {/* Kolom 1 */}
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
+            {/* Kolom 1: Brand */}
             <div>
               <h3 className="text-xl font-bold">
-                BINWASNAKER <span className="text-emerald-400">&amp; K3</span>
+                BINWASNAKER <span className="text-emerald-400">& K3</span>
               </h3>
               <p className="mt-4 text-sm leading-relaxed text-gray-300">
-                Ditjen Binwasnaker &amp; K3 adalah unsur pelaksana yang berada di bawah dan
+                Ditjen Binwasnaker & K3 adalah unsur pelaksana yang berada di bawah dan
                 bertanggung jawab kepada Menteri Ketenagakerjaan.
               </p>
               <div className="mt-6 flex gap-3">
@@ -287,27 +285,7 @@ function Index() {
               </div>
             </div>
 
-            {/* Kolom 2 */}
-            <div>
-              <h4 className="text-lg font-semibold">Customer Support</h4>
-              <hr className="mt-4 border-white/15" />
-              <ul className="mt-5 space-y-3 text-sm text-gray-300">
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400">›</span>
-                  <Link to="/faqpage" className="hover:text-emerald-400 transition-colors">
-                    FAQ
-                  </Link>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-emerald-400">›</span>
-                  <a href="#" className="hover:text-emerald-400 transition-colors">
-                    Hubungi Kami
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Kolom 3 */}
+            {/* Kolom 2: Kontak & Bantuan (FAQ dipindah ke bawah) */}
             <div>
               <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
               <hr className="mt-4 border-white/15" />
@@ -331,6 +309,15 @@ function Index() {
                 >
                   Pengaduan WLKP
                 </a>
+              </div>
+              {/* FAQ dipindah ke sini, di bawah kontak */}
+              <div className="mt-6 pt-4 border-t border-white/15">
+                <Link
+                  to="/faqpage"
+                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-emerald-400 transition-colors"
+                >
+                  <span className="text-emerald-400">›</span> FAQ
+                </Link>
               </div>
             </div>
           </div>

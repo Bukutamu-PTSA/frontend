@@ -11,13 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import {
-  dismissNotif,
-  fetchNotifications,
-  markAllNotifRead,
-  markNotifRead,
-  type NotificationItem,
-} from "@/lib/notifications";
+import { fetchNotifications, type NotificationItem } from "@/lib/notifications";
+import { dismissNotif, markAllNotifRead, markNotifRead } from "@/lib/notification-status";
 
 export const Route = createFileRoute("/admin/notifications")({
   head: () => ({
