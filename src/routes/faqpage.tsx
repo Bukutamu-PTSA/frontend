@@ -60,7 +60,7 @@ const navLinks = [
   { to: "/survei", label: "Survei" },
 ];
 
-export const FaqPage: React.FC = () => {
+const FaqPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [faqs, setFaqs] = useState<FAQItem[]>([]);

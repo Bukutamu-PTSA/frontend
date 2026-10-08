@@ -13,6 +13,7 @@ import {
   Instagram,
   Upload,
 } from "lucide-react";
+import { toast } from "sonner";
 import { XIcon } from "@/components/x-icon";
 import { apiUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -77,18 +78,117 @@ function BuktiPendukungPage() {
   const [deskripsiAduan, setDeskripsiAduan] = useState("");
   const [selectedDocument, setSelectedDocument] = useState<File | null>(null);
 
-  // Camera state (native capture: input type=file + capture)
+  // Camera state
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [capturedFile, setCapturedFile] = useState<File | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Live camera (getUserMedia) state
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
+  /** Hentikan semua track kamera dan lepaskan stream. */
+  const stopCameraStream = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  /** Buka kamera langsung di browser lewat getUserMedia. */
+  const openCamera = async () => {
+    setCameraError(null);
+
+    // Browser lama / konteks non-HTTPS tidak punya getUserMedia -> fallback
+    // ke input file bawaan (yang di HP langsung membuka kamera).
+    if (!navigator.mediaDevices?.getUserMedia) {
+      cameraInputRef.current?.click();
+      return;
+    }
+
+    setIsCameraStarting(true);
+    setIsCameraOpen(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+    } catch (err) {
+      console.error("Gagal mengakses kamera:", err);
+      stopCameraStream();
+      setIsCameraOpen(false);
+      setCameraError(
+        "Tidak dapat mengakses kamera. Pastikan izin kamera diberikan, atau pilih file gambar sebagai gantinya.",
+      );
+    } finally {
+      setIsCameraStarting(false);
+    }
+  };
+
+  /** Tutup modal kamera dan matikan stream. */
+  const closeCamera = () => {
+    stopCameraStream();
+    setIsCameraOpen(false);
+    setIsCameraStarting(false);
+  };
+
+  /** Ambil frame dari video, ubah jadi File + preview. */
+  const takePhoto = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `bukti-foto-${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
+
+        const problem = validateEvidenceFile(file);
+        if (problem) {
+          setFileError(problem);
+          return;
+        }
+
+        setFileError(null);
+        setCapturedFile(file);
+        setCapturedPhoto(canvas.toDataURL("image/jpeg", 0.92));
+        closeCamera();
+      },
+      "image/jpeg",
+      0.92,
+    );
+  };
+
+  // Pastikan stream kamera dilepas saat komponen di-unmount.
+  useEffect(() => {
+    return () => stopCameraStream();
+  }, []);
+
   const handleCapture = () => {
-    cameraInputRef.current?.click();
+    openCamera();
   };
 
   /** Terapkan file ke input kamera (dipakai oleh pilih-file maupun drop). */
@@ -236,16 +336,16 @@ function BuktiPendukungPage() {
               .join("\n")
           : responseData?.message || "Data formulir tidak memenuhi validasi server.";
 
-        alert(`Gagal menyimpan pengaduan (422):\n\n${errorMessages}`);
+        toast.error("Gagal menyimpan pengaduan.", { description: errorMessages });
         return;
       }
 
       sessionStorage.removeItem("draft_pengaduan");
-      alert("Pengaduan berhasil disimpan!");
+      toast.success("Pengaduan berhasil disimpan!");
       navigate({ to: "/" });
     } catch (err) {
       console.error("Gagal mengirim pengaduan:", err);
-      alert("Terjadi kendala jaringan saat menghubungi server.");
+      toast.error("Terjadi kendala jaringan saat menghubungi server.");
     } finally {
       setIsSubmitting(false);
     }
@@ -393,6 +493,10 @@ function BuktiPendukungPage() {
                   </>
                 )}
               </div>
+
+              {fileError && (
+                <p className="pt-1 text-[10px] font-medium text-red-500">{fileError}</p>
+              )}
             </div>
 
             {/* Bukti Foto Kamera */}
@@ -401,7 +505,7 @@ function BuktiPendukungPage() {
                 Bukti Foto (Opsional namun sangat disarankan)
               </label>
               <p className="text-[10px] text-gray-400 leading-tight">
-                Di HP: langsung buka kamera. Di laptop: pilih file gambar.
+                Ketuk tombol kamera untuk membuka kamera langsung di browser dan ambil foto.
               </p>
 
               <input
@@ -452,6 +556,12 @@ function BuktiPendukungPage() {
                   <span>{capturedPhoto ? "Ambil Ulang Foto" : "Mulai Kamera"}</span>
                 </button>
               </div>
+
+              {cameraError && (
+                <p className="pt-1 text-center text-[10px] font-medium text-red-500">
+                  {cameraError}
+                </p>
+              )}
             </div>
 
             {/* Footer Buttons */}
@@ -569,6 +679,61 @@ function BuktiPendukungPage() {
           </div>
         </div>
       </footer>
+
+      {/* Modal Kamera Langsung */}
+      {isCameraOpen && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 p-4">
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-black shadow-2xl">
+            <div className="flex items-center justify-between bg-black/60 px-4 py-3">
+              <span className="text-[12px] font-semibold text-white">Ambil Foto Bukti</span>
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="grid h-7 w-7 place-items-center rounded-full bg-white/15 text-white hover:bg-white/30 transition-colors"
+                aria-label="Tutup kamera"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="relative flex aspect-[3/4] w-full items-center justify-center bg-[#111]">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="h-full w-full object-cover"
+              />
+              {isCameraStarting && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 text-white">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <span className="text-[11px]">Menyalakan kamera...</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-center gap-6 bg-black/60 px-4 py-5">
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="rounded-lg border border-white/20 bg-white/10 px-5 py-2 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={takePhoto}
+                disabled={isCameraStarting}
+                className="grid h-14 w-14 place-items-center rounded-full border-4 border-white bg-white/20 text-white hover:bg-white/40 transition-colors disabled:opacity-50"
+                aria-label="Ambil foto"
+              >
+                <Camera className="h-6 w-6" />
+              </button>
+              <div className="w-[64px]" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

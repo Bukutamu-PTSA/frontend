@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 // Pastikan aset logo sesuai di foldermu
@@ -185,7 +186,11 @@ export function AppShell({
       console.warn("Logout notice:", err);
     } finally {
       clearSession();
-      window.location.href = "/";
+      toast.success("Anda berhasil keluar.");
+      // Beri jeda singkat agar toast sempat terlihat sebelum pindah halaman.
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 700);
     }
   };
 

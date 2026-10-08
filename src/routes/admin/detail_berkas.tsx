@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { User, Building2, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
 import {
@@ -219,11 +220,11 @@ function DetailBerkasPage() {
         throw new Error(errJson?.message || "Gagal memperbarui data aduan.");
       }
 
-      alert("Data berhasil diperbarui!");
+      toast.success("Data berhasil diperbarui!");
       setActiveTab("detail");
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Terjadi kesalahan saat menyimpan data.");
+      toast.error(err.message || "Terjadi kesalahan saat menyimpan data.");
     } finally {
       setSaving(false);
     }

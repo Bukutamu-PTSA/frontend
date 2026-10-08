@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Download, Loader2, Pencil, Save, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
@@ -170,9 +171,10 @@ function JenisPengaduanPage() {
       }
 
       fetchJenis();
+      toast.success("Jenis pengaduan berhasil dihapus.");
     } catch (err: any) {
       console.error("Gagal menghapus jenis pengaduan:", err);
-      alert(err?.message || "Gagal menghapus jenis pengaduan. Coba lagi.");
+      toast.error(err?.message || "Gagal menghapus jenis pengaduan. Coba lagi.");
     }
   };
 
@@ -276,7 +278,7 @@ function JenisPengaduanPage() {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("Export PDF jenis pengaduan error:", err);
-      alert(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF.");
     } finally {
       setDownloadingPdf(false);
     }

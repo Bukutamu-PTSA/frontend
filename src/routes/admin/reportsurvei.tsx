@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { API_BASE_URL, authHeaders } from "@/lib/api";
 import { pageWindow } from "@/lib/pagination";
@@ -526,7 +527,7 @@ function ReportSurveiPage() {
       downloadFile(blob, filename);
     } catch (err: any) {
       console.error("Export PDF survei error:", err);
-      alert(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF.");
     } finally {
       setDownloadingPdf(false);
     }

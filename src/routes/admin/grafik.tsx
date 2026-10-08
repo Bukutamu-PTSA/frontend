@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, Download, FileText, Loader2, Star, X, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
 import { computeGrowth, formatGrowth } from "@/lib/growth";
@@ -263,7 +264,7 @@ function GrafikStatistikPage() {
       downloadFile(blob, exportFileName());
     } catch (err: any) {
       console.error("Export PDF error:", err);
-      alert(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF.");
     } finally {
       setExportingPdf(false);
     }

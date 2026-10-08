@@ -9,6 +9,7 @@ import {
   Check,
   Download,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
 
@@ -436,7 +437,7 @@ function DataProvinsiPage() {
       downloadFile(blob, `Data_Provinsi_${fileStamp()}.pdf`);
     } catch (err: any) {
       console.error("Export PDF error:", err);
-      alert(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF.");
     } finally {
       setDownloadingPdf(false);
     }

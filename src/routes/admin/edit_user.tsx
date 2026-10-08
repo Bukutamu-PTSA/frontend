@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Save, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
@@ -117,10 +118,11 @@ function EditUserPage() {
         );
       }
 
-      alert("User berhasil diperbarui!");
+      toast.success("User berhasil diperbarui!");
       navigate({ to: "/admin/manajemen_user" });
     } catch (err: any) {
       console.error("Perbarui user gagal:", err);
+      toast.error(err?.message || "Gagal memperbarui user. Silakan coba lagi.");
       setErrorMessage(err?.message || "Gagal memperbarui user. Silakan coba lagi.");
     } finally {
       setSaving(false);

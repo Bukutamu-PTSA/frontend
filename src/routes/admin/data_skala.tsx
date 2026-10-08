@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Pencil, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
@@ -108,9 +109,10 @@ function DataSkalaPage() {
       }
 
       setRows((prev) => prev.filter((r) => r.id !== id));
+      toast.success("Skala perusahaan berhasil dihapus.");
     } catch (err: any) {
       console.error("Gagal menghapus skala:", err);
-      alert(err?.message || "Gagal menghapus skala. Coba lagi.");
+      toast.error(err?.message || "Gagal menghapus skala. Coba lagi.");
     } finally {
       setDeletingId(null);
     }

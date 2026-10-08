@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Download, Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
@@ -206,7 +207,7 @@ function ManajemenUserPage() {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("Export PDF user error:", err);
-      alert(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF.");
     } finally {
       setDownloadingPdf(false);
     }
@@ -226,7 +227,7 @@ function ManajemenUserPage() {
       window.location.reload();
     } catch (err: any) {
       console.error("Gagal menghapus user:", err);
-      alert(err?.message || "Gagal menghapus user. Coba lagi.");
+      toast.error(err?.message || "Gagal menghapus user. Coba lagi.");
     }
   };
 
