@@ -1,4 +1,5 @@
 import { apiUrl, authHeaders } from "@/lib/api";
+import { extractList, isRecord } from "@/lib/json";
 
 export type SatisfactionSource = "aggregate" | "responses";
 
@@ -9,20 +10,22 @@ export type SatisfactionSummary = {
   source: SatisfactionSource;
 };
 
-export const SATISFACTION_SCALE = 5;
+const SCALE = 5;
 
 const EMPTY_SUMMARY: SatisfactionSummary = {
   index: null,
-  scale: SATISFACTION_SCALE,
+  scale: SCALE,
   responses: 0,
   source: "responses",
 };
 
-const LIKERT_SCORE: Record<string, number> = {
-  baik: 3,
-  cukup: 2,
-  kurang: 1,
-};
+const LIKERT_SCORE: Record<string, number> = { baik: 3, cukup: 2, kurang: 1 };
+
+const DIMENSION_QUESTIONS = [2, 3, 4];
+
+const DIMENSION_KEYS = ["komunikasi_petugas", "penjelasan_materi", "sarana_prasarana"] as const;
+
+const SURVEY_LIST_KEYS = ["submissions", "data"];
 
 function likertScore(value: unknown): number | null {
   if (value == null) return null;
@@ -31,37 +34,41 @@ function likertScore(value: unknown): number | null {
   return LIKERT_SCORE[text] ?? null;
 }
 
-function answerMap(item: any): Record<number, unknown> {
+function answerMap(item: Record<string, unknown>): Record<number, unknown> {
   const answers: Record<number, unknown> = {};
-  const raw = item?.answers;
-  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-    Object.keys(raw).forEach((key) => {
-      const qn = Number(key);
-      if (Number.isInteger(qn) && qn >= 1) answers[qn] = raw[key];
+
+  const add = (rawNumber: unknown, value: unknown) => {
+    const questionNumber = Number(rawNumber);
+    if (Number.isInteger(questionNumber) && questionNumber >= 1 && value != null) {
+      answers[questionNumber] = value;
+    }
+  };
+
+  const raw = item["answers"];
+  if (isRecord(raw)) Object.entries(raw).forEach(([key, value]) => add(key, value));
+
+  const responses = item["responses"];
+  if (Array.isArray(responses)) {
+    responses.forEach((entry) => {
+      if (!isRecord(entry)) return;
+      add(entry["question_number"] ?? entry["survey_question_id"], entry["answer"]);
     });
   }
-  if (Array.isArray(item?.responses)) {
-    item.responses.forEach((r: any) => {
-      const qn = Number(r?.question_number ?? r?.survey_question_id);
-      if (Number.isInteger(qn) && qn >= 1 && r?.answer != null) answers[qn] = r.answer;
-    });
-  }
+
   return answers;
 }
 
 /** Skor likert 3 dimensi (Q2-Q4), atau dari field flat bila tak ada `answers`. */
-function likertScores(item: any): number[] {
-  if (!item || typeof item !== "object") return [];
-
+function likertScores(item: Record<string, unknown>): number[] {
   const answers = answerMap(item);
-  const fromAnswers = [2, 3, 4]
-    .map((qn) => likertScore(answers[qn]))
-    .filter((s): s is number => s != null);
+  const fromAnswers = DIMENSION_QUESTIONS.map((qn) => likertScore(answers[qn])).filter(
+    (score): score is number => score !== null,
+  );
   if (fromAnswers.length > 0) return fromAnswers;
 
-  return ["komunikasi_petugas", "penjelasan_materi", "sarana_prasarana"]
-    .map((key) => likertScore(item[key]))
-    .filter((s): s is number => s != null);
+  return DIMENSION_KEYS.map((key) => likertScore(item[key])).filter(
+    (score): score is number => score !== null,
+  );
 }
 
 /**
@@ -69,9 +76,9 @@ function likertScores(item: any): number[] {
  * Skor likert 1-3 (Kurang/Cukup/Baik) dikonversi ke skala 1-5 dengan (2*skor - 1)
  * sehingga Baik=5, Cukup=3, Kurang=1.
  */
-export function computeSatisfaction(items: any[]): SatisfactionSummary {
+function computeSatisfaction(items: unknown[]): SatisfactionSummary {
   const averages: number[] = [];
-  items.forEach((item) => {
+  items.filter(isRecord).forEach((item) => {
     const scores = likertScores(item);
     if (scores.length === 0) return;
     averages.push(scores.reduce((sum, score) => sum + score, 0) / scores.length);
@@ -80,15 +87,25 @@ export function computeSatisfaction(items: any[]): SatisfactionSummary {
   if (averages.length === 0) return { ...EMPTY_SUMMARY };
 
   const mean3 = averages.reduce((sum, avg) => sum + avg, 0) / averages.length;
-  const index = Math.round((2 * mean3 - 1) * 100) / 100;
-  return { index, scale: SATISFACTION_SCALE, responses: averages.length, source: "responses" };
+  return {
+    index: Math.round((2 * mean3 - 1) * 100) / 100,
+    scale: SCALE,
+    responses: averages.length,
+    source: "responses",
+  };
 }
 
-function parseAggregate(d: any): SatisfactionSummary | null {
-  if (!d || typeof d !== "object") return null;
+function parseAggregate(payload: unknown): SatisfactionSummary | null {
+  if (!isRecord(payload)) return null;
 
   const indexRaw =
-    d.satisfaction_index ?? d.index ?? d.score ?? d.skor ?? d.nilai ?? d.average ?? d.avg;
+    payload["satisfaction_index"] ??
+    payload["index"] ??
+    payload["score"] ??
+    payload["skor"] ??
+    payload["nilai"] ??
+    payload["average"] ??
+    payload["avg"];
   if (indexRaw == null) return null;
 
   const index = Number(indexRaw);
@@ -96,10 +113,21 @@ function parseAggregate(d: any): SatisfactionSummary | null {
 
   return {
     index,
-    scale: Number(d.satisfaction_scale ?? d.scale ?? SATISFACTION_SCALE),
-    responses: Number(d.satisfaction_responses ?? d.responses ?? d.responden ?? d.jumlah ?? 0),
+    scale: Number(payload["satisfaction_scale"] ?? payload["scale"] ?? SCALE),
+    responses: Number(
+      payload["satisfaction_responses"] ??
+        payload["responses"] ??
+        payload["responden"] ??
+        payload["jumlah"] ??
+        0,
+    ),
     source: "aggregate",
   };
+}
+
+function unwrapAggregate(json: unknown): unknown {
+  if (!isRecord(json)) return json;
+  return json["data"] ?? json["result"] ?? json["satisfaction"] ?? json;
 }
 
 /**
@@ -115,31 +143,20 @@ export async function fetchSatisfactionSummary(): Promise<SatisfactionSummary> {
   try {
     const aggrRes = await fetch(`${apiUrl("surveys/satisfaction")}?period=today`, { headers });
     if (aggrRes.ok) {
-      const json = await aggrRes.json().catch(() => null);
-      const parsed = parseAggregate(json?.data ?? json?.result ?? json?.satisfaction ?? json);
+      const json: unknown = await aggrRes.json().catch(() => null);
+      const parsed = parseAggregate(unwrapAggregate(json));
       if (parsed) return parsed;
     }
   } catch {
-    // lanjut ke fallback
+    // endpoint agregat belum tersedia — lanjut ke fallback
   }
 
   try {
     const res = await fetch(`${apiUrl("surveys/responses")}?per_page=100`, { headers });
     if (!res.ok) return { ...EMPTY_SUMMARY };
 
-    const json = await res.json().catch(() => null);
-    const data = json?.data;
-    const items: any[] = Array.isArray(data?.submissions)
-      ? data.submissions
-      : Array.isArray(data)
-        ? data
-        : Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(json)
-            ? json
-            : [];
-
-    return computeSatisfaction(items);
+    const json: unknown = await res.json().catch(() => null);
+    return computeSatisfaction(extractList(json, SURVEY_LIST_KEYS));
   } catch {
     return { ...EMPTY_SUMMARY };
   }

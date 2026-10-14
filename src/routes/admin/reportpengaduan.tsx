@@ -8,6 +8,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
 
@@ -264,11 +265,13 @@ function ReportPengaduanPage() {
 
       if (res.ok) {
         setComplaints((prev) => prev.filter((item) => item.id !== id));
+        toast.success("Aduan berhasil dihapus.");
       } else {
-        alert("Gagal menghapus aduan.");
+        toast.error("Gagal menghapus aduan.");
       }
     } catch (e) {
       console.error("Gagal menghapus aduan:", e);
+      toast.error("Terjadi kesalahan saat menghapus aduan.");
     }
   };
   const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
@@ -325,7 +328,7 @@ function ReportPengaduanPage() {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (err: any) {
       console.error("Download error:", err);
-      alert(err.message || "Terjadi kesalahan saat mengunduh PDF pengaduan.");
+      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF pengaduan.");
     } finally {
       setDownloadingId(null);
     }

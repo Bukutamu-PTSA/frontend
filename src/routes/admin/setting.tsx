@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Building2,
   ClipboardList,
+  HelpCircle,
   MonitorSmartphone,
   AlertTriangle,
   Users,
@@ -79,6 +80,12 @@ const SECTIONS: SettingSection[] = [
         icon: Users,
         to: "/admin/manajemen_user",
       },
+      {
+        title: "FAQ",
+        desc: "Kelola pertanyaan yang sering ditanyakan beserta jawabannya.",
+        icon: HelpCircle,
+        to: "/admin/faq",
+      },
     ],
   },
 ];
@@ -99,14 +106,14 @@ function SettingPage() {
         </div>
 
         {/* Kolom-kolom bergrup */}
-        <div className="grid gap-x-8 gap-y-8 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-x-8 gap-y-8 md:grid-cols-2 xl:grid-cols-3 xl:items-start">
           {SECTIONS.map((section) => (
-            <section key={section.label}>
+            <section key={section.label} className="flex flex-col">
               <h2 className="mb-3 border-b border-gray-100 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
                 {section.label}
               </h2>
 
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 {section.cards.map((card) => {
                   const Icon = card.icon;
                   return (
@@ -114,7 +121,7 @@ function SettingPage() {
                       key={card.title}
                       type="button"
                       onClick={() => card.to && navigate({ to: card.to })}
-                      className="group relative flex w-full cursor-pointer items-start gap-3.5 rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] transition-shadow duration-200 hover:shadow-md"
+                      className="group relative flex min-h-[100px] w-full cursor-pointer items-start gap-3.5 rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] transition-shadow duration-200 hover:shadow-md"
                     >
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#016A61]/10 text-[#016A61]">
                         <Icon className="h-5 w-5" />
@@ -124,7 +131,7 @@ function SettingPage() {
                         <span className="block text-[13px] font-bold leading-snug text-gray-800">
                           {card.title}
                         </span>
-                        <span className="mt-1 block text-[11px] leading-relaxed text-gray-500">
+                        <span className="mt-1 line-clamp-2 block text-[11px] leading-relaxed text-gray-500">
                           {card.desc}
                         </span>
                       </span>

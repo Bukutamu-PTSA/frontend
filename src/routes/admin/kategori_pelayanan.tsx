@@ -157,15 +157,8 @@ function KategoriPelayananPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [categoryCounts, setCategoryCounts] = useState<Record<number, number>>({});
 
-  // Kategori tambahan buatan admin (disimpan di state lokal untuk saat ini).
+  // Kategori yang hanya muncul di ringkasan API (tidak ada di config statis).
   const [customCategories, setCustomCategories] = useState<CategoryMeta[]>([]);
-
-  // State modal "Tambah Kategori".
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [newCode, setNewCode] = useState("");
-  const [newName, setNewName] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
 
   const allCategories = useMemo(
     () => [...CATEGORIES_CONFIG, ...customCategories],
@@ -180,87 +173,6 @@ function KategoriPelayananPage() {
       (cat) => cat.title.toLowerCase().includes(q) || cat.code.toLowerCase().includes(q),
     );
   }, [allCategories, search]);
-
-  const resetForm = () => {
-    setNewCode("");
-    setNewName("");
-    setFormError(null);
-  };
-
-  const handleCloseModal = () => {
-    setShowAddModal(false);
-    resetForm();
-  };
-
-  const handleSubmitCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-
-    const category_code = newCode.trim().toUpperCase();
-    const name = newName.trim();
-
-    if (!category_code) {
-      setFormError("The category code field is required.");
-      return;
-    }
-    if (!name) {
-      setFormError("The category name field is required.");
-      return;
-    }
-
-    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
-
-    setSaving(true);
-    try {
-      const response = await fetch(apiUrl("complaint-categories"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ category_code, category_name: name }),
-      });
-
-      const json = await response.json().catch(() => null);
-
-      if (!response.ok || json?.success === false) {
-        let errMsg = "";
-        const errors = json?.errors;
-        if (errors && typeof errors === "object") {
-          Object.values(errors).forEach((val) => {
-            const txt = Array.isArray(val) ? val.join(", ") : String(val ?? "");
-            if (txt) errMsg += `${txt}. `;
-          });
-        }
-        if (!errMsg) {
-          errMsg = json?.message || `Gagal menyimpan kategori (${response.status}).`;
-        }
-        throw new Error(errMsg.trim());
-      }
-
-      const created = json?.data ?? null;
-      const newCategory: CategoryMeta = {
-        id: Number(created?.id ?? Date.now()),
-        code: String(created?.category_code ?? category_code),
-        title: String(created?.category_name ?? name).toUpperCase(),
-        icon: Layers,
-        iconColor: "text-slate-600",
-        bgColor: "bg-slate-100",
-      };
-
-      setCustomCategories((prev) => [...prev, newCategory]);
-      setCategoryCounts((prev) => ({ ...prev, [newCategory.id]: 0 }));
-      setShowAddModal(false);
-      resetForm();
-      fetchCategorySummary([newCategory]);
-    } catch (err: any) {
-      console.error("Gagal menyimpan kategori:", err);
-      setFormError(err?.message || "Gagal menyimpan kategori. Coba lagi.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const formatDisplayDate = (dateStr: string | null) => {
     if (!dateStr) return "Semua Waktu";
@@ -308,7 +220,7 @@ function KategoriPelayananPage() {
     document.body.removeChild(link);
   };
 
-  const fetchCategorySummary = async (extraCategories: CategoryMeta[] = []) => {
+  const fetchCategorySummary = async () => {
     setLoading(true);
     const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
@@ -334,7 +246,6 @@ function KategoriPelayananPage() {
 
         const merged = new Map<number, CategoryMeta>();
         CATEGORIES_CONFIG.forEach((cat) => merged.set(cat.id, cat));
-        extraCategories.forEach((cat) => merged.set(cat.id, cat));
 
         list.forEach((item) => {
           const id = Number(item.id);
@@ -449,15 +360,6 @@ function KategoriPelayananPage() {
               <Download className="h-3.5 w-3.5 text-gray-500" />
               <span>Export Laporan</span>
             </button>
-
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#032749] px-3.5 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-[#053a6b] transition-colors cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Tambah Kategori</span>
-            </button>
           </div>
         </div>
 
@@ -514,86 +416,6 @@ function KategoriPelayananPage() {
         )}
       </div>
 
-      {/* ================= MODAL TAMBAH KATEGORI ================= */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <button
-            aria-label="Tutup"
-            onClick={handleCloseModal}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          />
-
-          {/* Panel */}
-          <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h2 className="text-[14px] font-bold text-gray-800">Tambah Kategori Layanan</h2>
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitCategory} className="space-y-4 px-5 py-5">
-              {/* Kode Kategori */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  Kode Kategori <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newCode}
-                  onChange={(e) => setNewCode(e.target.value)}
-                  placeholder="Contoh: PERLINDUNGAN_PM"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm uppercase placeholder:normal-case focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                />
-                <p className="mt-1.5 text-[10px] text-gray-400">
-                  Kode unik kategori (huruf besar, tanpa spasi; gunakan underscore untuk memisahkan
-                  kata).
-                </p>
-              </div>
-
-              {/* Nama Kategori */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  Nama Kategori <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Contoh: Perlindungan Pekerja Migran"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                />
-              </div>
-
-              {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
-
-              {/* Aksi */}
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-[12px] font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#032749] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[#053a6b] disabled:opacity-50"
-                >
-                  {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {saving ? "Menyimpan..." : "Simpan Kategori"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </AppShell>
   );
 }

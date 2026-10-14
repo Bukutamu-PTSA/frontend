@@ -1,1 +1,0 @@
-function e(e,t,n=5){let r=Math.max(1,n),i=Math.max(1,e-Math.floor(r/2)),a=Math.min(Math.max(1,t),i+r-1);i=Math.max(1,a-r+1);let o=[];for(let e=i;e<=a;e++)o.push(e);return o}export{e as t};

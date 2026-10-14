@@ -10,8 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as Bukti_pendukungRouteImport } from './routes/bukti_pendukung'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as FaqpageRouteImport } from './routes/faqpage'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PengaduanRouteImport } from './routes/pengaduan'
 import { Route as SurveiRouteImport } from './routes/survei'
@@ -24,6 +26,7 @@ import { Route as AdminDetail_kategori_pelayananRouteImport } from './routes/adm
 import { Route as AdminEdit_skalaRouteImport } from './routes/admin/edit_skala'
 import { Route as AdminEdit_surveiRouteImport } from './routes/admin/edit_survei'
 import { Route as AdminEdit_userRouteImport } from './routes/admin/edit_user'
+import { Route as AdminFaqRouteImport } from './routes/admin/faq'
 import { Route as AdminGrafikRouteImport } from './routes/admin/grafik'
 import { Route as AdminJenis_pengaduanRouteImport } from './routes/admin/jenis_pengaduan'
 import { Route as AdminKategori_pelayananRouteImport } from './routes/admin/kategori_pelayanan'
@@ -41,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Bukti_pendukungRoute = Bukti_pendukungRouteImport.update({
   id: '/bukti_pendukung',
   path: '/bukti_pendukung',
@@ -49,6 +57,11 @@ const Bukti_pendukungRoute = Bukti_pendukungRouteImport.update({
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqpageRoute = FaqpageRouteImport.update({
+  id: '/faqpage',
+  path: '/faqpage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -67,111 +80,118 @@ const SurveiRoute = SurveiRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
-  id: '/admin/dashboard',
-  path: '/admin/dashboard',
-  getParentRoute: () => rootRouteImport,
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminData_skalaRoute = AdminData_skalaRouteImport.update({
-  id: '/admin/data_skala',
-  path: '/admin/data_skala',
-  getParentRoute: () => rootRouteImport,
+  id: '/data_skala',
+  path: '/data_skala',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminData_surveiRoute = AdminData_surveiRouteImport.update({
-  id: '/admin/data_survei',
-  path: '/admin/data_survei',
-  getParentRoute: () => rootRouteImport,
+  id: '/data_survei',
+  path: '/data_survei',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminData_visitorRoute = AdminData_visitorRouteImport.update({
-  id: '/admin/data_visitor',
-  path: '/admin/data_visitor',
-  getParentRoute: () => rootRouteImport,
+  id: '/data_visitor',
+  path: '/data_visitor',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminDetail_berkasRoute = AdminDetail_berkasRouteImport.update({
-  id: '/admin/detail_berkas',
-  path: '/admin/detail_berkas',
-  getParentRoute: () => rootRouteImport,
+  id: '/detail_berkas',
+  path: '/detail_berkas',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminDetail_kategori_pelayananRoute =
   AdminDetail_kategori_pelayananRouteImport.update({
-    id: '/admin/detail_kategori_pelayanan',
-    path: '/admin/detail_kategori_pelayanan',
-    getParentRoute: () => rootRouteImport,
+    id: '/detail_kategori_pelayanan',
+    path: '/detail_kategori_pelayanan',
+    getParentRoute: () => AdminRouteRoute,
   } as any)
 const AdminEdit_skalaRoute = AdminEdit_skalaRouteImport.update({
-  id: '/admin/edit_skala',
-  path: '/admin/edit_skala',
-  getParentRoute: () => rootRouteImport,
+  id: '/edit_skala',
+  path: '/edit_skala',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminEdit_surveiRoute = AdminEdit_surveiRouteImport.update({
-  id: '/admin/edit_survei',
-  path: '/admin/edit_survei',
-  getParentRoute: () => rootRouteImport,
+  id: '/edit_survei',
+  path: '/edit_survei',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminEdit_userRoute = AdminEdit_userRouteImport.update({
-  id: '/admin/edit_user',
-  path: '/admin/edit_user',
-  getParentRoute: () => rootRouteImport,
+  id: '/edit_user',
+  path: '/edit_user',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminFaqRoute = AdminFaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminGrafikRoute = AdminGrafikRouteImport.update({
-  id: '/admin/grafik',
-  path: '/admin/grafik',
-  getParentRoute: () => rootRouteImport,
+  id: '/grafik',
+  path: '/grafik',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminJenis_pengaduanRoute = AdminJenis_pengaduanRouteImport.update({
-  id: '/admin/jenis_pengaduan',
-  path: '/admin/jenis_pengaduan',
-  getParentRoute: () => rootRouteImport,
+  id: '/jenis_pengaduan',
+  path: '/jenis_pengaduan',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminKategori_pelayananRoute = AdminKategori_pelayananRouteImport.update({
-  id: '/admin/kategori_pelayanan',
-  path: '/admin/kategori_pelayanan',
-  getParentRoute: () => rootRouteImport,
+  id: '/kategori_pelayanan',
+  path: '/kategori_pelayanan',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminManajemen_userRoute = AdminManajemen_userRouteImport.update({
-  id: '/admin/manajemen_user',
-  path: '/admin/manajemen_user',
-  getParentRoute: () => rootRouteImport,
+  id: '/manajemen_user',
+  path: '/manajemen_user',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
-  id: '/admin/notifications',
-  path: '/admin/notifications',
-  getParentRoute: () => rootRouteImport,
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminReportpengaduanRoute = AdminReportpengaduanRouteImport.update({
-  id: '/admin/reportpengaduan',
-  path: '/admin/reportpengaduan',
-  getParentRoute: () => rootRouteImport,
+  id: '/reportpengaduan',
+  path: '/reportpengaduan',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminReportsurveiRoute = AdminReportsurveiRouteImport.update({
-  id: '/admin/reportsurvei',
-  path: '/admin/reportsurvei',
-  getParentRoute: () => rootRouteImport,
+  id: '/reportsurvei',
+  path: '/reportsurvei',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminSettingRoute = AdminSettingRouteImport.update({
-  id: '/admin/setting',
-  path: '/admin/setting',
-  getParentRoute: () => rootRouteImport,
+  id: '/setting',
+  path: '/setting',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminTambah_userRoute = AdminTambah_userRouteImport.update({
-  id: '/admin/tambah_user',
-  path: '/admin/tambah_user',
-  getParentRoute: () => rootRouteImport,
+  id: '/tambah_user',
+  path: '/tambah_user',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminView_pdfRoute = AdminView_pdfRouteImport.update({
-  id: '/admin/view_pdf',
-  path: '/admin/view_pdf',
-  getParentRoute: () => rootRouteImport,
+  id: '/view_pdf',
+  path: '/view_pdf',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminWilayahRoute = AdminWilayahRouteImport.update({
-  id: '/admin/wilayah',
-  path: '/admin/wilayah',
-  getParentRoute: () => rootRouteImport,
+  id: '/wilayah',
+  path: '/wilayah',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
+  '/faqpage': typeof FaqpageRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/survei': typeof SurveiRoute
@@ -184,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/admin/edit_skala': typeof AdminEdit_skalaRoute
   '/admin/edit_survei': typeof AdminEdit_surveiRoute
   '/admin/edit_user': typeof AdminEdit_userRoute
+  '/admin/faq': typeof AdminFaqRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/jenis_pengaduan': typeof AdminJenis_pengaduanRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
@@ -198,8 +219,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
+  '/faqpage': typeof FaqpageRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/survei': typeof SurveiRoute
@@ -212,6 +235,7 @@ export interface FileRoutesByTo {
   '/admin/edit_skala': typeof AdminEdit_skalaRoute
   '/admin/edit_survei': typeof AdminEdit_surveiRoute
   '/admin/edit_user': typeof AdminEdit_userRoute
+  '/admin/faq': typeof AdminFaqRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/jenis_pengaduan': typeof AdminJenis_pengaduanRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
@@ -227,8 +251,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/bukti_pendukung': typeof Bukti_pendukungRoute
   '/chat': typeof ChatRoute
+  '/faqpage': typeof FaqpageRoute
   '/login': typeof LoginRoute
   '/pengaduan': typeof PengaduanRoute
   '/survei': typeof SurveiRoute
@@ -241,6 +267,7 @@ export interface FileRoutesById {
   '/admin/edit_skala': typeof AdminEdit_skalaRoute
   '/admin/edit_survei': typeof AdminEdit_surveiRoute
   '/admin/edit_user': typeof AdminEdit_userRoute
+  '/admin/faq': typeof AdminFaqRoute
   '/admin/grafik': typeof AdminGrafikRoute
   '/admin/jenis_pengaduan': typeof AdminJenis_pengaduanRoute
   '/admin/kategori_pelayanan': typeof AdminKategori_pelayananRoute
@@ -257,8 +284,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/bukti_pendukung'
     | '/chat'
+    | '/faqpage'
     | '/login'
     | '/pengaduan'
     | '/survei'
@@ -271,6 +300,7 @@ export interface FileRouteTypes {
     | '/admin/edit_skala'
     | '/admin/edit_survei'
     | '/admin/edit_user'
+    | '/admin/faq'
     | '/admin/grafik'
     | '/admin/jenis_pengaduan'
     | '/admin/kategori_pelayanan'
@@ -285,8 +315,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/bukti_pendukung'
     | '/chat'
+    | '/faqpage'
     | '/login'
     | '/pengaduan'
     | '/survei'
@@ -299,6 +331,7 @@ export interface FileRouteTypes {
     | '/admin/edit_skala'
     | '/admin/edit_survei'
     | '/admin/edit_user'
+    | '/admin/faq'
     | '/admin/grafik'
     | '/admin/jenis_pengaduan'
     | '/admin/kategori_pelayanan'
@@ -313,8 +346,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/bukti_pendukung'
     | '/chat'
+    | '/faqpage'
     | '/login'
     | '/pengaduan'
     | '/survei'
@@ -327,6 +362,7 @@ export interface FileRouteTypes {
     | '/admin/edit_skala'
     | '/admin/edit_survei'
     | '/admin/edit_user'
+    | '/admin/faq'
     | '/admin/grafik'
     | '/admin/jenis_pengaduan'
     | '/admin/kategori_pelayanan'
@@ -342,31 +378,13 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   Bukti_pendukungRoute: typeof Bukti_pendukungRoute
   ChatRoute: typeof ChatRoute
+  FaqpageRoute: typeof FaqpageRoute
   LoginRoute: typeof LoginRoute
   PengaduanRoute: typeof PengaduanRoute
   SurveiRoute: typeof SurveiRoute
-  AdminDashboardRoute: typeof AdminDashboardRoute
-  AdminData_skalaRoute: typeof AdminData_skalaRoute
-  AdminData_surveiRoute: typeof AdminData_surveiRoute
-  AdminData_visitorRoute: typeof AdminData_visitorRoute
-  AdminDetail_berkasRoute: typeof AdminDetail_berkasRoute
-  AdminDetail_kategori_pelayananRoute: typeof AdminDetail_kategori_pelayananRoute
-  AdminEdit_skalaRoute: typeof AdminEdit_skalaRoute
-  AdminEdit_surveiRoute: typeof AdminEdit_surveiRoute
-  AdminEdit_userRoute: typeof AdminEdit_userRoute
-  AdminGrafikRoute: typeof AdminGrafikRoute
-  AdminJenis_pengaduanRoute: typeof AdminJenis_pengaduanRoute
-  AdminKategori_pelayananRoute: typeof AdminKategori_pelayananRoute
-  AdminManajemen_userRoute: typeof AdminManajemen_userRoute
-  AdminNotificationsRoute: typeof AdminNotificationsRoute
-  AdminReportpengaduanRoute: typeof AdminReportpengaduanRoute
-  AdminReportsurveiRoute: typeof AdminReportsurveiRoute
-  AdminSettingRoute: typeof AdminSettingRoute
-  AdminTambah_userRoute: typeof AdminTambah_userRoute
-  AdminView_pdfRoute: typeof AdminView_pdfRoute
-  AdminWilayahRoute: typeof AdminWilayahRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -376,6 +394,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bukti_pendukung': {
@@ -390,6 +415,13 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faqpage': {
+      id: '/faqpage'
+      path: '/faqpage'
+      fullPath: '/faqpage'
+      preLoaderRoute: typeof FaqpageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -415,154 +447,179 @@ declare module '@tanstack/react-router' {
     }
     '/admin/dashboard': {
       id: '/admin/dashboard'
-      path: '/admin/dashboard'
+      path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/data_skala': {
       id: '/admin/data_skala'
-      path: '/admin/data_skala'
+      path: '/data_skala'
       fullPath: '/admin/data_skala'
       preLoaderRoute: typeof AdminData_skalaRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/data_survei': {
       id: '/admin/data_survei'
-      path: '/admin/data_survei'
+      path: '/data_survei'
       fullPath: '/admin/data_survei'
       preLoaderRoute: typeof AdminData_surveiRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/data_visitor': {
       id: '/admin/data_visitor'
-      path: '/admin/data_visitor'
+      path: '/data_visitor'
       fullPath: '/admin/data_visitor'
       preLoaderRoute: typeof AdminData_visitorRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/detail_berkas': {
       id: '/admin/detail_berkas'
-      path: '/admin/detail_berkas'
+      path: '/detail_berkas'
       fullPath: '/admin/detail_berkas'
       preLoaderRoute: typeof AdminDetail_berkasRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/detail_kategori_pelayanan': {
       id: '/admin/detail_kategori_pelayanan'
-      path: '/admin/detail_kategori_pelayanan'
+      path: '/detail_kategori_pelayanan'
       fullPath: '/admin/detail_kategori_pelayanan'
       preLoaderRoute: typeof AdminDetail_kategori_pelayananRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/edit_skala': {
       id: '/admin/edit_skala'
-      path: '/admin/edit_skala'
+      path: '/edit_skala'
       fullPath: '/admin/edit_skala'
       preLoaderRoute: typeof AdminEdit_skalaRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/edit_survei': {
       id: '/admin/edit_survei'
-      path: '/admin/edit_survei'
+      path: '/edit_survei'
       fullPath: '/admin/edit_survei'
       preLoaderRoute: typeof AdminEdit_surveiRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/edit_user': {
       id: '/admin/edit_user'
-      path: '/admin/edit_user'
+      path: '/edit_user'
       fullPath: '/admin/edit_user'
       preLoaderRoute: typeof AdminEdit_userRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/faq': {
+      id: '/admin/faq'
+      path: '/faq'
+      fullPath: '/admin/faq'
+      preLoaderRoute: typeof AdminFaqRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/grafik': {
       id: '/admin/grafik'
-      path: '/admin/grafik'
+      path: '/grafik'
       fullPath: '/admin/grafik'
       preLoaderRoute: typeof AdminGrafikRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/jenis_pengaduan': {
       id: '/admin/jenis_pengaduan'
-      path: '/admin/jenis_pengaduan'
+      path: '/jenis_pengaduan'
       fullPath: '/admin/jenis_pengaduan'
       preLoaderRoute: typeof AdminJenis_pengaduanRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/kategori_pelayanan': {
       id: '/admin/kategori_pelayanan'
-      path: '/admin/kategori_pelayanan'
+      path: '/kategori_pelayanan'
       fullPath: '/admin/kategori_pelayanan'
       preLoaderRoute: typeof AdminKategori_pelayananRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/manajemen_user': {
       id: '/admin/manajemen_user'
-      path: '/admin/manajemen_user'
+      path: '/manajemen_user'
       fullPath: '/admin/manajemen_user'
       preLoaderRoute: typeof AdminManajemen_userRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/notifications': {
       id: '/admin/notifications'
-      path: '/admin/notifications'
+      path: '/notifications'
       fullPath: '/admin/notifications'
       preLoaderRoute: typeof AdminNotificationsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/reportpengaduan': {
       id: '/admin/reportpengaduan'
-      path: '/admin/reportpengaduan'
+      path: '/reportpengaduan'
       fullPath: '/admin/reportpengaduan'
       preLoaderRoute: typeof AdminReportpengaduanRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/reportsurvei': {
       id: '/admin/reportsurvei'
-      path: '/admin/reportsurvei'
+      path: '/reportsurvei'
       fullPath: '/admin/reportsurvei'
       preLoaderRoute: typeof AdminReportsurveiRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/setting': {
       id: '/admin/setting'
-      path: '/admin/setting'
+      path: '/setting'
       fullPath: '/admin/setting'
       preLoaderRoute: typeof AdminSettingRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/tambah_user': {
       id: '/admin/tambah_user'
-      path: '/admin/tambah_user'
+      path: '/tambah_user'
       fullPath: '/admin/tambah_user'
       preLoaderRoute: typeof AdminTambah_userRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/view_pdf': {
       id: '/admin/view_pdf'
-      path: '/admin/view_pdf'
+      path: '/view_pdf'
       fullPath: '/admin/view_pdf'
       preLoaderRoute: typeof AdminView_pdfRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/wilayah': {
       id: '/admin/wilayah'
-      path: '/admin/wilayah'
+      path: '/wilayah'
       fullPath: '/admin/wilayah'
       preLoaderRoute: typeof AdminWilayahRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
   }
 }
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  Bukti_pendukungRoute: Bukti_pendukungRoute,
-  ChatRoute: ChatRoute,
-  LoginRoute: LoginRoute,
-  PengaduanRoute: PengaduanRoute,
-  SurveiRoute: SurveiRoute,
+interface AdminRouteRouteChildren {
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminData_skalaRoute: typeof AdminData_skalaRoute
+  AdminData_surveiRoute: typeof AdminData_surveiRoute
+  AdminData_visitorRoute: typeof AdminData_visitorRoute
+  AdminDetail_berkasRoute: typeof AdminDetail_berkasRoute
+  AdminDetail_kategori_pelayananRoute: typeof AdminDetail_kategori_pelayananRoute
+  AdminEdit_skalaRoute: typeof AdminEdit_skalaRoute
+  AdminEdit_surveiRoute: typeof AdminEdit_surveiRoute
+  AdminEdit_userRoute: typeof AdminEdit_userRoute
+  AdminFaqRoute: typeof AdminFaqRoute
+  AdminGrafikRoute: typeof AdminGrafikRoute
+  AdminJenis_pengaduanRoute: typeof AdminJenis_pengaduanRoute
+  AdminKategori_pelayananRoute: typeof AdminKategori_pelayananRoute
+  AdminManajemen_userRoute: typeof AdminManajemen_userRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
+  AdminReportpengaduanRoute: typeof AdminReportpengaduanRoute
+  AdminReportsurveiRoute: typeof AdminReportsurveiRoute
+  AdminSettingRoute: typeof AdminSettingRoute
+  AdminTambah_userRoute: typeof AdminTambah_userRoute
+  AdminView_pdfRoute: typeof AdminView_pdfRoute
+  AdminWilayahRoute: typeof AdminWilayahRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminDashboardRoute: AdminDashboardRoute,
   AdminData_skalaRoute: AdminData_skalaRoute,
   AdminData_surveiRoute: AdminData_surveiRoute,
@@ -572,6 +629,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminEdit_skalaRoute: AdminEdit_skalaRoute,
   AdminEdit_surveiRoute: AdminEdit_surveiRoute,
   AdminEdit_userRoute: AdminEdit_userRoute,
+  AdminFaqRoute: AdminFaqRoute,
   AdminGrafikRoute: AdminGrafikRoute,
   AdminJenis_pengaduanRoute: AdminJenis_pengaduanRoute,
   AdminKategori_pelayananRoute: AdminKategori_pelayananRoute,
@@ -583,6 +641,21 @@ const rootRouteChildren: RootRouteChildren = {
   AdminTambah_userRoute: AdminTambah_userRoute,
   AdminView_pdfRoute: AdminView_pdfRoute,
   AdminWilayahRoute: AdminWilayahRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
+  Bukti_pendukungRoute: Bukti_pendukungRoute,
+  ChatRoute: ChatRoute,
+  FaqpageRoute: FaqpageRoute,
+  LoginRoute: LoginRoute,
+  PengaduanRoute: PengaduanRoute,
+  SurveiRoute: SurveiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

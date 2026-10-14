@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Save, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { AUTH_BASE_URL } from "@/lib/api";
@@ -60,10 +61,11 @@ function TambahUserPage() {
         );
       }
 
-      alert("User berhasil ditambahkan!");
+      toast.success("User berhasil ditambahkan!");
       navigate({ to: "/admin/manajemen_user" });
     } catch (err: any) {
       console.error("Registrasi user gagal:", err);
+      toast.error(err?.message || "Gagal mendaftarkan user. Silakan coba lagi.");
       setErrorMessage(err?.message || "Gagal mendaftarkan user. Silakan coba lagi.");
     } finally {
       setSaving(false);

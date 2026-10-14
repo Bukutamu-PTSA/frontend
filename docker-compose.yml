@@ -1,0 +1,36 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - VITE_API_HOST=http://192.168.156.206:8000
+      - VITE_APP_NAME=Sistem Pengaduan Tenaga Kerja
+      - VITE_APP_SHORT_NAME=PTSA Kemnaker
+      - VITE_ORGANIZATION_NAME=Kementerian Ketenagakerjaan RI
+      - VITE_ORGANIZATION_UNIT=BINWASNAKER & K3
+      - VITE_ORGANIZATION_UNIT_FULL=Ditjen Binwasnaker & K3
+      - VITE_BRAND_PRIMARY_COLOR=#032749
+      - VITE_BRAND_SECONDARY_COLOR=#0E3B68
+      - VITE_BRAND_ACCENT_COLOR=#10B981
+      - VITE_DEFAULT_TOTAL_LAPORAN=12450
+      - VITE_COPYRIGHT_START_YEAR=2024
+      - VITE_COPYRIGHT_END_YEAR=2026
+      - VITE_ADDRESS_LINE_1=Jl. Jend. Gatot Subroto Kav. 51
+      - VITE_ADDRESS_LINE_2=RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi
+      - VITE_ADDRESS_LINE_3=Kota Jakarta Selatan, DKI Jakarta 12950
+      - VITE_CONTACT_EMAIL=pengaduanwlkp@gmail.com
+      - VITE_MAPS_URL=https://maps.app.goo.gl/QiLps9tsVMszzHf79
+      - VITE_SOCIAL_X_URL=https://x.com/KemnakerRI
+      - VITE_SOCIAL_FACEBOOK_URL=https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr
+      - VITE_SOCIAL_INSTAGRAM_URL=https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ==
+      - VITE_SESSION_TIMEOUT=3600000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
