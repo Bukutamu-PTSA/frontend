@@ -7,6 +7,7 @@ import {
   Star,
   TrendingDown,
   TrendingUp,
+  Minus,
   ArrowRight,
   ChevronLeft,
   ChevronRight,
@@ -15,9 +16,11 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { apiUrl, authHeaders } from "@/lib/api";
 import { computeGrowth, formatGrowth } from "@/lib/growth";
 import { fetchSatisfactionSummary, type SatisfactionSummary } from "@/lib/satisfaction";
+import { PAGE_TITLES, APP_SHORT_NAME, DEFAULT_TOTAL_LAPORAN } from "@/config/app";
 
 const SUMMARY_API_URL = apiUrl("dashboard/complaint-summary");
 const PROVINCE_SUMMARY_API_URL = apiUrl("dashboard/province-summary");
@@ -27,7 +30,7 @@ export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({
     meta: [
       {
-        title: "Executive Dashboard - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminDashboard,
       },
     ],
   }),
@@ -132,7 +135,7 @@ function DashboardExecutive() {
   // Data provinsi diambil dari API (bukan hardcode).
   const [wilayahData, setWilayahData] = useState<WilayahRow[]>([]);
 
-  const [totalAduan, setTotalAduan] = useState(12450);
+  const [totalAduan, setTotalAduan] = useState(DEFAULT_TOTAL_LAPORAN);
   // Persentase kenaikan/penurunan aduan (dihitung riil, sama seperti page Grafik).
   const [growth, setGrowth] = useState<number | null>(null);
   // Indeks kepuasan: endpoint agregat bila ada, fallback hitung dari respons survei.
@@ -331,9 +334,7 @@ function DashboardExecutive() {
 
   // Filter table wilayah berdasarkan keyword provinsi.
   const filteredWilayah = useMemo(() => {
-    const q = wilayahSearch.trim().toLowerCase();
-    if (!q) return wilayahData;
-    return wilayahData.filter((w) => w.provinsi.toLowerCase().includes(q));
+    return wilayahData.filter((w) => matchesSearch(wilayahSearch, [w.provinsi]));
   }, [wilayahData, wilayahSearch]);
 
   // Handlers untuk Drag-to-Scroll
@@ -409,7 +410,7 @@ function DashboardExecutive() {
               Executive Dashboard
             </h1>
             <p className="text-[11px] text-gray-500 mt-0.5">
-              Ringkasan performa pelayanan terpadu PTSA KEMNAKER
+              Ringkasan performa pelayanan terpadu {APP_SHORT_NAME}
             </p>
           </div>
 
@@ -463,11 +464,22 @@ function DashboardExecutive() {
                 <FileText className="h-5 w-5" />
               </div>
               <span
+                title={
+                  growth === null
+                    ? "Bulan sebelumnya tidak ada aduan, jadi persentasenya belum bisa dihitung"
+                    : "Perubahan jumlah aduan bulan ini dibanding bulan sebelumnya"
+                }
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  (growth ?? 0) >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
+                  growth === null
+                    ? "bg-gray-100 text-gray-500"
+                    : growth >= 0
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "bg-red-50 text-red-500"
                 }`}
               >
-                {(growth ?? 0) >= 0 ? (
+                {growth === null ? (
+                  <Minus className="h-3 w-3" />
+                ) : growth >= 0 ? (
                   <TrendingUp className="h-3 w-3" />
                 ) : (
                   <TrendingDown className="h-3 w-3" />
@@ -480,7 +492,11 @@ function DashboardExecutive() {
               <p className="text-[26px] font-bold text-gray-900 tracking-tight mt-0.5">
                 {nf.format(totalAduan)}
               </p>
-              <p className="text-[10px] text-gray-400 mt-1">Periode tahun berjalan</p>
+              <p className="text-[10px] text-gray-400 mt-1">
+                {selectedDate
+                  ? `Total periode ${formatDisplayDate(selectedDate)}`
+                  : "Periode tahun berjalan"}
+              </p>
             </div>
           </div>
 

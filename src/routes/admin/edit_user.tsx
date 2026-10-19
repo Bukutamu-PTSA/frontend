@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Save, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/edit_user")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -36,7 +38,7 @@ function EditUserPage() {
   const [nama, setNama] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState(ROLE_OPTIONS[0].value);
+  const [role, setRole] = useState(ROLE_OPTIONS[0]?.value ?? "admin");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -117,11 +119,12 @@ function EditUserPage() {
         );
       }
 
-      alert("User berhasil diperbarui!");
+      toast.success(SUCCESS_MESSAGES.userUpdated);
       navigate({ to: "/admin/manajemen_user" });
     } catch (err: any) {
       console.error("Perbarui user gagal:", err);
-      setErrorMessage(err?.message || "Gagal memperbarui user. Silakan coba lagi.");
+      toast.error(err?.message || ERROR_MESSAGES.userUpdateFailed);
+      setErrorMessage(err?.message || ERROR_MESSAGES.userUpdateFailed);
     } finally {
       setSaving(false);
     }

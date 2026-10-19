@@ -11,17 +11,14 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import {
-  dismissNotif,
-  fetchNotifications,
-  markAllNotifRead,
-  markNotifRead,
-  type NotificationItem,
-} from "@/lib/notifications";
+import { matchesSearch } from "@/lib/search";
+import { fetchNotifications, type NotificationItem } from "@/lib/notifications";
+import { dismissNotif, markAllNotifRead, markNotifRead } from "@/lib/notification-status";
+import { CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/notifications")({
   head: () => ({
-    meta: [{ title: "Pusat Notifikasi - PTSA KEMNAKER" }],
+    meta: [{ title: PAGE_TITLES.adminNotifications }],
   }),
   component: NotificationsPage,
 });
@@ -61,17 +58,9 @@ function NotificationsPage() {
     let list = notifications.filter((n) => !n.dismissed);
     if (tab === "belum") list = list.filter((n) => !n.read);
 
-    const q = search.trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (n) =>
-          n.title.toLowerCase().includes(q) ||
-          n.description.toLowerCase().includes(q) ||
-          n.ticket.toLowerCase().includes(q) ||
-          n.category.toLowerCase().includes(q),
-      );
-    }
-    return list;
+    return list.filter((n) =>
+      matchesSearch(search, [n.title, n.description, n.ticket, n.category]),
+    );
   }, [notifications, tab, search]);
 
   const unreadCount = useMemo(
@@ -111,7 +100,7 @@ function NotificationsPage() {
 
   const handleDismissAll = () => {
     if (visible.length === 0) return;
-    if (!window.confirm(`Hapus ${visible.length} notifikasi di daftar ini?`)) return;
+    if (!window.confirm(CONFIRM_MESSAGES.dismissAllNotifications(visible.length))) return;
     dismissNotif(visible.map((n) => n.id));
     setOpenActions(null);
     setNotifications((prev) =>

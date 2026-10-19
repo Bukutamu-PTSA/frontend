@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search, Download, FileText, Eye, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
 import { pageWindow } from "@/lib/pagination";
 
 const CATEGORY_MAP: Record<number, { title: string; shortName: string }> = {
@@ -81,7 +84,7 @@ export const Route = createFileRoute("/admin/detail_kategori_pelayanan")({
   head: () => ({
     meta: [
       {
-        title: "Report Pengaduan Kategori - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminReportKategori,
       },
     ],
   }),
@@ -188,22 +191,14 @@ function DetailKategoriPage() {
 
   const filteredComplaints = useMemo(() => {
     return complaints.filter((item) => {
-      const q = appliedFilters.search.trim().toLowerCase();
-      const pelapor = String(item.complainant?.nama_lengkap ?? "").toLowerCase();
-      const perusahaan = String(item.company?.nama_perusahaan ?? "").toLowerCase();
-      const jenis = String(
-        item.category?.category_name ?? item.category?.category_code ?? "",
-      ).toLowerCase();
-      const ticket = String(item.ticket_number ?? "").toLowerCase();
+      const isMatch = matchesSearch(appliedFilters.search, [
+        item.complainant?.nama_lengkap,
+        item.company?.nama_perusahaan,
+        item.category?.category_name ?? item.category?.category_code,
+        item.ticket_number,
+      ]);
 
-      const matchesSearch =
-        !q ||
-        pelapor.includes(q) ||
-        perusahaan.includes(q) ||
-        jenis.includes(q) ||
-        ticket.includes(q);
-
-      if (!matchesSearch) return false;
+      if (!isMatch) return false;
 
       const dateStr = item.complaint_date ?? item.created_at;
       if (!dateStr) return true;
@@ -298,14 +293,14 @@ function DetailKategoriPage() {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (err: any) {
       console.error("Download error:", err);
-      alert(err.message || "Terjadi kesalahan saat mengunduh PDF pengaduan.");
+      toast.error(err.message || ERROR_MESSAGES.pdfComplaintExportFailed);
     } finally {
       setDownloadingId(null);
     }
   };
 
   const handleDelete = async (deleteId: number) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus pengaduan ini?")) return;
+    if (!window.confirm(CONFIRM_MESSAGES.deleteComplaint)) return;
 
     const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
@@ -320,11 +315,13 @@ function DetailKategoriPage() {
 
       if (res.ok) {
         setComplaints((prev) => prev.filter((item) => item.id !== deleteId));
+        toast.success(SUCCESS_MESSAGES.complaintDeleted);
       } else {
-        alert("Gagal menghapus aduan.");
+        toast.error(ERROR_MESSAGES.complaintDeleteFailed);
       }
     } catch (e) {
       console.error("Gagal menghapus aduan:", e);
+      toast.error(ERROR_MESSAGES.complaintDeleteError);
     }
   };
 

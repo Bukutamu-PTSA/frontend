@@ -12,19 +12,42 @@ import {
   Facebook,
   Instagram,
   Upload,
-  SwitchCamera,
   Check,
-  Trash2,
-  RotateCcw,
+  SwitchCamera,
 } from "lucide-react";
+import { toast } from "sonner";
 import { XIcon } from "@/components/x-icon";
 import { apiUrl } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import {
+  SUCCESS_MESSAGES,
+  ERROR_MESSAGES,
+  PAGE_TITLES,
+  ORGANIZATION_NAME_SHORT,
+  ORGANIZATION_UNIT,
+  ORGANIZATION_UNIT_FULL,
+  COPYRIGHT_YEARS,
+  DEVELOPER_NAME,
+  SYSTEM_OWNER_NAME,
+  ADDRESS_LINE_1,
+  ADDRESS_LINE_2,
+  ADDRESS_LINE_3,
+  CONTACT_EMAIL,
+  MAPS_URL,
+  SOCIAL_LINKS,
+} from "@/config/app";
+
+const iconMap = {
+  XIcon,
+  Facebook,
+  Instagram,
+};
 
 export const Route = createFileRoute("/bukti_pendukung")({
   head: () => ({
     meta: [
       {
-        title: "Detail Aduan & Bukti Pendukung - Kementerian Ketenagakerjaan",
+        title: PAGE_TITLES.buktiPendukung,
       },
     ],
   }),
@@ -33,14 +56,50 @@ export const Route = createFileRoute("/bukti_pendukung")({
 
 const COMPLAINTS_API_URL = apiUrl("complaints");
 
+/** Batas ukuran satu file bukti: 5 MB. */
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+/** Ekstensi & MIME yang diterima untuk bukti pendukung. */
+const ALLOWED_EXTENSIONS = /\.(jpe?g|png|pdf)$/i;
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+
+/**
+ * Validasi satu file bukti. Pesan dikembalikan sebagai string agar bisa dipakai
+ * baik untuk alert maupunSTATE error di UI.
+ *
+ * Kalau file punya ekstensi yang benar tapi browser melaporkan MIME kosong
+ * (serang terjadi di Windows), MIME diabaikan — ekstensi sudah cukup.
+ */
+function validateEvidenceFile(file: File): string | null {
+  const byExtension = ALLOWED_EXTENSIONS.test(file.name);
+  const byMime = file.type === "" || ALLOWED_MIME_TYPES.includes(file.type);
+
+  if (!byExtension && !byMime) {
+    return "Bukti pendukung harus berupa file JPG/JPEG, PNG, atau PDF.";
+  }
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    const mb = (file.size / (1024 * 1024)).toFixed(1);
+    return `Ukuran file ${mb} MB melebihi batas 5 MB.`;
+  }
+
+  if (file.size === 0) {
+    return "File yang dipilih kosong (0 byte).";
+  }
+
+  return null;
+}
+
 /** Arah kamera: "environment" = belakang, "user" = depan (selfie). */
 type FacingMode = "environment" | "user";
 
-/** Jumlah maksimal foto yang bisa diambil dalam satu sesi kamera. */
-const MAX_SHOTS = 5;
-
-/** Satu hasil jepretan di sesi kamera (sebelum dipilih). */
-type Shot = { id: string; url: string; file: File };
+/** Satu foto hasil jepretan kamera di galeri. */
+interface CapturedPhoto {
+  id: string;
+  file: File;
+  /** Object URL untuk preview; dibebaskan saat foto dihapus / halaman ditutup. */
+  url: string;
+}
 
 /** Perangkat sentuh (HP/tablet) hampir selalu punya kamera depan & belakang. */
 function isTouchDevice(): boolean {
@@ -64,46 +123,62 @@ async function listCameras(): Promise<MediaDeviceInfo[]> {
   }
 }
 
+/** Jumlah maksimal foto yang bisa diambil sebelum memilih satu. */
+const MAX_PHOTOS = 5;
+
+/** Format ukuran file untuk ditampilkan di UI. */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function BuktiPendukungPage() {
   const navigate = useNavigate();
 
   const [deskripsiAduan, setDeskripsiAduan] = useState("");
   const [selectedDocument, setSelectedDocument] = useState<File | null>(null);
 
-  // Hasil foto (object URL untuk preview + File untuk dikirim).
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const [capturedFile, setCapturedFile] = useState<File | null>(null);
+  // Galeri foto hasil kamera. Pengguna bisa mengambil beberapa foto, lalu
+  // memilih SATU yang dipakai sebagai bukti/foto pelapor.
+  const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
+  const selectedPhoto = photos.find((p) => p.id === selectedPhotoId) ?? null;
+  // Nilai yang dikirim saat submit & dipakai untuk preview.
+  const capturedFile = selectedPhoto?.file ?? null;
+  const capturedPhoto = selectedPhoto?.url ?? null;
+  const photosRef = useRef<CapturedPhoto[]>([]);
+  photosRef.current = photos;
+
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Kamera langsung (getUserMedia) + flip depan/belakang.
+  // Live camera (getUserMedia) state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [isCameraStarting, setIsCameraStarting] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
   const [facingMode, setFacingMode] = useState<FacingMode>("environment");
   const [canFlipCamera, setCanFlipCamera] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Sesi multi-foto: jepret hingga MAX_SHOTS, lalu pilih satu untuk dipakai.
-  const [shots, setShots] = useState<Shot[]>([]);
-  const [cameraStep, setCameraStep] = useState<"capture" | "select">("capture");
-  const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
-  const shotsRef = useRef<Shot[]>([]);
-  shotsRef.current = shots;
-
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   /** Hentikan semua track kamera dan lepaskan stream. */
   const stopCameraStream = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
   };
 
   /**
-   * Nyalakan stream kamera, lewat deviceId (paling andal untuk flip) atau
-   * facingMode. Mengembalikan arah kamera yang benar-benar aktif.
+   * Nyalakan stream kamera, lewat deviceId (paling andal untuk flip di HP)
+   * atau facingMode. Bila perangkat tidak punya kamera yang diminta, pakai
+   * kamera apa pun. Mengembalikan arah kamera yang benar-benar aktif.
    */
   const startStream = async (target: {
     facing: FacingMode;
@@ -128,7 +203,6 @@ function BuktiPendukungPage() {
       if (name !== "OverconstrainedError" && name !== "NotFoundError") throw err;
       stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     }
-
     streamRef.current = stream;
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
@@ -148,21 +222,20 @@ function BuktiPendukungPage() {
     return actual;
   };
 
-  /** Buka kamera langsung di browser. */
+  /** Buka kamera langsung di browser lewat getUserMedia. */
   const openCamera = async () => {
     setCameraError(null);
 
-    // getUserMedia hanya ada di HTTPS/localhost. Di luar itu pakai kamera
-    // bawaan HP lewat input file (tanpa tombol flip).
+    // Browser lama / konteks non-HTTPS tidak punya getUserMedia -> fallback
+    // ke input file bawaan (yang di HP langsung membuka kamera).
     if (!navigator.mediaDevices?.getUserMedia) {
       cameraInputRef.current?.click();
       return;
     }
 
-    clearShots();
-    setCameraStep("capture");
-    setIsCameraOpen(true);
     setIsCameraStarting(true);
+    setIsCameraOpen(true);
+
     try {
       setFacingMode(await startStream({ facing: facingMode }));
     } catch (err) {
@@ -177,72 +250,7 @@ function BuktiPendukungPage() {
     }
   };
 
-  /** Hapus semua jepretan sesi ini & bebaskan object URL-nya. */
-  const clearShots = () => {
-    shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url));
-    shotsRef.current = [];
-    setShots([]);
-    setSelectedShotId(null);
-  };
-
-  /** Tutup modal kamera, matikan stream, dan buang jepretan yang tidak dipakai. */
-  const closeCamera = () => {
-    stopCameraStream();
-    clearShots();
-    setCameraStep("capture");
-    setIsCameraOpen(false);
-    setIsCameraStarting(false);
-  };
-
-  /** Selesai memotret: matikan kamera dan tampilkan pilihan foto. */
-  const goToSelect = (list: Shot[] = shotsRef.current) => {
-    if (list.length === 0) return;
-    stopCameraStream();
-    setSelectedShotId((prev) =>
-      prev && list.some((s) => s.id === prev) ? prev : (list[list.length - 1]?.id ?? null),
-    );
-    setCameraStep("select");
-  };
-
-  /** Kembali ke mode memotret (bila jatah foto masih ada). */
-  const backToCapture = async () => {
-    if (shotsRef.current.length >= MAX_SHOTS) return;
-    setCameraStep("capture");
-    setIsCameraStarting(true);
-    try {
-      setFacingMode(await startStream({ facing: facingMode }));
-    } catch (err) {
-      console.error("Gagal menyalakan ulang kamera:", err);
-      alert("Gagal menyalakan kamera kembali.");
-      setCameraStep("select");
-    } finally {
-      setIsCameraStarting(false);
-    }
-  };
-
-  /** Hapus satu jepretan dari daftar pilihan. */
-  const removeShot = (id: string) => {
-    const target = shotsRef.current.find((s) => s.id === id);
-    if (target) URL.revokeObjectURL(target.url);
-    const next = shotsRef.current.filter((s) => s.id !== id);
-    shotsRef.current = next;
-    setShots(next);
-    if (next.length === 0) {
-      void backToCapture();
-    } else if (selectedShotId === id) {
-      setSelectedShotId(next[next.length - 1]?.id ?? null);
-    }
-  };
-
-  /** Pakai foto yang dipilih sebagai bukti, lalu tutup kamera. */
-  const confirmSelectedShot = () => {
-    const chosen = shotsRef.current.find((s) => s.id === selectedShotId);
-    if (!chosen) return;
-    applyPhoto(chosen.file);
-    closeCamera();
-  };
-
-  /** Ganti antara kamera belakang dan depan. */
+  /** Ganti antara kamera belakang dan kamera depan. */
   const flipCamera = async () => {
     const next: FacingMode = facingMode === "environment" ? "user" : "environment";
     const currentId = streamRef.current?.getVideoTracks()[0]?.getSettings?.().deviceId;
@@ -270,7 +278,7 @@ function BuktiPendukungPage() {
       setFacingMode(actual);
     } catch (err) {
       console.error("Gagal mengganti kamera:", err);
-      alert("Gagal mengganti kamera. Kembali ke kamera sebelumnya.");
+      toast.error("Gagal mengganti kamera. Mencoba kembali ke kamera sebelumnya.");
       await startStream({ facing: facingMode, deviceId: currentId })
         .then(setFacingMode)
         .catch(() => closeCamera());
@@ -279,25 +287,48 @@ function BuktiPendukungPage() {
     }
   };
 
-  /** Simpan foto sebagai bukti (ganti foto lama & bebaskan URL-nya). */
-  const applyPhoto = (file: File) => {
-    // URL lama dibebaskan oleh effect cleanup di bawah.
-    setCapturedPhoto(URL.createObjectURL(file));
-    setCapturedFile(file);
+  /** Tutup modal kamera dan matikan stream. */
+  const closeCamera = () => {
+    stopCameraStream();
+    setIsCameraOpen(false);
+    setIsCameraStarting(false);
   };
 
-  /** Ambil frame dari video sebagai foto JPEG. */
+  /** Masukkan foto ke galeri dan jadikan foto terpilih. */
+  const addPhoto = (file: File) => {
+    if (photosRef.current.length >= MAX_PHOTOS) {
+      toast.error(`Maksimal ${MAX_PHOTOS} foto. Hapus salah satu foto dulu.`);
+      return false;
+    }
+    const photo: CapturedPhoto = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      url: URL.createObjectURL(file),
+    };
+    setPhotos((prev) => [...prev, photo]);
+    setSelectedPhotoId(photo.id);
+    return true;
+  };
+
+  /**
+   * Ambil frame dari video dan tambahkan ke galeri. Kamera tetap terbuka
+   * supaya pengguna bisa mengambil beberapa foto lalu memilih yang terbaik.
+   */
   const takePhoto = () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) return;
-    if (shotsRef.current.length >= MAX_SHOTS) return;
+    if (photosRef.current.length >= MAX_PHOTOS) {
+      toast.error(`Maksimal ${MAX_PHOTOS} foto. Hapus salah satu foto dulu.`);
+      return;
+    }
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    // Kamera depan ditampilkan seperti cermin; simpan sama seperti yang dilihat.
+    // Kamera depan ditampilkan seperti cermin; simpan hasil yang sama dengan
+    // yang dilihat pengguna.
     if (facingMode === "user") {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
@@ -306,77 +337,94 @@ function BuktiPendukungPage() {
 
     canvas.toBlob(
       (blob) => {
-        if (!blob || shotsRef.current.length >= MAX_SHOTS) return;
-        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        const file = new File([blob], `bukti-foto-${id}.jpg`, { type: "image/jpeg" });
-        const next = [...shotsRef.current, { id, file, url: URL.createObjectURL(file) }];
-        shotsRef.current = next;
-        setShots(next);
-        setSelectedShotId(id);
-        // Jatah habis: langsung ke layar pilih foto.
-        if (next.length >= MAX_SHOTS) goToSelect(next);
+        if (!blob) return;
+        const file = new File([blob], `bukti-foto-${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
+
+        const problem = validateEvidenceFile(file);
+        if (problem) {
+          setFileError(problem);
+          return;
+        }
+
+        setFileError(null);
+        addPhoto(file);
       },
       "image/jpeg",
       0.92,
     );
   };
 
-  // Pengaman: bila stream siap sebelum <video> modal ter-render, pasang di sini.
-  useEffect(() => {
-    const video = videoRef.current;
-    if (isCameraOpen && video && streamRef.current && video.srcObject !== streamRef.current) {
-      video.srcObject = streamRef.current;
-      video.play().catch(() => {});
-    }
-  }, [isCameraOpen, isCameraStarting]);
-
-  // Lepas kamera & URL jepretan saat halaman ditinggalkan.
-  useEffect(
-    () => () => {
-      stopCameraStream();
-      shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url));
-    },
-    [],
-  );
-
-  // Bebaskan object URL preview saat diganti / unmount.
+  // Pastikan stream kamera dilepas & URL preview dibebaskan saat unmount.
   useEffect(() => {
     return () => {
-      if (capturedPhoto) URL.revokeObjectURL(capturedPhoto);
+      stopCameraStream();
+      photosRef.current.forEach((p) => URL.revokeObjectURL(p.url));
     };
-  }, [capturedPhoto]);
+  }, []);
 
   const handleCapture = () => {
     openCamera();
   };
 
-  /** Fallback input kamera bawaan (non-HTTPS / browser lama). */
-  const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
+  /** Terapkan file dari input kamera bawaan (fallback browser lama). */
+  const applyCameraFile = (file: File | undefined) => {
     if (!file) return;
 
-    if (
-      !/\.(jpe?g|png)$/i.test(file.name) &&
-      !["image/jpeg", "image/png"].includes(file.type)
-    ) {
-      alert("Bukti foto harus berupa file JPG/JPEG atau PNG.");
+    const problem = validateEvidenceFile(file);
+    if (problem) {
+      setFileError(problem);
       return;
     }
 
-    applyPhoto(file);
+    setFileError(null);
+    addPhoto(file);
   };
 
-  const handleClearPhoto = () => {
-    setCapturedPhoto(null);
-    setCapturedFile(null);
+  const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    applyCameraFile(e.target.files?.[0]);
+    // Reset nilai input supaya memilih file yang sama dua kali tetap memicu
+    // event change (tanpa ini, pilih kedua diam-diam diabaikan browser).
+    e.target.value = "";
+  };
+
+  /** Hapus satu foto dari galeri; bila itu foto terpilih, pilih foto terakhir. */
+  const handleRemovePhoto = (id: string) => {
+    const target = photosRef.current.find((p) => p.id === id);
+    if (target) URL.revokeObjectURL(target.url);
+    const remaining = photosRef.current.filter((p) => p.id !== id);
+    setPhotos(remaining);
+    if (selectedPhotoId === id) {
+      setSelectedPhotoId(remaining[remaining.length - 1]?.id ?? null);
+    }
+  };
+
+  /** Terapkan file ke input dokumen (dipakai oleh pilih-file maupun drop). */
+  const applyDocumentFile = (file: File | undefined) => {
+    if (!file) return;
+
+    const problem = validateEvidenceFile(file);
+    if (problem) {
+      setFileError(problem);
+      return;
+    }
+
+    setFileError(null);
+    setSelectedDocument(file);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // Reset supaya memilih file yang sama lagi tetap memicu onChange.
+    applyDocumentFile(e.target.files?.[0]);
+    // Sama seperti kamera: reset supaya file yang sama bisa dipilih ulang.
     e.target.value = "";
-    if (file) setSelectedDocument(file);
+  };
+
+  /** Drop file langsung ke area upload (diodPromisekan dari teks "Drag a file"). */
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    applyDocumentFile(e.dataTransfer.files?.[0]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -388,14 +436,18 @@ function BuktiPendukungPage() {
     setIsSubmitting(true);
 
     try {
-      if (
-        selectedDocument &&
-        !/\.(pdf|jpe?g|png)$/i.test(selectedDocument.name) &&
-        !["application/pdf", "image/jpeg", "image/png"].includes(selectedDocument.type)
-      ) {
-        alert("Hanya file PDF, JPG, JPEG, atau PNG yang diizinkan.");
-        return;
+      // Validasi ulang di sisi submit supaya file yang lolos filter UI (mis.
+      // ditambahkan lewat drop) tetapTERcek.
+      for (const file of [selectedDocument, capturedFile]) {
+        if (!file) continue;
+        const problem = validateEvidenceFile(file);
+        if (problem) {
+          setFileError(problem);
+          setIsSubmitting(false);
+          return;
+        }
       }
+      setFileError(null);
 
       const formData = new FormData();
 
@@ -431,12 +483,21 @@ function BuktiPendukungPage() {
       formData.append("company[no_telp]", draftData.noTelpPerusahaan || "");
       formData.append("company[email]", draftData.emailPerusahaan || "");
 
-      // 4. Attachments (attachments[])
+      // 4. Attachments — setiap lampiran dikirim beserta `file_type` supaya
+      //    backend bisa membedakan FOTO pelapor (dipakai di view_pdf &
+      //    detail_berkas lewat `att.file_type === "photo"`) dari DOKUMEN bukti.
+      //    Dikirim sebagai array ber-index terstruktur (pola Laravel), sejajar
+      //    dengan bentuk nested complainant[...]/company[...] di atas.
+      let attachmentIndex = 0;
       if (capturedFile) {
-        formData.append("attachments[]", capturedFile);
+        formData.append(`attachments[${attachmentIndex}][file]`, capturedFile);
+        formData.append(`attachments[${attachmentIndex}][file_type]`, "photo");
+        attachmentIndex += 1;
       }
       if (selectedDocument) {
-        formData.append("attachments[]", selectedDocument);
+        formData.append(`attachments[${attachmentIndex}][file]`, selectedDocument);
+        formData.append(`attachments[${attachmentIndex}][file_type]`, "document");
+        attachmentIndex += 1;
       }
 
       const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
@@ -461,18 +522,18 @@ function BuktiPendukungPage() {
                   `• ${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`,
               )
               .join("\n")
-          : responseData?.message || "Data formulir tidak memenuhi validasi server.";
+          : responseData?.message || ERROR_MESSAGES.pengaduanValidationFailed;
 
-        alert(`Gagal menyimpan pengaduan (422):\n\n${errorMessages}`);
+        toast.error(ERROR_MESSAGES.pengaduanSubmitFailed, { description: errorMessages });
         return;
       }
 
       sessionStorage.removeItem("draft_pengaduan");
-      alert("Pengaduan berhasil disimpan!");
+      toast.success(SUCCESS_MESSAGES.pengaduanSubmitted);
       navigate({ to: "/" });
     } catch (err) {
       console.error("Gagal mengirim pengaduan:", err);
-      alert("Terjadi kendala jaringan saat menghubungi server.");
+      toast.error(ERROR_MESSAGES.pengaduanNetworkError);
     } finally {
       setIsSubmitting(false);
     }
@@ -484,11 +545,11 @@ function BuktiPendukungPage() {
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-2xs">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0E3B68] text-white shadow-xs">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-secondary text-white shadow-xs">
               <Building2 className="h-5 w-5" />
             </div>
             <span className="text-[14px] font-bold text-gray-900 tracking-tight">
-              Kementerian Ketenagakerjaan
+              {ORGANIZATION_NAME_SHORT}
             </span>
           </div>
 
@@ -498,7 +559,7 @@ function BuktiPendukungPage() {
             </Link>
             <Link
               to="/pengaduan"
-              className="font-semibold text-[#0E3B68] hover:text-[#0E3B68] transition-colors"
+              className="font-semibold text-brand-secondary hover:text-brand-secondary transition-colors"
             >
               Pengaduan
             </Link>
@@ -538,7 +599,7 @@ function BuktiPendukungPage() {
                 onChange={(e) => setDeskripsiAduan(e.target.value)}
                 required
                 placeholder="Contoh: Pada tanggal 10 Oktober 2024, perusahaan X melakukan pemotongan upah sepihak tanpa pemberitahuan sebelumnya sebesar..."
-                className="w-full rounded-xl border border-gray-200 p-3.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] resize-none"
+                className="w-full rounded-xl border border-gray-200 p-3.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary resize-none"
               />
             </div>
 
@@ -561,17 +622,32 @@ function BuktiPendukungPage() {
 
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-2 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-[#FAFBFD] p-8 text-center hover:bg-gray-50 transition-colors cursor-pointer"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={cn(
+                  "mt-2 flex flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center transition-colors cursor-pointer",
+                  isDragging
+                    ? "border-brand-secondary bg-brand-secondary/5"
+                    : "border-gray-300 bg-[#FAFBFD] hover:bg-gray-50",
+                )}
               >
                 {selectedDocument ? (
                   <div className="flex items-center gap-2 text-[11px] text-emerald-700 font-medium">
                     <FileCheck className="h-4 w-4" />
-                    <span>{selectedDocument.name}</span>
+                    <span className="max-w-[220px] truncate">{selectedDocument.name}</span>
+                    <span className="shrink-0 text-emerald-500/80">
+                      ({formatFileSize(selectedDocument.size)})
+                    </span>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedDocument(null);
+                        setFileError(null);
                       }}
                       className="ml-2 text-gray-400 hover:text-red-500"
                     >
@@ -580,8 +656,14 @@ function BuktiPendukungPage() {
                   </div>
                 ) : (
                   <>
+                    <Upload
+                      className={cn(
+                        "mb-2 h-6 w-6",
+                        isDragging ? "text-brand-secondary" : "text-gray-300",
+                      )}
+                    />
                     <p className="text-[11px] text-gray-500 font-medium">
-                      Drag a file here to upload or
+                      {isDragging ? "Lepaskan file di sini" : "Tarik file ke sini atau"}
                     </p>
                     <button
                       type="button"
@@ -593,9 +675,16 @@ function BuktiPendukungPage() {
                     >
                       Browse...
                     </button>
+                    <p className="mt-2 text-[10px] text-gray-400">
+                      JPG, PNG, atau PDF &middot; maksimal 5 MB
+                    </p>
                   </>
                 )}
               </div>
+
+              {fileError && (
+                <p className="pt-1 text-[10px] font-medium text-red-500">{fileError}</p>
+              )}
             </div>
 
             {/* Bukti Foto Kamera */}
@@ -604,8 +693,7 @@ function BuktiPendukungPage() {
                 Bukti Foto (Opsional namun sangat disarankan)
               </label>
               <p className="text-[10px] text-gray-400 leading-tight">
-                Ketuk tombol kamera untuk membuka kamera langsung di browser. Kamera depan/belakang
-                bisa diganti. Ambil hingga {MAX_SHOTS} foto, lalu pilih satu yang paling jelas.
+                Ketuk tombol kamera untuk membuka kamera langsung di browser dan ambil foto.
               </p>
 
               <input
@@ -617,25 +705,47 @@ function BuktiPendukungPage() {
                 className="sr-only"
               />
 
-              {capturedPhoto ? (
-                <div className="relative mx-auto mt-3 h-52 max-w-md overflow-hidden rounded-xl bg-[#2D3748] flex items-center justify-center">
-                  <img
-                    src={capturedPhoto}
-                    alt="Hasil Foto"
-                    className="h-full w-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleClearPhoto}
-                    className="absolute top-2 right-2 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white hover:bg-black"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+              {capturedPhoto && selectedPhoto ? (
+                <div className="mx-auto mt-3 max-w-md space-y-2">
+                  {/* Preview foto yang akan dipakai */}
+                  <div className="relative h-52 overflow-hidden rounded-xl bg-[#2D3748] flex items-center justify-center">
+                    <img
+                      src={capturedPhoto}
+                      alt="Foto yang akan digunakan"
+                      className="h-full w-full object-cover"
+                    />
+                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+                      <Check className="h-3 w-3" /> Foto yang digunakan
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(selectedPhoto.id)}
+                      className="absolute top-2 right-2 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white hover:bg-black"
+                      aria-label="Hapus foto ini"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Galeri: pilih foto lain bila mengambil lebih dari satu */}
+                  {photos.length > 1 && (
+                    <PhotoPicker
+                      photos={photos}
+                      selectedId={selectedPhotoId}
+                      onSelect={setSelectedPhotoId}
+                      onRemove={handleRemovePhoto}
+                    />
+                  )}
+                  <p className="text-center text-[10px] text-gray-400">
+                    {photos.length > 1
+                      ? `Ketuk foto untuk memilih yang digunakan (${photos.length}/${MAX_PHOTOS}).`
+                      : `Ambil foto lagi bila ingin membandingkan (maks. ${MAX_PHOTOS}).`}
+                  </p>
                 </div>
               ) : (
                 <div
                   onClick={handleCapture}
-                  className="mt-3 flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 bg-[#FAFBFD] text-gray-400 hover:bg-gray-50 hover:text-[#0E3B68] transition-colors"
+                  className="mt-3 flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 bg-[#FAFBFD] text-gray-400 hover:bg-gray-50 hover:text-brand-secondary transition-colors"
                 >
                   <Camera className="h-6 w-6" />
                   <span className="text-[11px] font-medium">
@@ -648,12 +758,12 @@ function BuktiPendukungPage() {
                 <button
                   type="button"
                   onClick={handleCapture}
-                  className="flex flex-col items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-[#0E3B68] transition-colors cursor-pointer"
+                  className="flex flex-col items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-brand-secondary transition-colors cursor-pointer"
                 >
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#0E3B68] text-white shadow-xs hover:bg-[#0a2c4e] transition-colors">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand-secondary text-white shadow-xs hover:bg-brand-secondary-hover transition-colors">
                     <Camera className="h-5 w-5" />
                   </div>
-                  <span>{capturedPhoto ? "Ambil Ulang Foto" : "Mulai Kamera"}</span>
+                  <span>{photos.length > 0 ? "Ambil Foto Lagi" : "Mulai Kamera"}</span>
                 </button>
               </div>
 
@@ -677,7 +787,7 @@ function BuktiPendukungPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#0E3B68] px-7 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-[#0a2c4e] transition-colors cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-secondary px-7 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-brand-secondary-hover transition-colors cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
@@ -694,107 +804,88 @@ function BuktiPendukungPage() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-12 border-t border-[#092847] bg-[#071F38] text-white/80">
-        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3 text-[11px]">
-            <div className="space-y-3">
-              <h3 className="text-[12px] font-bold text-emerald-400 tracking-wide">
-                BINWASNAKER & K3
-              </h3>
-              <p className="text-white/60 leading-relaxed">
-                Ditjen Binwasnaker & K3 adalah unsur pelaksana yang berada di bawah dan bertanggung
-                jawab kepada Menteri Ketenagakerjaan.
+      <footer className="bg-brand-primary text-white mt-12">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
+            {/* Kolom 1: Brand */}
+            <div>
+              <h3 className="text-xl font-bold">{ORGANIZATION_UNIT}</h3>
+              <p className="mt-4 text-sm leading-relaxed text-gray-300">
+                {ORGANIZATION_UNIT_FULL} adalah unsur pelaksana yang berada di bawah dan
+                bertanggung jawab kepada Menteri Ketenagakerjaan.
               </p>
-              <div className="flex items-center gap-3 pt-2 text-white/70">
-                <a
-                  href="https://x.com/KemnakerRI"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
-                >
-                  <XIcon className="h-4 w-4" />
-                </a>
-                <a
-                  href="https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
-                >
-                  <Facebook className="h-4 w-4" />
-                </a>
-                <a
-                  href="https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ=="
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-white transition-colors"
-                >
-                  <Instagram className="h-4 w-4" />
-                </a>
+              <div className="mt-6 flex gap-3">
+                {SOCIAL_LINKS.map(({ icon, href }, i) => {
+                  const Icon = iconMap[icon as keyof typeof iconMap];
+                  return (
+                    <a
+                      key={i}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-white"
+                    >
+                      <Icon className="size-4" />
+                    </a>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h3 className="text-[12px] font-bold text-white tracking-wide">Customer Support</h3>
-              <ul className="space-y-2 text-white/60">
-                <li>
-                  <Link to="/faqpage" className="hover:text-white transition-colors">
-                    › FAQ
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/" className="hover:text-white transition-colors">
-                    › Contact Us
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-[12px] font-bold text-white tracking-wide">Have a Questions?</h3>
-              <div className="space-y-2 text-white/60">
+            {/* Kolom 2: Kontak & Bantuan (FAQ di bawah) */}
+            <div>
+              <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
+              <hr className="mt-4 border-white/15" />
+              <a
+                href={MAPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex gap-3 text-sm text-gray-300 transition-colors hover:text-emerald-400"
+              >
+                <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
+                <p className="leading-relaxed">
+                  {ADDRESS_LINE_1}, {ADDRESS_LINE_2}, {ADDRESS_LINE_3}
+                </p>
+              </a>
+              <div className="mt-4 flex items-center gap-3 text-sm">
+                <Mail className="size-5 text-emerald-400" />
                 <a
-                  href="https://maps.app.goo.gl/QiLps9tsVMszzHf79"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start gap-2 hover:text-white transition-colors"
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="text-gray-300 hover:text-emerald-400 transition-colors"
                 >
-                  <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                  <p className="leading-snug">
-                    Jl. Gatot Subroto No.51, RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi, Kota
-                    Jakarta Selatan, Daerah Khusus Jakarta - 12950, Indonesia
-                  </p>
+                  Pengaduan WLKP
                 </a>
-                <div className="flex items-center gap-2 pt-1">
-                  <Mail className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <p>Pengaduan WLKP</p>
-                </div>
+              </div>
+              {/* FAQ di bawah kontak */}
+              <div className="mt-6 pt-4 border-t border-white/15">
+                <Link
+                  to="/faqpage"
+                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-emerald-400 transition-colors"
+                >
+                  <span className="text-emerald-400">›</span> FAQ
+                </Link>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 border-t border-white/10 pt-5 text-center text-[10px] text-white/40">
-            <p>Copyright © BINSIS || 2024 - 2026</p>
-            <p className="mt-0.5">Designed by TUBSPK</p>
+          <hr className="mt-10 border-white/15" />
+
+          <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
+            <p>Copyright © {SYSTEM_OWNER_NAME} || {COPYRIGHT_YEARS}</p>
+            <p>Designed by {DEVELOPER_NAME}</p>
           </div>
         </div>
       </footer>
 
       {/* Modal Kamera Langsung */}
       {isCameraOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Ambil foto bukti"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
-        >
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 p-4">
           <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-black shadow-2xl">
             <div className="flex items-center justify-between bg-black/60 px-4 py-3">
               <span className="text-[12px] font-semibold text-white">
-                {cameraStep === "select" ? "Pilih Foto Bukti" : "Ambil Foto Bukti"}
+                Ambil Foto Bukti
                 <span className="ml-2 font-normal text-white/60">
-                  {cameraStep === "select"
-                    ? `${shots.length} foto`
-                    : `${facingMode === "user" ? "Kamera depan" : "Kamera belakang"} · ${shots.length}/${MAX_SHOTS}`}
+                  {facingMode === "user" ? "Kamera depan" : "Kamera belakang"}
                 </span>
               </span>
               <button
@@ -807,19 +898,17 @@ function BuktiPendukungPage() {
               </button>
             </div>
 
-            {/* Video tetap ter-mount (disembunyikan saat memilih) agar stream bisa
-                dipasang ulang tanpa menunggu render. */}
-            <div
-              className={`relative aspect-[3/4] max-h-[65vh] w-full items-center justify-center bg-[#111] ${
-                cameraStep === "select" ? "hidden" : "flex"
-              }`}
-            >
+            <div className="relative flex aspect-[3/4] w-full items-center justify-center bg-[#111]">
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className={`h-full w-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`}
+                className={cn(
+                  "h-full w-full object-cover",
+                  // Kamera depan ditampilkan seperti cermin agar terasa natural.
+                  facingMode === "user" && "-scale-x-100",
+                )}
               />
               {isCameraStarting && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 text-white">
@@ -827,116 +916,53 @@ function BuktiPendukungPage() {
                   <span className="text-[11px]">Menyalakan kamera...</span>
                 </div>
               )}
-
-              {/* Strip jepretan sementara */}
-              {shots.length > 0 && (
-                <div className="absolute inset-x-0 bottom-0 flex gap-1.5 overflow-x-auto bg-gradient-to-t from-black/70 to-transparent p-2">
-                  {shots.map((s, i) => (
-                    <img
-                      key={s.id}
-                      src={s.url}
-                      alt={`Jepretan ${i + 1}`}
-                      className="h-12 w-12 shrink-0 rounded-md border border-white/40 object-cover"
-                    />
-                  ))}
-                </div>
+              {photos.length > 0 && (
+                <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">
+                  {photos.length}/{MAX_PHOTOS} foto
+                </span>
               )}
             </div>
 
-            {cameraStep === "select" && (
-              <div className="max-h-[65vh] overflow-y-auto bg-[#111] p-3">
-                <p className="mb-2 text-[11px] text-white/70">
-                  Ketuk foto yang ingin digunakan sebagai bukti.
-                </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {shots.map((s, i) => {
-                    const isSelected = s.id === selectedShotId;
-                    return (
-                      <div key={s.id} className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedShotId(s.id)}
-                          aria-pressed={isSelected}
-                          aria-label={`Pilih foto ${i + 1}`}
-                          className={`block aspect-[3/4] w-full overflow-hidden rounded-lg border-2 transition-colors ${
-                            isSelected ? "border-emerald-400" : "border-transparent hover:border-white/40"
-                          }`}
-                        >
-                          <img
-                            src={s.url}
-                            alt={`Foto ${i + 1}`}
-                            className="h-full w-full object-cover"
-                          />
-                        </button>
-                        {isSelected && (
-                          <span className="pointer-events-none absolute left-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-white shadow">
-                            <Check className="h-4 w-4" />
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => removeShot(s.id)}
-                          aria-label={`Hapus foto ${i + 1}`}
-                          className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white hover:bg-red-600 transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+            {/* Galeri hasil jepretan: ketuk untuk memilih foto yang digunakan */}
+            {photos.length > 0 && (
+              <div className="bg-black/60 px-4 pt-3">
+                <PhotoPicker
+                  photos={photos}
+                  selectedId={selectedPhotoId}
+                  onSelect={setSelectedPhotoId}
+                  onRemove={handleRemovePhoto}
+                  dark
+                />
               </div>
             )}
 
-            {cameraStep === "select" ? (
-              <div className="flex items-center justify-between gap-2 bg-black/60 px-4 py-4">
-                <button
-                  type="button"
-                  onClick={backToCapture}
-                  disabled={shots.length >= MAX_SHOTS || isCameraStarting}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors disabled:opacity-40"
-                  title={shots.length >= MAX_SHOTS ? `Maksimal ${MAX_SHOTS} foto` : undefined}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  {shots.length >= MAX_SHOTS ? `Maks. ${MAX_SHOTS} foto` : "Ambil Lagi"}
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmSelectedShot}
-                  disabled={!selectedShotId}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-5 py-2 text-[11px] font-semibold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  Gunakan Foto Ini
-                </button>
-              </div>
-            ) : (
             <div className="grid grid-cols-3 items-center bg-black/60 px-4 py-5">
-              {shots.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => goToSelect()}
-                  disabled={isCameraStarting}
-                  className="justify-self-start rounded-lg bg-emerald-500 px-4 py-2 text-[11px] font-semibold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
-                >
-                  Selesai ({shots.length})
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={closeCamera}
-                  className="justify-self-start rounded-lg border border-white/20 bg-white/10 px-5 py-2 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors"
-                >
-                  Batal
-                </button>
-              )}
+              <div className="justify-self-start">
+                {photos.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={closeCamera}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-[11px] font-semibold text-white hover:bg-emerald-600 transition-colors"
+                  >
+                    <Check className="h-3.5 w-3.5" /> Gunakan Foto
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={closeCamera}
+                    className="rounded-lg border border-white/20 bg-white/10 px-5 py-2 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors"
+                  >
+                    Batal
+                  </button>
+                )}
+              </div>
 
               <button
                 type="button"
                 onClick={takePhoto}
-                disabled={isCameraStarting || shots.length >= MAX_SHOTS}
-                className="justify-self-center grid h-14 w-14 place-items-center rounded-full border-4 border-white bg-white/20 text-white hover:bg-white/40 active:scale-95 transition disabled:opacity-50"
-                aria-label={`Ambil foto (${shots.length}/${MAX_SHOTS})`}
+                disabled={isCameraStarting || photos.length >= MAX_PHOTOS}
+                className="justify-self-center grid h-14 w-14 place-items-center rounded-full border-4 border-white bg-white/20 text-white hover:bg-white/40 transition-colors disabled:opacity-50"
+                aria-label="Ambil foto"
               >
                 <Camera className="h-6 w-6" />
               </button>
@@ -958,10 +984,65 @@ function BuktiPendukungPage() {
                 )}
               </div>
             </div>
-            )}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+/** Deretan thumbnail foto; ketuk untuk memilih foto yang digunakan. */
+function PhotoPicker({
+  photos,
+  selectedId,
+  onSelect,
+  onRemove,
+  dark = false,
+}: {
+  photos: CapturedPhoto[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onRemove: (id: string) => void;
+  dark?: boolean;
+}) {
+  return (
+    <ul className="flex gap-2 overflow-x-auto pb-1" aria-label="Pilih foto yang digunakan">
+      {photos.map((photo, index) => {
+        const isSelected = photo.id === selectedId;
+        return (
+          <li key={photo.id} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => onSelect(photo.id)}
+              aria-pressed={isSelected}
+              aria-label={`Gunakan foto ${index + 1}`}
+              className={cn(
+                "block h-16 w-16 overflow-hidden rounded-lg border-2 transition-all",
+                isSelected
+                  ? "border-emerald-500 ring-2 ring-emerald-500/40"
+                  : dark
+                    ? "border-white/20 opacity-70 hover:opacity-100"
+                    : "border-gray-200 opacity-70 hover:opacity-100",
+              )}
+            >
+              <img src={photo.url} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" />
+            </button>
+            {isSelected && (
+              <span className="pointer-events-none absolute bottom-1 left-1 grid h-4 w-4 place-items-center rounded-full bg-emerald-500 text-white">
+                <Check className="h-3 w-3" />
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => onRemove(photo.id)}
+              aria-label={`Hapus foto ${index + 1}`}
+              className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-white hover:bg-red-600"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

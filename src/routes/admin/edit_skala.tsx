@@ -17,13 +17,84 @@ export const Route = createFileRoute("/admin/edit_skala")({
 const COMPANY_SIZES_API_URL = apiUrl("v1/company-sizes");
 const COMPANY_SIZES_ADMIN_API_URL = apiUrl("v1/admin/company-sizes");
 
+type SkalaRecord = {
+  name: string;
+  min: number | null;
+  max: number | null;
+};
+
+/** Baca nama skala dari berbagai nama field yang dipakai backend. */
+function readSizeName(o: any): string {
+  return String(o?.size_name ?? o?.nama ?? o?.company_size ?? o?.name ?? "").trim();
+}
+
+/** Baca batas bawah skala; null berarti field tidak ada di respons. */
+function readSizeMin(o: any): number | null {
+  const raw = o?.min_employees ?? o?.start ?? o?.min;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Baca batas atas skala; null berarti field tidak ada di respons. */
+function readSizeMax(o: any): number | null {
+  const raw = o?.max_employees ?? o?.end ?? o?.max;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Ambil record skala yang SESUAI dengan id yang diklik di tabel.
+ *
+ * Backend bisa membalas dalam beberapa bentuk: objek tunggal, daftar, atau
+ * dibungkus `data`. Selain itu nama field-nya bisa berbeda-beda, jadi semua
+ * varian dikumpulkan lalu dicocokkan berdasarkan `id`. Kalau responsnya berupa
+ * DAFTAR, kecocokan id diwajibkan supaya tidak salah ambil record lain.
+ */
+function pickCompanySize(json: any, id: number): SkalaRecord | null {
+  const objects: any[] = [];
+  let sawList = false;
+
+  const collect = (value: any) => {
+    if (Array.isArray(value)) {
+      sawList = true;
+      objects.push(...value.filter((o) => o && typeof o === "object"));
+    } else if (value && typeof value === "object") {
+      objects.push(value);
+    }
+  };
+
+  collect(json?.data);
+  collect(json?.data?.data);
+  collect(json);
+
+  const named = objects.filter((o) => readSizeName(o) !== "");
+  if (named.length === 0) return null;
+
+  const byId = named.find(
+    (o) => Number(o?.id ?? o?.company_size_id ?? o?.companySizeId) === id,
+  );
+  if (byId) {
+    return { name: readSizeName(byId), min: readSizeMin(byId), max: readSizeMax(byId) };
+  }
+
+  // Respons daftar tanpa id yang cocok: jangan nebak, biarkan caller fallback.
+  if (sawList) return null;
+
+  const single = named[0];
+  return { name: readSizeName(single), min: readSizeMin(single), max: readSizeMax(single) };
+}
+
 function EditSkalaPage() {
   const navigate = useNavigate();
   const { id } = Route.useSearch();
 
-  const [kategori, setKategori] = useState("Besar");
-  const [rangeStart, setRangeStart] = useState("100");
-  const [rangeEnd, setRangeEnd] = useState("999999999");
+  // Kosongkan form, JANGAN isi default: nilai default akan disalahartikan
+  // sebagai data record yang sedang diedit.
+  const [kategori, setKategori] = useState("");
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,12 +102,18 @@ function EditSkalaPage() {
   // Ambil data skala berdasarkan id agar form sesuai dengan data yang diklik.
   useEffect(() => {
     const fetchSkala = async () => {
+      // Reset dulu supaya data record sebelumnya tidak bocor ke form ini.
+      setKategori("");
+      setRangeStart("");
+      setRangeEnd("");
+      setError(null);
+
       if (!id) {
+        setError("ID skala tidak ditemukan.");
         setLoading(false);
         return;
       }
       setLoading(true);
-      setError(null);
 
       const tryFetch = async (url: string) => {
         const res = await fetch(url, {
@@ -50,27 +127,33 @@ function EditSkalaPage() {
         return res.json();
       };
 
+      // Endpoint detail (admin lalu public), lalu daftar sebagai jaring pengaman.
+      const attempts = [
+        `${COMPANY_SIZES_ADMIN_API_URL}/${id}`,
+        `${COMPANY_SIZES_API_URL}/${id}`,
+        COMPANY_SIZES_API_URL,
+      ];
+
       try {
-        let json;
-        try {
-          json = await tryFetch(`${COMPANY_SIZES_ADMIN_API_URL}/${id}`);
-        } catch {
-          json = await tryFetch(`${COMPANY_SIZES_API_URL}/${id}`);
+        let record: SkalaRecord | null = null;
+
+        for (const url of attempts) {
+          try {
+            const json = await tryFetch(url);
+            record = pickCompanySize(json, id);
+            if (record) break;
+          } catch {
+            // Coba endpoint berikutnya.
+          }
         }
-        const it = json?.data ?? json ?? {};
 
-        const name = String(
-          it.size_name ?? it.nama ?? it.company_size ?? it.name ?? "",
-        ).trim();
-        if (name) setKategori(name);
-
-        const rawMin = Number(it.min_employees ?? it.start ?? it.min ?? NaN);
-        if (Number.isFinite(rawMin)) setRangeStart(String(rawMin));
-
-        const rawMax = it.max_employees ?? it.end ?? it.max ?? undefined;
-        if (rawMax !== undefined && rawMax !== null) {
-          setRangeEnd(String(Number(rawMax)));
+        if (!record) {
+          throw new Error(`Data skala dengan id ${id} tidak ditemukan.`);
         }
+
+        setKategori(record.name);
+        setRangeStart(record.min === null ? "" : String(record.min));
+        setRangeEnd(record.max === null ? "" : String(record.max));
       } catch (err) {
         console.error("Gagal memuat data skala:", err);
         setError("Gagal memuat data skala. Silakan kembali dan coba lagi.");
@@ -89,6 +172,24 @@ function EditSkalaPage() {
       return;
     }
 
+    // Number("") bernilai 0, jadi validasi manual agar tidak terkirim diam-diam.
+    if (!kategori.trim()) {
+      setError("Kategori skala wajib diisi.");
+      return;
+    }
+    if (rangeStart.trim() === "" || !Number.isFinite(Number(rangeStart))) {
+      setError("Range Start wajib diisi dengan angka.");
+      return;
+    }
+    if (rangeEnd.trim() === "" || !Number.isFinite(Number(rangeEnd))) {
+      setError("Range End wajib diisi dengan angka.");
+      return;
+    }
+    if (Number(rangeStart) > Number(rangeEnd)) {
+      setError("Range Start tidak boleh lebih besar dari Range End.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -101,7 +202,7 @@ function EditSkalaPage() {
           ...authHeaders(),
         },
         body: JSON.stringify({
-          size_name: kategori,
+          size_name: kategori.trim(),
           min_employees: Number(rangeStart),
           max_employees: Number(rangeEnd),
         }),

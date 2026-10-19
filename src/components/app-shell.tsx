@@ -15,54 +15,23 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 // Pastikan aset logo sesuai di foldermu
 import logokemnaker from "@/assets/kemnaker_logo.png";
-import { AUTH_BASE_URL as BASE_API_URL, storageUrl } from "@/lib/api";
+import { AUTH_BASE_URL as BASE_API_URL } from "@/lib/api";
+import { clearSession, isSuperAdminOnlyPath, normalizeRole, readStoredUser, type AuthUser } from "@/lib/auth";
 import { fetchNotifications } from "@/lib/notifications";
-
-/** Data user yang login, dinormalisasi dari auth_user di storage. */
-interface AuthUser {
-  name: string;
-  role: string;
-  avatar: string;
-}
-
-/** Ambil & normalisasi user login dari localStorage/sessionStorage. */
-function readAuthUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-
-  const raw = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
-  if (!raw) return null;
-
-  try {
-    const u = JSON.parse(raw);
-
-    const name = String(u.name ?? u.nama ?? u.nama_lengkap ?? u.username ?? u.email ?? "Pengguna");
-
-    const role = String(
-      u.role_name ??
-        u.role ??
-        u.jabatan ??
-        u.position ??
-        (typeof u.role === "object" ? u.role?.name : "") ??
-        "Petugas",
-    );
-
-    // Avatar bisa berupa URL penuh atau path storage relatif.
-    const rawAvatar = String(u.avatar ?? u.photo ?? u.foto ?? u.image ?? "");
-    const avatar = rawAvatar
-      ? /^https?:\/\//.test(rawAvatar)
-        ? rawAvatar
-        : storageUrl(rawAvatar)
-      : "";
-
-    return { name, role, avatar };
-  } catch {
-    return null;
-  }
-}
+import {
+  SUCCESS_MESSAGES,
+  APP_SHORT_NAME,
+  ORGANIZATION_UNIT,
+  COPYRIGHT_YEARS,
+  DEVELOPER_NAME,
+  SYSTEM_OWNER_NAME,
+  FOOTER_TAGLINE,
+} from "@/config/app";
 
 /** Inisial dari nama untuk fallback avatar (mis. "Budi Santoso" -> "BS"). */
 function getInitials(name: string): string {
@@ -157,10 +126,14 @@ export function AppShell({
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  // null selama SSR/belum mount, lalu diisi role sebenarnya.
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Baca user yang login setelah mount (menghindari mismatch SSR/hydration).
   useEffect(() => {
-    setAuthUser(readAuthUser());
+    const user = readStoredUser();
+    setAuthUser(user);
+    setIsSuperAdmin(user !== null && normalizeRole(user.role) === "super_admin");
   }, []);
 
   // Hitung ulang notifikasi belum dibaca setiap kali berpindah halaman,
@@ -221,11 +194,12 @@ export function AppShell({
     } catch (err) {
       console.warn("Logout notice:", err);
     } finally {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("auth_user");
-      sessionStorage.removeItem("auth_token");
-      sessionStorage.removeItem("auth_user");
-      window.location.href = "/";
+      clearSession();
+      toast.success(SUCCESS_MESSAGES.logout);
+      // Beri jeda singkat agar toast sempat terlihat sebelum pindah halaman.
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 700);
     }
   };
 
@@ -250,11 +224,11 @@ export function AppShell({
         {/* Header Logo PTSA Kemnaker (Kotak Putih Atas) */}
         <div className="flex h-16 items-center gap-3 border-b border-sidebar-border bg-white px-5">
           <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-white">
-            <img src={logokemnaker} alt="Logo PTSA Kemnaker" className="h-8 w-8 object-contain" />
+            <img src={logokemnaker} alt={`Logo ${APP_SHORT_NAME}`} className="h-8 w-8 object-contain" />
           </div>
           <div className="min-w-0">
-            <p className="truncate font-display text-[13px] font-bold leading-tight text-[#13416B]">
-              PTSA KEMNAKER
+            <p className="truncate font-display text-[13px] font-bold uppercase leading-tight text-[#13416B]">
+              {APP_SHORT_NAME}
             </p>
             <p className="truncate text-[9px] uppercase tracking-wider text-[#333333]/70">
               PELAYANAN TERPADU
@@ -290,7 +264,7 @@ export function AppShell({
                 )}
               </div>
               {/* Dot Status Online Hijau */}
-              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#10B981] ring-2 ring-[#0D2B4C]" />
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-brand-accent ring-2 ring-[#0D2B4C]" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-[12px] font-semibold text-white">{displayName}</p>
@@ -301,13 +275,22 @@ export function AppShell({
 
         {/* Menu Navigasi Samping */}
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-6">
-          {nav.map((group) => (
+          {nav.map((group) => {
+            // Sembunyikan grup yang isinya seluruhnya khusus super admin, dan
+            // sembunyikan item terkunci dari grup campuran. Guard route tetap
+            // tetap jadi pengaman kalau URL diketik langsung.
+            const visibleItems = group.items.filter(
+              (item) => isSuperAdmin || !isSuperAdminOnlyPath(item.to),
+            );
+            if (visibleItems.length === 0) return null;
+
+            return (
             <div key={group.label}>
               <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/40">
                 {group.label}
               </p>
               <ul className="space-y-1">
-                {group.items.map((item) => {
+                {visibleItems.map((item) => {
                   const active = isActive(item);
                   const Icon = item.icon;
                   return (
@@ -340,7 +323,8 @@ export function AppShell({
                 })}
               </ul>
             </div>
-          ))}
+            );
+          })}
 
           <button
             type="button"
@@ -398,10 +382,10 @@ export function AppShell({
 
         <footer className="grid gap-2 border-t border-border px-4 py-5 text-[11px] text-muted-foreground sm:flex sm:items-center sm:justify-between sm:px-6 lg:px-8">
           <p>
-            BINWASNAKER © 2024–2026 <span className="font-semibold text-primary">TUBSPK.</span>{" "}
-            BINSIS
+            {ORGANIZATION_UNIT} © {COPYRIGHT_YEARS}{" "}
+            <span className="font-semibold text-primary">{DEVELOPER_NAME}.</span> {SYSTEM_OWNER_NAME}
           </p>
-          <p>Bangga Melayani Bangsa · BerAKHLAK</p>
+          <p>{FOOTER_TAGLINE}</p>
         </footer>
       </div>
     </div>

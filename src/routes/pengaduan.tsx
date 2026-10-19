@@ -8,15 +8,40 @@ import {
   ArrowLeft,
   ArrowRight,
   Loader2,
+  XIcon,
+  Facebook,
+  Instagram,
+  MapPin,
+  Mail,
 } from "lucide-react";
 import kemnakerLogo from "@/assets/kemnaker_logo.png";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
+import {
+  PAGE_TITLES,
+  ORGANIZATION_NAME,
+  ORGANIZATION_NAME_SHORT,
+  ORGANIZATION_UNIT,
+  ORGANIZATION_UNIT_FULL,
+  ADDRESS_LINE_1,
+  ADDRESS_LINE_2,
+  ADDRESS_LINE_3,
+  CONTACT_EMAIL,
+  MAPS_URL,
+  SOCIAL_LINKS,
+  COPYRIGHT_YEARS,
+} from "@/config/app";
+
+const iconMap = {
+  XIcon,
+  Facebook,
+  Instagram,
+};
 
 export const Route = createFileRoute("/pengaduan")({
   head: () => ({
     meta: [
       {
-        title: "Formulir Pengaduan - Kementerian Ketenagakerjaan",
+        title: PAGE_TITLES.pengaduan,
       },
     ],
   }),
@@ -93,7 +118,7 @@ function FormulirPengaduanPage() {
   const [lainnya, setLainnya] = useState("");
   const [tanggalPelaporan, setTanggalPelaporan] = useState("");
 
-  const [namaPelapor, setNamaPelapor] = useState("Zuan");
+  const [namaPelapor, setNamaPelapor] = useState("Nama Lengkap");
   const [nik, setNik] = useState("");
   const [alamatPelapor, setAlamatPelapor] = useState("");
   const [jenisKelamin, setJenisKelamin] = useState<"Laki-laki" | "Perempuan">("Laki-laki");
@@ -331,9 +356,9 @@ function FormulirPengaduanPage() {
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-2xs">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <img src={kemnakerLogo} alt="Logo Kemnaker" className="h-8 w-auto object-contain" />
+            <img src={kemnakerLogo} alt={`Logo ${ORGANIZATION_NAME_SHORT}`} className="h-8 w-auto object-contain" />
             <span className="text-[14px] font-bold text-gray-900 tracking-tight">
-              Kementerian Ketenagakerjaan
+              {ORGANIZATION_NAME_SHORT}
             </span>
           </div>
 
@@ -343,7 +368,7 @@ function FormulirPengaduanPage() {
             </Link>
             <Link
               to="/pengaduan"
-              className="font-semibold text-[#0E3B68] hover:text-[#0E3B68] transition-colors"
+              className="font-semibold text-brand-secondary hover:text-brand-secondary transition-colors"
             >
               Pengaduan
             </Link>
@@ -390,7 +415,7 @@ function FormulirPengaduanPage() {
                       setJenisPengaduan(matched ? matched.name : "");
                     }}
                     required
-                    className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer"
+                    className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary cursor-pointer"
                   >
                     <option value="">Pilih Jenis Pengaduan</option>
                     {kategoriList.map((kat) => (
@@ -422,7 +447,7 @@ function FormulirPengaduanPage() {
                       ? "Masukkan Jenis Pengaduan"
                       : 'Pilih "Lainnya" pada Jenis Pengaduan dahulu'
                   }
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                 />
               </div>
 
@@ -437,7 +462,7 @@ function FormulirPengaduanPage() {
                     value={tanggalPelaporan}
                     onChange={(e) => setTanggalPelaporan(e.target.value)}
                     required
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                   />
                 </div>
               </div>
@@ -465,7 +490,7 @@ function FormulirPengaduanPage() {
                   onChange={(e) => setNamaPelapor(e.target.value)}
                   placeholder="Nama Lengkap Pelapor"
                   required
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
               </div>
 
@@ -480,7 +505,7 @@ function FormulirPengaduanPage() {
                   onChange={(e) => setNik(e.target.value.replace(/\D/g, "").slice(0, 16))}
                   placeholder="Masukkan 16 digit NIK"
                   required
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
               </div>
 
@@ -495,7 +520,7 @@ function FormulirPengaduanPage() {
                   onChange={(e) => setAlamatPelapor(e.target.value)}
                   placeholder="Masukkan alamat lengkap"
                   required
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
               </div>
 
@@ -513,7 +538,7 @@ function FormulirPengaduanPage() {
                         value="Laki-laki"
                         checked={jenisKelamin === "Laki-laki"}
                         onChange={() => setJenisKelamin("Laki-laki")}
-                        className="h-3.5 w-3.5 text-[#0E3B68] focus:ring-[#0E3B68]"
+                        className="h-3.5 w-3.5 text-brand-secondary focus:ring-brand-secondary"
                       />
                       <span className="text-[11px] text-gray-700">Laki-laki</span>
                     </label>
@@ -525,7 +550,7 @@ function FormulirPengaduanPage() {
                         value="Perempuan"
                         checked={jenisKelamin === "Perempuan"}
                         onChange={() => setJenisKelamin("Perempuan")}
-                        className="h-3.5 w-3.5 text-[#0E3B68] focus:ring-[#0E3B68]"
+                        className="h-3.5 w-3.5 text-brand-secondary focus:ring-brand-secondary"
                       />
                       <span className="text-[11px] text-gray-700">Perempuan</span>
                     </label>
@@ -543,7 +568,7 @@ function FormulirPengaduanPage() {
                     onChange={(e) => setJabatan(e.target.value)}
                     placeholder="Contoh: Staff"
                     required
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                   />
                 </div>
               </div>
@@ -559,7 +584,7 @@ function FormulirPengaduanPage() {
                   onChange={(e) => setNoTelpPelapor(e.target.value)}
                   placeholder="08xx xxxx xxxx"
                   required
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
               </div>
 
@@ -577,7 +602,7 @@ function FormulirPengaduanPage() {
                   onChange={(e) => setEmailPelapor(e.target.value)}
                   placeholder="email@contoh.com"
                   required
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
               </div>
 
@@ -614,7 +639,7 @@ function FormulirPengaduanPage() {
                     onChange={(e) => setNamaPerusahaan(e.target.value)}
                     placeholder="PT / CV ...."
                     required
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                   />
                 </div>
 
@@ -633,7 +658,7 @@ function FormulirPengaduanPage() {
                         setSektorIndustri(matched ? matched.name : "");
                       }}
                       required
-                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer"
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary cursor-pointer"
                     >
                       <option value="">Pilih Sektor</option>
                       {sektorList.map((sek) => (
@@ -662,7 +687,7 @@ function FormulirPengaduanPage() {
                     placeholder="0"
                     min={0}
                     required
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                   />
                 </div>
 
@@ -682,7 +707,7 @@ function FormulirPengaduanPage() {
                         setProvinsiName(matched ? matched.name : "");
                       }}
                       required
-                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer"
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary cursor-pointer"
                     >
                       <option value="">
                         {loadingProv ? "Memuat data provinsi..." : "Pilih Provinsi"}
@@ -722,7 +747,7 @@ function FormulirPengaduanPage() {
                       }}
                       disabled={!selectedProvCode || loadingKab}
                       required
-                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
                     >
                       <option value="">
                         {!selectedProvCode
@@ -764,7 +789,7 @@ function FormulirPengaduanPage() {
                       }}
                       disabled={!selectedCityCode || loadingKec}
                       required
-                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
                     >
                       <option value="">
                         {!selectedCityCode
@@ -808,7 +833,7 @@ function FormulirPengaduanPage() {
                       }}
                       disabled={!selectedDistrictCode || loadingKel}
                       required
-                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68] cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
+                      className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
                     >
                       <option value="">
                         {!selectedDistrictCode
@@ -841,7 +866,7 @@ function FormulirPengaduanPage() {
                     value={emailPerusahaan}
                     onChange={(e) => setEmailPerusahaan(e.target.value)}
                     placeholder="hrdperusahaan.com"
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                   />
                 </div>
               </div>
@@ -854,7 +879,7 @@ function FormulirPengaduanPage() {
                   value={noTelpPerusahaan}
                   onChange={(e) => setNoTelpPerusahaan(e.target.value)}
                   placeholder="021-xxxxxxx"
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
               </div>
 
@@ -869,7 +894,7 @@ function FormulirPengaduanPage() {
                   onChange={(e) => setAlamatPerusahaan(e.target.value)}
                   placeholder="Jalan, Gedung, dll"
                   required
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-[#0E3B68] focus:outline-none focus:ring-1 focus:ring-[#0E3B68]"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
               </div>
             </div>
@@ -890,7 +915,7 @@ function FormulirPengaduanPage() {
             <button
               suppressHydrationWarning
               type="submit"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0E3B68] px-6 py-2.5 text-[11px] font-semibold text-white shadow-xs hover:bg-[#0a2c4e] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-secondary px-6 py-2.5 text-[11px] font-semibold text-white shadow-xs hover:bg-brand-secondary-hover transition-colors cursor-pointer"
             >
               <span>Lanjut ke Detail Aduan</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -898,6 +923,79 @@ function FormulirPengaduanPage() {
           </div>
         </form>
       </main>
+
+      {/* --- FOOTER --- */}
+      <footer className="bg-brand-primary text-white mt-16">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
+            {/* Kolom 1: Brand */}
+            <div>
+              <h3 className="text-xl font-bold">{ORGANIZATION_UNIT}</h3>
+              <p className="mt-4 text-sm leading-relaxed text-gray-300">
+                {ORGANIZATION_UNIT_FULL} adalah unsur pelaksana yang berada di bawah dan
+                bertanggung jawab kepada Menteri Ketenagakerjaan.
+              </p>
+              <div className="mt-6 flex gap-3">
+                {SOCIAL_LINKS.map(({ icon, href }, i) => {
+                  const Icon = iconMap[icon as keyof typeof iconMap];
+                  return (
+                    <a
+                      key={i}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-white"
+                    >
+                      <Icon className="size-4" />
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Kolom 2: Kontak & Bantuan */}
+            <div>
+              <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
+              <hr className="mt-4 border-white/15" />
+              <a
+                href={MAPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex gap-3 text-sm text-gray-300 transition-colors hover:text-emerald-400"
+              >
+                <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
+                <p className="leading-relaxed">
+                  {ADDRESS_LINE_1}, {ADDRESS_LINE_2}, {ADDRESS_LINE_3}
+                </p>
+              </a>
+              <div className="mt-4 flex items-center gap-3 text-sm">
+                <Mail className="size-5 text-emerald-400" />
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="text-gray-300 hover:text-emerald-400 transition-colors"
+                >
+                  Pengaduan WLKP
+                </a>
+              </div>
+              {/* FAQ di bawah kontak */}
+              <div className="mt-6 pt-4 border-t border-white/15">
+                <Link
+                  to="/faqpage"
+                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-emerald-400 transition-colors"
+                >
+                  <span className="text-emerald-400">›</span> FAQ
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <hr className="mt-10 border-white/15" />
+
+          <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
+            <p>© {COPYRIGHT_YEARS} {ORGANIZATION_NAME}. Seluruh Hak Cipta Dilindungi.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

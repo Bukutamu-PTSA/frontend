@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Printer, User, Loader2, AlertCircle } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
+import { PAGE_TITLES } from "@/config/app";
 
 export type ViewPdfSearch = {
   id?: string | number;
@@ -17,7 +18,7 @@ export const Route = createFileRoute("/admin/view_pdf")({
   head: () => ({
     meta: [
       {
-        title: "Cetak Dokumen Pengaduan - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminViewPdf,
       },
     ],
   }),
