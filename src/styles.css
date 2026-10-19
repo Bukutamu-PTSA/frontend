@@ -25,6 +25,12 @@
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
+  /* Brand palette (hex) — nilai asli diset di :root dan dapat ditimpa saat runtime. */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-secondary-hover: var(--brand-secondary-hover);
+  --color-brand-accent: var(--brand-accent);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-soft: var(--brand-soft);
@@ -76,6 +82,17 @@
 
 :root {
   --radius: 0.9rem;
+  /*
+   * Brand palette (hex). Dipakai oleh utility Tailwind:
+   * bg-brand-primary / text-brand-secondary / ring-brand-accent, dll.
+   * Nilai ini bisa ditimpa saat runtime (lihat applyBrandColors di src/config/app.ts)
+   * agar warna brand sepenuhnya softcode lewat env VITE_BRAND_*.
+   */
+  --brand-primary: #032749;
+  --brand-primary-hover: #021f3b;
+  --brand-secondary: #0e3b68;
+  --brand-secondary-hover: #0a2c4e;
+  --brand-accent: #10b981;
   --background: oklch(0.978 0.008 150);
   --foreground: oklch(0.22 0.035 160);
   --brand: oklch(0.54 0.13 160);

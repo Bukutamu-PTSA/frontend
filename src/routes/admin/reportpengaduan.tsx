@@ -10,13 +10,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/reportpengaduan")({
   head: () => ({
     meta: [
       {
-        title: "All Report Pengaduan - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminReportPengaduan,
       },
     ],
   }),
@@ -156,22 +158,16 @@ function ReportPengaduanPage() {
   // 2. Filter data berdasarkan pencarian, bulan, dan tahun
   const filteredComplaints = useMemo(() => {
     return complaints.filter((item) => {
-      const q = appliedFilters.search.trim().toLowerCase();
-      const pelapor = String(item.complainant?.nama_lengkap ?? "").toLowerCase();
-      const perusahaan = String(item.company?.nama_perusahaan ?? "").toLowerCase();
-      const jenis = String(
-        item.category?.category_name ?? item.category?.category_code ?? ""
-      ).toLowerCase();
-      const ticket = String(item.ticket_number ?? "").toLowerCase();
+      // Pencarian bersifat incremental: memakai `search` langsung (tiap ketikan),
+      // sedangkan bulan/tahun tetap diterapkan lewat tombol Filter.
+      const isMatch = matchesSearch(search, [
+        item.complainant?.nama_lengkap,
+        item.company?.nama_perusahaan,
+        item.category?.category_name ?? item.category?.category_code,
+        item.ticket_number,
+      ]);
 
-      const matchesSearch =
-        !q ||
-        pelapor.includes(q) ||
-        perusahaan.includes(q) ||
-        jenis.includes(q) ||
-        ticket.includes(q);
-
-      if (!matchesSearch) return false;
+      if (!isMatch) return false;
 
       const dateStr = item.complaint_date ?? item.created_at;
       if (!dateStr) return true;
@@ -195,7 +191,7 @@ function ReportPengaduanPage() {
 
       return true;
     });
-  }, [complaints, appliedFilters]);
+  }, [complaints, appliedFilters, search]);
 
   // 3. Hitung Stat Skala Usaha dari data terfilter
   const scaleStats = useMemo(() => {
@@ -249,7 +245,7 @@ function ReportPengaduanPage() {
 
   // 5. Hapus Pengaduan
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus pengaduan ini?")) return;
+    if (!window.confirm(CONFIRM_MESSAGES.deleteComplaint)) return;
 
     const token =
       localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
@@ -265,13 +261,13 @@ function ReportPengaduanPage() {
 
       if (res.ok) {
         setComplaints((prev) => prev.filter((item) => item.id !== id));
-        toast.success("Aduan berhasil dihapus.");
+        toast.success(SUCCESS_MESSAGES.complaintDeleted);
       } else {
-        toast.error("Gagal menghapus aduan.");
+        toast.error(ERROR_MESSAGES.complaintDeleteFailed);
       }
     } catch (e) {
       console.error("Gagal menghapus aduan:", e);
-      toast.error("Terjadi kesalahan saat menghapus aduan.");
+      toast.error(ERROR_MESSAGES.complaintDeleteError);
     }
   };
   const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
@@ -328,7 +324,7 @@ function ReportPengaduanPage() {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (err: any) {
       console.error("Download error:", err);
-      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF pengaduan.");
+      toast.error(err.message || ERROR_MESSAGES.pdfComplaintExportFailed);
     } finally {
       setDownloadingId(null);
     }
@@ -353,7 +349,10 @@ function ReportPengaduanPage() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
                 onKeyDown={(e) => e.key === "Enter" && handleFilter()}
                 placeholder="Cari pelapor, perusahaan, atau jenis..."
                 className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-4 py-2 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#007A64]"

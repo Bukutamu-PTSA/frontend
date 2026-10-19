@@ -1,0 +1,26 @@
+# Reverse proxy HTTPS untuk frontend PTSA.
+#
+# - Sertifikat dibuat otomatis oleh CA lokal Caddy (`tls internal`), cocok untuk
+#   jaringan internal/LAN. Browser akan memberi peringatan sampai root CA Caddy
+#   dipasang di perangkat (lihat README, bagian HTTPS).
+# - /api dan /storage diteruskan ke backend, sehingga browser hanya bicara ke satu
+#   origin HTTPS (tidak ada mixed content ke backend HTTP).
+#
+# Variabel (diatur di docker-compose.yml):
+#   HTTPS_HOSTS  daftar host/IP yang dilayani, dipisah koma
+#   BACKEND_URL  alamat backend Laravel, mis. http://192.168.156.206:8000
+
+{$HTTPS_HOSTS:localhost} {
+	tls internal
+
+	encode zstd gzip
+
+	@backend path /api/* /storage/*
+	handle @backend {
+		reverse_proxy {$BACKEND_URL}
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

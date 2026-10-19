@@ -23,6 +23,15 @@ import logokemnaker from "@/assets/kemnaker_logo.png";
 import { AUTH_BASE_URL as BASE_API_URL } from "@/lib/api";
 import { clearSession, isSuperAdminOnlyPath, normalizeRole, readStoredUser, type AuthUser } from "@/lib/auth";
 import { fetchNotifications } from "@/lib/notifications";
+import {
+  SUCCESS_MESSAGES,
+  APP_SHORT_NAME,
+  ORGANIZATION_UNIT,
+  COPYRIGHT_YEARS,
+  DEVELOPER_NAME,
+  SYSTEM_OWNER_NAME,
+  FOOTER_TAGLINE,
+} from "@/config/app";
 
 /** Inisial dari nama untuk fallback avatar (mis. "Budi Santoso" -> "BS"). */
 function getInitials(name: string): string {
@@ -186,7 +195,7 @@ export function AppShell({
       console.warn("Logout notice:", err);
     } finally {
       clearSession();
-      toast.success("Anda berhasil keluar.");
+      toast.success(SUCCESS_MESSAGES.logout);
       // Beri jeda singkat agar toast sempat terlihat sebelum pindah halaman.
       setTimeout(() => {
         window.location.href = "/";
@@ -215,11 +224,11 @@ export function AppShell({
         {/* Header Logo PTSA Kemnaker (Kotak Putih Atas) */}
         <div className="flex h-16 items-center gap-3 border-b border-sidebar-border bg-white px-5">
           <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-white">
-            <img src={logokemnaker} alt="Logo PTSA Kemnaker" className="h-8 w-8 object-contain" />
+            <img src={logokemnaker} alt={`Logo ${APP_SHORT_NAME}`} className="h-8 w-8 object-contain" />
           </div>
           <div className="min-w-0">
-            <p className="truncate font-display text-[13px] font-bold leading-tight text-[#13416B]">
-              PTSA KEMNAKER
+            <p className="truncate font-display text-[13px] font-bold uppercase leading-tight text-[#13416B]">
+              {APP_SHORT_NAME}
             </p>
             <p className="truncate text-[9px] uppercase tracking-wider text-[#333333]/70">
               PELAYANAN TERPADU
@@ -255,7 +264,7 @@ export function AppShell({
                 )}
               </div>
               {/* Dot Status Online Hijau */}
-              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#10B981] ring-2 ring-[#0D2B4C]" />
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-brand-accent ring-2 ring-[#0D2B4C]" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-[12px] font-semibold text-white">{displayName}</p>
@@ -373,10 +382,10 @@ export function AppShell({
 
         <footer className="grid gap-2 border-t border-border px-4 py-5 text-[11px] text-muted-foreground sm:flex sm:items-center sm:justify-between sm:px-6 lg:px-8">
           <p>
-            BINWASNAKER © 2024–2026 <span className="font-semibold text-primary">TUBSPK.</span>{" "}
-            BINSIS
+            {ORGANIZATION_UNIT} © {COPYRIGHT_YEARS}{" "}
+            <span className="font-semibold text-primary">{DEVELOPER_NAME}.</span> {SYSTEM_OWNER_NAME}
           </p>
-          <p>Bangga Melayani Bangsa · BerAKHLAK</p>
+          <p>{FOOTER_TAGLINE}</p>
         </footer>
       </div>
     </div>

@@ -3,9 +3,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { apiUrl, authHeaders } from "@/lib/api";
 import { extractList, isRecord } from "@/lib/json";
 import { pageWindow } from "@/lib/pagination";
+import { CONFIRM_MESSAGES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/faq")({
   head: () => ({
@@ -108,11 +110,7 @@ function FaqPage() {
   }, [loadFaqs]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) => r.question.toLowerCase().includes(q) || r.answer.toLowerCase().includes(q),
-    );
+    return rows.filter((r) => matchesSearch(search, [r.question, r.answer]));
   }, [rows, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
@@ -180,7 +178,7 @@ function FaqPage() {
 
   // Hapus FAQ: DELETE /api/faqs/{id}.
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Hapus FAQ ini?")) return;
+    if (!window.confirm(CONFIRM_MESSAGES.deleteFaq)) return;
 
     setDeletingId(id);
     setError(null);

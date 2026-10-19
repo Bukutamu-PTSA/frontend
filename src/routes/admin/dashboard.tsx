@@ -16,9 +16,11 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { apiUrl, authHeaders } from "@/lib/api";
 import { computeGrowth, formatGrowth } from "@/lib/growth";
 import { fetchSatisfactionSummary, type SatisfactionSummary } from "@/lib/satisfaction";
+import { PAGE_TITLES, APP_SHORT_NAME, DEFAULT_TOTAL_LAPORAN } from "@/config/app";
 
 const SUMMARY_API_URL = apiUrl("dashboard/complaint-summary");
 const PROVINCE_SUMMARY_API_URL = apiUrl("dashboard/province-summary");
@@ -28,7 +30,7 @@ export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({
     meta: [
       {
-        title: "Executive Dashboard - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminDashboard,
       },
     ],
   }),
@@ -133,7 +135,7 @@ function DashboardExecutive() {
   // Data provinsi diambil dari API (bukan hardcode).
   const [wilayahData, setWilayahData] = useState<WilayahRow[]>([]);
 
-  const [totalAduan, setTotalAduan] = useState(12450);
+  const [totalAduan, setTotalAduan] = useState(DEFAULT_TOTAL_LAPORAN);
   // Persentase kenaikan/penurunan aduan (dihitung riil, sama seperti page Grafik).
   const [growth, setGrowth] = useState<number | null>(null);
   // Indeks kepuasan: endpoint agregat bila ada, fallback hitung dari respons survei.
@@ -332,9 +334,7 @@ function DashboardExecutive() {
 
   // Filter table wilayah berdasarkan keyword provinsi.
   const filteredWilayah = useMemo(() => {
-    const q = wilayahSearch.trim().toLowerCase();
-    if (!q) return wilayahData;
-    return wilayahData.filter((w) => w.provinsi.toLowerCase().includes(q));
+    return wilayahData.filter((w) => matchesSearch(wilayahSearch, [w.provinsi]));
   }, [wilayahData, wilayahSearch]);
 
   // Handlers untuk Drag-to-Scroll
@@ -410,7 +410,7 @@ function DashboardExecutive() {
               Executive Dashboard
             </h1>
             <p className="text-[11px] text-gray-500 mt-0.5">
-              Ringkasan performa pelayanan terpadu PTSA KEMNAKER
+              Ringkasan performa pelayanan terpadu {APP_SHORT_NAME}
             </p>
           </div>
 

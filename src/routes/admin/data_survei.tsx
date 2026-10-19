@@ -3,9 +3,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { useTableExport } from "@/lib/use-table-export";
 import { pageWindow } from "@/lib/pagination";
 import { editableQuestions, fetchSurveyQuestions, resolveSurveyId } from "@/lib/survey";
+import { CONFIRM_MESSAGES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/data_survei")({
   head: () => ({
@@ -70,14 +72,8 @@ function DataSurveiPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.pertanyaan.toLowerCase().includes(q) ||
-        r.optionA.toLowerCase().includes(q) ||
-        r.optionB.toLowerCase().includes(q) ||
-        r.optionC.toLowerCase().includes(q),
+    return rows.filter((r) =>
+      matchesSearch(search, [r.pertanyaan, r.optionA, r.optionB, r.optionC]),
     );
   }, [rows, search]);
 
@@ -103,7 +99,7 @@ function DataSurveiPage() {
   });
 
   const handleDelete = (id: number) => {
-    if (!window.confirm("Hapus pertanyaan survei ini?")) return;
+    if (!window.confirm(CONFIRM_MESSAGES.deleteSurveiQuestion)) return;
     // TODO(backend): panggil DELETE /api/surveys/{survey}/{question} setelah
     // endpoint hapus perpertanyaan tersedia di backend.
     setRows((prev) => prev.filter((r) => r.id !== id));

@@ -11,12 +11,13 @@ import {
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { PAGE_TITLES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/setting")({
   head: () => ({
     meta: [
       {
-        title: "Setting Apps - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminSettings,
       },
     ],
   }),

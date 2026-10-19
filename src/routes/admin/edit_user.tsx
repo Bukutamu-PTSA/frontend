@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/edit_user")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -118,12 +119,12 @@ function EditUserPage() {
         );
       }
 
-      toast.success("User berhasil diperbarui!");
+      toast.success(SUCCESS_MESSAGES.userUpdated);
       navigate({ to: "/admin/manajemen_user" });
     } catch (err: any) {
       console.error("Perbarui user gagal:", err);
-      toast.error(err?.message || "Gagal memperbarui user. Silakan coba lagi.");
-      setErrorMessage(err?.message || "Gagal memperbarui user. Silakan coba lagi.");
+      toast.error(err?.message || ERROR_MESSAGES.userUpdateFailed);
+      setErrorMessage(err?.message || ERROR_MESSAGES.userUpdateFailed);
     } finally {
       setSaving(false);
     }

@@ -23,7 +23,9 @@ import {
   Plus,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { apiUrl } from "@/lib/api";
+import { PAGE_TITLES } from "@/config/app";
 
 const SUMMARY_API_URL = apiUrl("dashboard/complaint-summary");
 
@@ -31,7 +33,7 @@ export const Route = createFileRoute("/admin/kategori_pelayanan")({
   head: () => ({
     meta: [
       {
-        title: "Rekapitulasi Layanan Kategori - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminKategoriRekap,
       },
     ],
   }),
@@ -167,11 +169,7 @@ function KategoriPelayananPage() {
 
   // Filter kartu kategori berdasarkan nama/kode.
   const filteredCategories = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return allCategories;
-    return allCategories.filter(
-      (cat) => cat.title.toLowerCase().includes(q) || cat.code.toLowerCase().includes(q),
-    );
+    return allCategories.filter((cat) => matchesSearch(search, [cat.title, cat.code]));
   }, [allCategories, search]);
 
   const formatDisplayDate = (dateStr: string | null) => {
