@@ -13,6 +13,9 @@ import {
   Instagram,
   Upload,
   SwitchCamera,
+  Check,
+  Trash2,
+  RotateCcw,
 } from "lucide-react";
 import { XIcon } from "@/components/x-icon";
 import { apiUrl } from "@/lib/api";
@@ -32,6 +35,17 @@ const COMPLAINTS_API_URL = apiUrl("complaints");
 
 /** Arah kamera: "environment" = belakang, "user" = depan (selfie). */
 type FacingMode = "environment" | "user";
+
+/** Jumlah maksimal foto yang bisa diambil dalam satu sesi kamera. */
+const MAX_SHOTS = 5;
+
+/** Satu hasil jepretan di sesi kamera (sebelum dipilih). */
+type Shot = { id: string; url: string; file: File };
+
+/** Perangkat sentuh (HP/tablet) hampir selalu punya kamera depan & belakang. */
+function isTouchDevice(): boolean {
+  return typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
+}
 
 /** Tebak arah kamera dari label perangkat (label baru terisi setelah izin). */
 function guessFacingFromLabel(label: string): FacingMode | null {
@@ -70,6 +84,13 @@ function BuktiPendukungPage() {
   const [canFlipCamera, setCanFlipCamera] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Sesi multi-foto: jepret hingga MAX_SHOTS, lalu pilih satu untuk dipakai.
+  const [shots, setShots] = useState<Shot[]>([]);
+  const [cameraStep, setCameraStep] = useState<"capture" | "select">("capture");
+  const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
+  const shotsRef = useRef<Shot[]>([]);
+  shotsRef.current = shots;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -121,8 +142,9 @@ function BuktiPendukungPage() {
         ? settings.facingMode
         : (guessFacingFromLabel(track?.label ?? "") ?? target.facing);
 
-    // Tombol flip hanya muncul bila perangkat punya lebih dari 1 kamera.
-    setCanFlipCamera((await listCameras()).length > 1);
+    // Tombol flip muncul bila ada >1 kamera, atau selalu di HP (beberapa
+    // browser HP hanya melaporkan 1 kamera lewat enumerateDevices).
+    setCanFlipCamera((await listCameras()).length > 1 || isTouchDevice());
     return actual;
   };
 
@@ -137,6 +159,8 @@ function BuktiPendukungPage() {
       return;
     }
 
+    clearShots();
+    setCameraStep("capture");
     setIsCameraOpen(true);
     setIsCameraStarting(true);
     try {
@@ -153,11 +177,69 @@ function BuktiPendukungPage() {
     }
   };
 
-  /** Tutup modal kamera dan matikan stream. */
+  /** Hapus semua jepretan sesi ini & bebaskan object URL-nya. */
+  const clearShots = () => {
+    shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url));
+    shotsRef.current = [];
+    setShots([]);
+    setSelectedShotId(null);
+  };
+
+  /** Tutup modal kamera, matikan stream, dan buang jepretan yang tidak dipakai. */
   const closeCamera = () => {
     stopCameraStream();
+    clearShots();
+    setCameraStep("capture");
     setIsCameraOpen(false);
     setIsCameraStarting(false);
+  };
+
+  /** Selesai memotret: matikan kamera dan tampilkan pilihan foto. */
+  const goToSelect = (list: Shot[] = shotsRef.current) => {
+    if (list.length === 0) return;
+    stopCameraStream();
+    setSelectedShotId((prev) =>
+      prev && list.some((s) => s.id === prev) ? prev : (list[list.length - 1]?.id ?? null),
+    );
+    setCameraStep("select");
+  };
+
+  /** Kembali ke mode memotret (bila jatah foto masih ada). */
+  const backToCapture = async () => {
+    if (shotsRef.current.length >= MAX_SHOTS) return;
+    setCameraStep("capture");
+    setIsCameraStarting(true);
+    try {
+      setFacingMode(await startStream({ facing: facingMode }));
+    } catch (err) {
+      console.error("Gagal menyalakan ulang kamera:", err);
+      alert("Gagal menyalakan kamera kembali.");
+      setCameraStep("select");
+    } finally {
+      setIsCameraStarting(false);
+    }
+  };
+
+  /** Hapus satu jepretan dari daftar pilihan. */
+  const removeShot = (id: string) => {
+    const target = shotsRef.current.find((s) => s.id === id);
+    if (target) URL.revokeObjectURL(target.url);
+    const next = shotsRef.current.filter((s) => s.id !== id);
+    shotsRef.current = next;
+    setShots(next);
+    if (next.length === 0) {
+      void backToCapture();
+    } else if (selectedShotId === id) {
+      setSelectedShotId(next[next.length - 1]?.id ?? null);
+    }
+  };
+
+  /** Pakai foto yang dipilih sebagai bukti, lalu tutup kamera. */
+  const confirmSelectedShot = () => {
+    const chosen = shotsRef.current.find((s) => s.id === selectedShotId);
+    if (!chosen) return;
+    applyPhoto(chosen.file);
+    closeCamera();
   };
 
   /** Ganti antara kamera belakang dan depan. */
@@ -170,15 +252,21 @@ function BuktiPendukungPage() {
     const cameras = (await listCameras()).filter((c) => c.deviceId);
     const others = cameras.filter((c) => c.deviceId !== currentId);
     const currentIndex = cameras.findIndex((c) => c.deviceId === currentId);
-    const targetCamera =
+    const candidate =
       others.find((c) => guessFacingFromLabel(c.label) === next) ??
       (currentIndex >= 0 ? cameras[(currentIndex + 1) % cameras.length] : others[0]);
+    // Jangan "flip" ke kamera yang sama; pakai facingMode exact sebagai gantinya.
+    const targetCamera = candidate && candidate.deviceId !== currentId ? candidate : undefined;
 
     setIsCameraStarting(true);
     try {
-      const actual = targetCamera
+      let actual = targetCamera
         ? await startStream({ facing: next, deviceId: targetCamera.deviceId })
         : await startStream({ facing: next, exact: true });
+      // Bila deviceId ternyata membuka kamera dengan arah yang sama, coba facingMode.
+      if (actual !== next && targetCamera) {
+        actual = await startStream({ facing: next, exact: true });
+      }
       setFacingMode(actual);
     } catch (err) {
       console.error("Gagal mengganti kamera:", err);
@@ -202,6 +290,7 @@ function BuktiPendukungPage() {
   const takePhoto = () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) return;
+    if (shotsRef.current.length >= MAX_SHOTS) return;
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
@@ -217,9 +306,15 @@ function BuktiPendukungPage() {
 
     canvas.toBlob(
       (blob) => {
-        if (!blob) return;
-        applyPhoto(new File([blob], `bukti-foto-${Date.now()}.jpg`, { type: "image/jpeg" }));
-        closeCamera();
+        if (!blob || shotsRef.current.length >= MAX_SHOTS) return;
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const file = new File([blob], `bukti-foto-${id}.jpg`, { type: "image/jpeg" });
+        const next = [...shotsRef.current, { id, file, url: URL.createObjectURL(file) }];
+        shotsRef.current = next;
+        setShots(next);
+        setSelectedShotId(id);
+        // Jatah habis: langsung ke layar pilih foto.
+        if (next.length >= MAX_SHOTS) goToSelect(next);
       },
       "image/jpeg",
       0.92,
@@ -235,8 +330,14 @@ function BuktiPendukungPage() {
     }
   }, [isCameraOpen, isCameraStarting]);
 
-  // Lepas kamera saat halaman ditinggalkan.
-  useEffect(() => () => stopCameraStream(), []);
+  // Lepas kamera & URL jepretan saat halaman ditinggalkan.
+  useEffect(
+    () => () => {
+      stopCameraStream();
+      shotsRef.current.forEach((s) => URL.revokeObjectURL(s.url));
+    },
+    [],
+  );
 
   // Bebaskan object URL preview saat diganti / unmount.
   useEffect(() => {
@@ -504,7 +605,7 @@ function BuktiPendukungPage() {
               </label>
               <p className="text-[10px] text-gray-400 leading-tight">
                 Ketuk tombol kamera untuk membuka kamera langsung di browser. Kamera depan/belakang
-                bisa diganti.
+                bisa diganti. Ambil hingga {MAX_SHOTS} foto, lalu pilih satu yang paling jelas.
               </p>
 
               <input
@@ -689,9 +790,11 @@ function BuktiPendukungPage() {
           <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-black shadow-2xl">
             <div className="flex items-center justify-between bg-black/60 px-4 py-3">
               <span className="text-[12px] font-semibold text-white">
-                Ambil Foto Bukti
+                {cameraStep === "select" ? "Pilih Foto Bukti" : "Ambil Foto Bukti"}
                 <span className="ml-2 font-normal text-white/60">
-                  {facingMode === "user" ? "Kamera depan" : "Kamera belakang"}
+                  {cameraStep === "select"
+                    ? `${shots.length} foto`
+                    : `${facingMode === "user" ? "Kamera depan" : "Kamera belakang"} · ${shots.length}/${MAX_SHOTS}`}
                 </span>
               </span>
               <button
@@ -704,7 +807,13 @@ function BuktiPendukungPage() {
               </button>
             </div>
 
-            <div className="relative flex aspect-[3/4] w-full items-center justify-center bg-[#111]">
+            {/* Video tetap ter-mount (disembunyikan saat memilih) agar stream bisa
+                dipasang ulang tanpa menunggu render. */}
+            <div
+              className={`relative aspect-[3/4] max-h-[65vh] w-full items-center justify-center bg-[#111] ${
+                cameraStep === "select" ? "hidden" : "flex"
+              }`}
+            >
               <video
                 ref={videoRef}
                 autoPlay
@@ -718,23 +827,116 @@ function BuktiPendukungPage() {
                   <span className="text-[11px]">Menyalakan kamera...</span>
                 </div>
               )}
+
+              {/* Strip jepretan sementara */}
+              {shots.length > 0 && (
+                <div className="absolute inset-x-0 bottom-0 flex gap-1.5 overflow-x-auto bg-gradient-to-t from-black/70 to-transparent p-2">
+                  {shots.map((s, i) => (
+                    <img
+                      key={s.id}
+                      src={s.url}
+                      alt={`Jepretan ${i + 1}`}
+                      className="h-12 w-12 shrink-0 rounded-md border border-white/40 object-cover"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
+            {cameraStep === "select" && (
+              <div className="max-h-[65vh] overflow-y-auto bg-[#111] p-3">
+                <p className="mb-2 text-[11px] text-white/70">
+                  Ketuk foto yang ingin digunakan sebagai bukti.
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {shots.map((s, i) => {
+                    const isSelected = s.id === selectedShotId;
+                    return (
+                      <div key={s.id} className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedShotId(s.id)}
+                          aria-pressed={isSelected}
+                          aria-label={`Pilih foto ${i + 1}`}
+                          className={`block aspect-[3/4] w-full overflow-hidden rounded-lg border-2 transition-colors ${
+                            isSelected ? "border-emerald-400" : "border-transparent hover:border-white/40"
+                          }`}
+                        >
+                          <img
+                            src={s.url}
+                            alt={`Foto ${i + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                        </button>
+                        {isSelected && (
+                          <span className="pointer-events-none absolute left-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-white shadow">
+                            <Check className="h-4 w-4" />
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeShot(s.id)}
+                          aria-label={`Hapus foto ${i + 1}`}
+                          className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white hover:bg-red-600 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {cameraStep === "select" ? (
+              <div className="flex items-center justify-between gap-2 bg-black/60 px-4 py-4">
+                <button
+                  type="button"
+                  onClick={backToCapture}
+                  disabled={shots.length >= MAX_SHOTS || isCameraStarting}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors disabled:opacity-40"
+                  title={shots.length >= MAX_SHOTS ? `Maksimal ${MAX_SHOTS} foto` : undefined}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {shots.length >= MAX_SHOTS ? `Maks. ${MAX_SHOTS} foto` : "Ambil Lagi"}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmSelectedShot}
+                  disabled={!selectedShotId}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-5 py-2 text-[11px] font-semibold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Gunakan Foto Ini
+                </button>
+              </div>
+            ) : (
             <div className="grid grid-cols-3 items-center bg-black/60 px-4 py-5">
-              <button
-                type="button"
-                onClick={closeCamera}
-                className="justify-self-start rounded-lg border border-white/20 bg-white/10 px-5 py-2 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors"
-              >
-                Batal
-              </button>
+              {shots.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => goToSelect()}
+                  disabled={isCameraStarting}
+                  className="justify-self-start rounded-lg bg-emerald-500 px-4 py-2 text-[11px] font-semibold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                >
+                  Selesai ({shots.length})
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={closeCamera}
+                  className="justify-self-start rounded-lg border border-white/20 bg-white/10 px-5 py-2 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors"
+                >
+                  Batal
+                </button>
+              )}
 
               <button
                 type="button"
                 onClick={takePhoto}
-                disabled={isCameraStarting}
-                className="justify-self-center grid h-14 w-14 place-items-center rounded-full border-4 border-white bg-white/20 text-white hover:bg-white/40 transition-colors disabled:opacity-50"
-                aria-label="Ambil foto"
+                disabled={isCameraStarting || shots.length >= MAX_SHOTS}
+                className="justify-self-center grid h-14 w-14 place-items-center rounded-full border-4 border-white bg-white/20 text-white hover:bg-white/40 active:scale-95 transition disabled:opacity-50"
+                aria-label={`Ambil foto (${shots.length}/${MAX_SHOTS})`}
               >
                 <Camera className="h-6 w-6" />
               </button>
@@ -756,6 +958,7 @@ function BuktiPendukungPage() {
                 )}
               </div>
             </div>
+            )}
           </div>
         </div>
       )}
