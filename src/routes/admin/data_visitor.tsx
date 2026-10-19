@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { pageWindow } from "@/lib/pagination";
 import { apiUrl, authHeaders } from "@/lib/api";
 import { isRecord } from "@/lib/json";
@@ -154,13 +155,16 @@ function DataVisitorPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
     return rows.filter((item) =>
-      [item.namaLengkap, item.nik, item.alamat, item.jenisKelamin, item.jabatan, item.noTelp, item.email]
-        .join(" ")
-        .toLowerCase()
-        .includes(q),
+      matchesSearch(search, [
+        item.namaLengkap,
+        item.nik,
+        item.alamat,
+        item.jenisKelamin,
+        item.jabatan,
+        item.noTelp,
+        item.email,
+      ]),
     );
   }, [rows, search]);
 

@@ -4,6 +4,7 @@ import { User, Building2, Loader2, AlertCircle, CheckCircle2 } from "lucide-reac
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES, PAGE_TITLES } from "@/config/app";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/admin/detail_berkas")({
   head: () => ({
     meta: [
       {
-        title: "Report Pelayanan - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminReportPelayanan,
       },
     ],
   }),
@@ -220,11 +221,11 @@ function DetailBerkasPage() {
         throw new Error(errJson?.message || "Gagal memperbarui data aduan.");
       }
 
-      toast.success("Data berhasil diperbarui!");
+      toast.success(SUCCESS_MESSAGES.dataUpdated);
       setActiveTab("detail");
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Terjadi kesalahan saat menyimpan data.");
+      toast.error(err.message || ERROR_MESSAGES.dataUpdateFailed);
     } finally {
       setSaving(false);
     }

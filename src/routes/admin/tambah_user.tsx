@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { AUTH_BASE_URL } from "@/lib/api";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/tambah_user")({
   head: () => ({
@@ -61,12 +62,12 @@ function TambahUserPage() {
         );
       }
 
-      toast.success("User berhasil ditambahkan!");
+      toast.success(SUCCESS_MESSAGES.userCreated);
       navigate({ to: "/admin/manajemen_user" });
     } catch (err: any) {
       console.error("Registrasi user gagal:", err);
-      toast.error(err?.message || "Gagal mendaftarkan user. Silakan coba lagi.");
-      setErrorMessage(err?.message || "Gagal mendaftarkan user. Silakan coba lagi.");
+      toast.error(err?.message || ERROR_MESSAGES.userCreateFailed);
+      setErrorMessage(err?.message || ERROR_MESSAGES.userCreateFailed);
     } finally {
       setSaving(false);
     }

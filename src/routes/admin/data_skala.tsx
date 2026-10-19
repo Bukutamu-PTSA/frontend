@@ -4,9 +4,11 @@ import { Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { apiUrl, authHeaders } from "@/lib/api";
 import { useTableExport } from "@/lib/use-table-export";
 import { pageWindow } from "@/lib/pagination";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/data_skala")({
   head: () => ({
@@ -82,16 +84,14 @@ function DataSkalaPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.nama.toLowerCase().includes(q));
+    return rows.filter((r) => matchesSearch(search, [r.nama]));
   }, [rows, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const displayed = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Hapus skala perusahaan ini?")) return;
+    if (!window.confirm(CONFIRM_MESSAGES.deleteSkala)) return;
 
     setDeletingId(id);
     try {
@@ -109,10 +109,10 @@ function DataSkalaPage() {
       }
 
       setRows((prev) => prev.filter((r) => r.id !== id));
-      toast.success("Skala perusahaan berhasil dihapus.");
+      toast.success(SUCCESS_MESSAGES.skalaDeleted);
     } catch (err: any) {
       console.error("Gagal menghapus skala:", err);
-      toast.error(err?.message || "Gagal menghapus skala. Coba lagi.");
+      toast.error(err?.message || ERROR_MESSAGES.skalaDeleteFailed);
     } finally {
       setDeletingId(null);
     }

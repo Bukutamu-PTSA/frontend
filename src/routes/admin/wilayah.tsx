@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { apiUrl, authHeaders } from "@/lib/api";
+import { ERROR_MESSAGES, PAGE_TITLES } from "@/config/app";
 
 const PROVINCE_SUMMARY_API_URL = apiUrl("dashboard/province-summary");
 // Ekspor rekapitulasi provinsi dalam bentuk PDF dari backend.
@@ -24,7 +26,7 @@ export const Route = createFileRoute("/admin/wilayah")({
   head: () => ({
     meta: [
       {
-        title: "Data Provinsi - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminWilayah,
       },
     ],
   }),
@@ -212,9 +214,7 @@ function DataProvinsiPage() {
   );
 
   const filteredData = useMemo(() => {
-    const result = tableData.filter((row) =>
-      row.provinsi.toLowerCase().includes(search.toLowerCase().trim()),
-    );
+    const result = tableData.filter((row) => matchesSearch(search, [row.provinsi]));
 
     result.sort((a, b) => {
       const valA = a[sortField];
@@ -437,7 +437,7 @@ function DataProvinsiPage() {
       downloadFile(blob, `Data_Provinsi_${fileStamp()}.pdf`);
     } catch (err: any) {
       console.error("Export PDF error:", err);
-      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+      toast.error(err.message || ERROR_MESSAGES.pdfExportFailed);
     } finally {
       setDownloadingPdf(false);
     }

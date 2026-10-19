@@ -20,6 +20,28 @@ import {
 import { apiUrl } from '@/lib/api';
 import { extractList, isRecord } from '@/lib/json';
 import logoKemnaker from '@/assets/kemnaker_logo.png';
+import {
+  PAGE_TITLES,
+  NAV_LINKS,
+  ORGANIZATION_NAME_SHORT,
+  ORGANIZATION_UNIT,
+  ORGANIZATION_UNIT_FULL,
+  ADDRESS_LINE_1,
+  ADDRESS_LINE_2,
+  ADDRESS_LINE_3,
+  CONTACT_EMAIL,
+  MAPS_URL,
+  SOCIAL_LINKS,
+  COPYRIGHT_YEARS,
+  DEVELOPER_NAME,
+  SYSTEM_OWNER_NAME,
+} from '@/config/app';
+
+const iconMap = {
+  XIcon,
+  Facebook,
+  Instagram,
+};
 
 const FAQ_API_URL = apiUrl('faqs');
 
@@ -53,12 +75,6 @@ function toFaqItem(row: unknown): FAQItem | null {
 
   return item;
 }
-
-const navLinks = [
-  { to: "/", label: "Beranda" },
-  { to: "/pengaduan", label: "Pengaduan" },
-  { to: "/survei", label: "Survei" },
-];
 
 const FaqPage: React.FC = () => {
   const navigate = useNavigate();
@@ -119,21 +135,21 @@ const FaqPage: React.FC = () => {
       <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-30">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
           <Link to="/" className="flex items-center gap-3">
-            <img src={logoKemnaker} alt="Logo Kemnaker" className="h-8 w-8 object-contain" />
-            <span className="text-xl font-bold text-[#032749]">Kementerian Ketenagakerjaan</span>
+            <img src={logoKemnaker} alt={`Logo ${ORGANIZATION_NAME_SHORT}`} className="h-8 w-8 object-contain" />
+            <span className="text-xl font-bold text-brand-primary">{ORGANIZATION_NAME_SHORT}</span>
           </Link>
 
           <nav
             aria-label="Navigasi utama"
             className="hidden items-center gap-8 md:flex text-[15px]"
           >
-            {navLinks.map((link) => (
+            {NAV_LINKS.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                className="pb-1 transition-colors font-medium text-gray-600 hover:text-[#032749]"
+                className="pb-1 transition-colors font-medium text-gray-600 hover:text-brand-primary"
                 activeProps={{
-                  className: "text-[#032749] font-bold border-b-2 border-[#032749]",
+                  className: "text-brand-primary font-bold border-b-2 border-brand-primary",
                 }}
                 activeOptions={{ exact: link.to === "/" }}
               >
@@ -154,7 +170,7 @@ const FaqPage: React.FC = () => {
             </h1>
             <p className="text-xs text-slate-500 max-w-xl mx-auto leading-relaxed">
               Partisipasi Anda sangat berarti bagi kami untuk meningkatkan kualitas layanan
-              Pelayanan Terpadu Satu Atap (PTSA) Kementerian Ketenagakerjaan.
+              Pelayanan Terpadu Satu Atap (PTSA) {ORGANIZATION_NAME_SHORT}.
             </p>
           </div>
 
@@ -259,43 +275,31 @@ const FaqPage: React.FC = () => {
       </main>
 
       {/* --- FOOTER --- */}
-      <footer className="bg-[#032749] text-white mt-16">
+      <footer className="bg-brand-primary text-white mt-16">
         <div className="mx-auto max-w-6xl px-6 py-14">
           <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
             {/* Kolom 1: Brand */}
             <div>
-              <h3 className="text-xl font-bold">
-                BINWASNAKER <span className="text-emerald-400">& K3</span>
-              </h3>
+              <h3 className="text-xl font-bold">{ORGANIZATION_UNIT}</h3>
               <p className="mt-4 text-sm leading-relaxed text-gray-300">
-                Ditjen Binwasnaker & K3 adalah unsur pelaksana yang berada di bawah dan
+                {ORGANIZATION_UNIT_FULL} adalah unsur pelaksana yang berada di bawah dan
                 bertanggung jawab kepada Menteri Ketenagakerjaan.
               </p>
               <div className="mt-6 flex gap-3">
-                <a
-                  href="https://x.com/KemnakerRI"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
-                >
-                  <XIcon className="size-4" />
-                </a>
-                <a
-                  href="https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
-                >
-                  <Facebook className="size-4" />
-                </a>
-                <a
-                  href="https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ=="
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-[#032749]"
-                >
-                  <Instagram className="size-4" />
-                </a>
+                {SOCIAL_LINKS.map(({ icon, href }, i) => {
+                  const Icon = iconMap[icon as keyof typeof iconMap];
+                  return (
+                    <a
+                      key={i}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex size-9 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-emerald-400 hover:text-white"
+                    >
+                      <Icon className="size-4" />
+                    </a>
+                  );
+                })}
               </div>
             </div>
 
@@ -304,21 +308,20 @@ const FaqPage: React.FC = () => {
               <h4 className="text-lg font-semibold">Ada Pertanyaan?</h4>
               <hr className="mt-4 border-white/15" />
               <a
-                href="https://maps.app.goo.gl/QiLps9tsVMszzHf79"
+                href={MAPS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-5 flex gap-3 text-sm text-gray-300 transition-colors hover:text-emerald-400"
               >
                 <MapPin className="mt-0.5 size-5 shrink-0 text-emerald-400" />
                 <p className="leading-relaxed">
-                  Jl. Jend. Gatot Subroto Kav. 51, RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi,
-                  Kota Jakarta Selatan, DKI Jakarta 12950
+                  {ADDRESS_LINE_1}, {ADDRESS_LINE_2}, {ADDRESS_LINE_3}
                 </p>
               </a>
               <div className="mt-4 flex items-center gap-3 text-sm">
                 <Mail className="size-5 text-emerald-400" />
                 <a
-                  href="mailto:pengaduanwlkp@gmail.com"
+                  href={`mailto:${CONTACT_EMAIL}`}
                   className="text-gray-300 hover:text-emerald-400 transition-colors"
                 >
                   Pengaduan WLKP
@@ -338,8 +341,8 @@ const FaqPage: React.FC = () => {
           <hr className="mt-10 border-white/15" />
 
           <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
-            <p>Copyright © BINSIS || 2024–2026</p>
-            <p>Designed by TUBSPK</p>
+            <p>Copyright © {SYSTEM_OWNER_NAME} || {COPYRIGHT_YEARS}</p>
+            <p>Designed by {DEVELOPER_NAME}</p>
           </div>
         </div>
       </footer>
@@ -348,6 +351,9 @@ const FaqPage: React.FC = () => {
 };
 
 export const Route = createFileRoute('/faqpage')({
+  head: () => ({
+    meta: [{ title: PAGE_TITLES.faq }],
+  }),
   component: FaqPage,
 });
 

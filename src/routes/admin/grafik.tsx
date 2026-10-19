@@ -5,6 +5,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { apiUrl, authHeaders } from "@/lib/api";
+import { ERROR_MESSAGES, PAGE_TITLES, APP_SHORT_NAME } from "@/config/app";
 import { computeGrowth, formatGrowth } from "@/lib/growth";
 import { fetchSatisfactionSummary } from "@/lib/satisfaction";
 
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/admin/grafik")({
   head: () => ({
     meta: [
       {
-        title: "Grafik & Statistik Overview - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminGrafik,
       },
     ],
   }),
@@ -264,7 +265,7 @@ function GrafikStatistikPage() {
       downloadFile(blob, exportFileName());
     } catch (err: any) {
       console.error("Export PDF error:", err);
-      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+      toast.error(err.message || ERROR_MESSAGES.pdfExportFailed);
     } finally {
       setExportingPdf(false);
     }
@@ -422,7 +423,7 @@ function GrafikStatistikPage() {
               Grafik & Statistik Overview
             </h1>
             <p className="text-[11px] text-gray-500 mt-0.5">
-              Ringkasan performa pelayanan terpadu dan analisis data PTSA KEMNAKER
+              Ringkasan performa pelayanan terpadu dan analisis data {APP_SHORT_NAME}
             </p>
           </div>
 

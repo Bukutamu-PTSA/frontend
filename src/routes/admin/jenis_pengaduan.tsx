@@ -4,9 +4,11 @@ import { Download, Loader2, Pencil, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { apiUrl, authHeaders } from "@/lib/api";
 import { useTableExport } from "@/lib/use-table-export";
 import { pageWindow } from "@/lib/pagination";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/jenis_pengaduan")({
   head: () => ({
@@ -75,9 +77,7 @@ function JenisPengaduanPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.nama.toLowerCase().includes(q) || r.kode.toLowerCase().includes(q));
+    return rows.filter((r) => matchesSearch(search, [r.nama, r.kode]));
   }, [rows, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
@@ -151,7 +151,7 @@ function JenisPengaduanPage() {
   };
 
   const handleDelete = async (item: JenisItem) => {
-    if (!window.confirm(`Hapus jenis pengaduan "${item.nama}"?`)) return;
+    if (!window.confirm(CONFIRM_MESSAGES.deleteJenisPengaduan(item.nama))) return;
     const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     try {
@@ -171,10 +171,10 @@ function JenisPengaduanPage() {
       }
 
       fetchJenis();
-      toast.success("Jenis pengaduan berhasil dihapus.");
+      toast.success(SUCCESS_MESSAGES.jenisPengaduanDeleted);
     } catch (err: any) {
       console.error("Gagal menghapus jenis pengaduan:", err);
-      toast.error(err?.message || "Gagal menghapus jenis pengaduan. Coba lagi.");
+      toast.error(err?.message || ERROR_MESSAGES.jenisPengaduanDeleteFailed);
     }
   };
 
@@ -278,7 +278,7 @@ function JenisPengaduanPage() {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("Export PDF jenis pengaduan error:", err);
-      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+      toast.error(err.message || ERROR_MESSAGES.pdfExportFailed);
     } finally {
       setDownloadingPdf(false);
     }

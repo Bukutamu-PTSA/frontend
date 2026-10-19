@@ -7,10 +7,13 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
+import { APP_SHORT_NAME, applyBrandColors } from "@/config/app";
+
+const ROOT_DESCRIPTION = `Pelayanan Terpadu Satu Atap - ${APP_SHORT_NAME}`;
 
 function NotFoundComponent() {
   return (
@@ -74,13 +77,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PTSA KEMNAKER" },
-      { name: "description", content: "Pelayanan Terpadu Satu Atap - Kemnaker" },
-      { name: "author", content: "PTSA KEMNAKER" },
-      { property: "og:title", content: "PTSA KEMNAKER" },
+      { title: APP_SHORT_NAME },
+      { name: "description", content: ROOT_DESCRIPTION },
+      { name: "author", content: APP_SHORT_NAME },
+      { property: "og:title", content: APP_SHORT_NAME },
       {
         property: "og:description",
-        content: "Pelayanan Terpadu Satu Atap - Kemnaker",
+        content: ROOT_DESCRIPTION,
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -121,6 +124,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Terapkan warna brand dari env (VITE_BRAND_*) ke CSS variabel saat runtime.
+  useEffect(() => {
+    applyBrandColors();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

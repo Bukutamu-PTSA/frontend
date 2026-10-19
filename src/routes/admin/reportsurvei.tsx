@@ -20,14 +20,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
+import { matchesSearch } from "@/lib/search";
 import { API_BASE_URL, authHeaders } from "@/lib/api";
 import { pageWindow } from "@/lib/pagination";
+import { ERROR_MESSAGES, PAGE_TITLES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/reportsurvei")({
   head: () => ({
     meta: [
       {
-        title: "Report Survei Pelayanan - PTSA KEMNAKER",
+        title: PAGE_TITLES.adminReportSurvei,
       },
     ],
   }),
@@ -312,24 +314,16 @@ function ReportSurveiPage() {
 
   // Filter berdasarkan pencarian
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return respondents;
-    return respondents.filter((item) => {
-      const nama = String(item.nama_petugas ?? "").toLowerCase();
-      const komunikasi = String(item.komunikasi_petugas ?? "").toLowerCase();
-      const materi = String(item.penjelasan_materi ?? "").toLowerCase();
-      const sarana = String(item.sarana_prasarana ?? "").toLowerCase();
-      const ket = String(item.catatan ?? "").toLowerCase();
-      const tgl = formatDateIndo(item.survey_date ?? item.created_at).toLowerCase();
-      return (
-        nama.includes(q) ||
-        komunikasi.includes(q) ||
-        materi.includes(q) ||
-        sarana.includes(q) ||
-        ket.includes(q) ||
-        tgl.includes(q)
-      );
-    });
+    return respondents.filter((item) =>
+      matchesSearch(search, [
+        item.nama_petugas,
+        item.komunikasi_petugas,
+        item.penjelasan_materi,
+        item.sarana_prasarana,
+        item.catatan,
+        formatDateIndo(item.survey_date ?? item.created_at),
+      ]),
+    );
   }, [respondents, search]);
 
   // Statistik ringkas
@@ -527,7 +521,7 @@ function ReportSurveiPage() {
       downloadFile(blob, filename);
     } catch (err: any) {
       console.error("Export PDF survei error:", err);
-      toast.error(err.message || "Terjadi kesalahan saat mengunduh PDF.");
+      toast.error(err.message || ERROR_MESSAGES.pdfExportFailed);
     } finally {
       setDownloadingPdf(false);
     }
