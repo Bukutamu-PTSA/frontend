@@ -12,6 +12,7 @@ import {
   Facebook,
   Instagram,
   Upload,
+  SwitchCamera,
 } from "lucide-react";
 import { XIcon } from "@/components/x-icon";
 import { apiUrl } from "@/lib/api";
@@ -29,18 +30,24 @@ export const Route = createFileRoute("/bukti_pendukung")({
 
 const COMPLAINTS_API_URL = apiUrl("complaints");
 
-// Helper konversi base64 hasil kamera menjadi File objek.
-function dataURLtoFile(dataurl: string, filename: string): File {
-  const arr = dataurl.split(",");
-  const mimeMatch = arr[0]?.match(/:(.*?);/);
-  const mime = mimeMatch?.[1] || "image/jpeg, application/pdf";
-  const bstr = atob(arr[1] || "");
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
+/** Arah kamera: "environment" = belakang, "user" = depan (selfie). */
+type FacingMode = "environment" | "user";
+
+/** Tebak arah kamera dari label perangkat (label baru terisi setelah izin). */
+function guessFacingFromLabel(label: string): FacingMode | null {
+  if (/front|user|depan|selfie|facetime/i.test(label)) return "user";
+  if (/back|rear|environment|belakang/i.test(label)) return "environment";
+  return null;
+}
+
+/** Daftar kamera (videoinput) yang tersedia di perangkat. */
+async function listCameras(): Promise<MediaDeviceInfo[]> {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((d) => d.kind === "videoinput");
+  } catch {
+    return [];
   }
-  return new File([u8arr], filename, { type: mime });
 }
 
 function BuktiPendukungPage() {
@@ -49,38 +56,214 @@ function BuktiPendukungPage() {
   const [deskripsiAduan, setDeskripsiAduan] = useState("");
   const [selectedDocument, setSelectedDocument] = useState<File | null>(null);
 
-  // Camera state (native capture: input type=file + capture)
+  // Hasil foto (object URL untuk preview + File untuk dikirim).
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [capturedFile, setCapturedFile] = useState<File | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Kamera langsung (getUserMedia) + flip depan/belakang.
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<FacingMode>("environment");
+  const [canFlipCamera, setCanFlipCamera] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCapture = () => {
-    cameraInputRef.current?.click();
+  /** Hentikan semua track kamera dan lepaskan stream. */
+  const stopCameraStream = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
   };
 
-  const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  /**
+   * Nyalakan stream kamera, lewat deviceId (paling andal untuk flip) atau
+   * facingMode. Mengembalikan arah kamera yang benar-benar aktif.
+   */
+  const startStream = async (target: {
+    facing: FacingMode;
+    deviceId?: string | undefined;
+    exact?: boolean | undefined;
+  }): Promise<FacingMode> => {
+    const hadStream = streamRef.current !== null;
+    stopCameraStream();
+    // Banyak HP Android belum melepas kamera lama tepat setelah track.stop();
+    // tanpa jeda, getUserMedia berikutnya gagal (NotReadableError).
+    if (hadStream) await new Promise((r) => setTimeout(r, 300));
 
-    if (
-      !/\.(jpe?g|png|pdf)$/i.test(file.name) &&
-      !["image/jpeg", "image/png", "application/pdf"].includes(file.type)
-    ) {
-      alert("Bukti foto harus berupa file JPG/JPEG atau PDF.");
+    const video: MediaTrackConstraints = target.deviceId
+      ? { deviceId: { exact: target.deviceId } }
+      : { facingMode: target.exact ? { exact: target.facing } : { ideal: target.facing } };
+
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video, audio: false });
+    } catch (err) {
+      const name = (err as DOMException)?.name;
+      if (name !== "OverconstrainedError" && name !== "NotFoundError") throw err;
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    }
+
+    streamRef.current = stream;
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play().catch(() => {});
+    }
+
+    const track = stream.getVideoTracks()[0];
+    const settings = track?.getSettings?.() ?? {};
+    const actual: FacingMode =
+      settings.facingMode === "user" || settings.facingMode === "environment"
+        ? settings.facingMode
+        : (guessFacingFromLabel(track?.label ?? "") ?? target.facing);
+
+    // Tombol flip hanya muncul bila perangkat punya lebih dari 1 kamera.
+    setCanFlipCamera((await listCameras()).length > 1);
+    return actual;
+  };
+
+  /** Buka kamera langsung di browser. */
+  const openCamera = async () => {
+    setCameraError(null);
+
+    // getUserMedia hanya ada di HTTPS/localhost. Di luar itu pakai kamera
+    // bawaan HP lewat input file (tanpa tombol flip).
+    if (!navigator.mediaDevices?.getUserMedia) {
+      cameraInputRef.current?.click();
       return;
     }
 
-    setCapturedFile(file);
+    setIsCameraOpen(true);
+    setIsCameraStarting(true);
+    try {
+      setFacingMode(await startStream({ facing: facingMode }));
+    } catch (err) {
+      console.error("Gagal mengakses kamera:", err);
+      stopCameraStream();
+      setIsCameraOpen(false);
+      setCameraError(
+        "Tidak dapat mengakses kamera. Pastikan izin kamera diberikan, atau pilih file gambar sebagai gantinya.",
+      );
+    } finally {
+      setIsCameraStarting(false);
+    }
+  };
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCapturedPhoto(String(reader.result ?? ""));
+  /** Tutup modal kamera dan matikan stream. */
+  const closeCamera = () => {
+    stopCameraStream();
+    setIsCameraOpen(false);
+    setIsCameraStarting(false);
+  };
+
+  /** Ganti antara kamera belakang dan depan. */
+  const flipCamera = async () => {
+    const next: FacingMode = facingMode === "environment" ? "user" : "environment";
+    const currentId = streamRef.current?.getVideoTracks()[0]?.getSettings?.().deviceId;
+
+    // Pilih kamera tujuan lewat deviceId; facingMode saja sering diabaikan HP
+    // dan mengembalikan kamera yang sama.
+    const cameras = (await listCameras()).filter((c) => c.deviceId);
+    const others = cameras.filter((c) => c.deviceId !== currentId);
+    const currentIndex = cameras.findIndex((c) => c.deviceId === currentId);
+    const targetCamera =
+      others.find((c) => guessFacingFromLabel(c.label) === next) ??
+      (currentIndex >= 0 ? cameras[(currentIndex + 1) % cameras.length] : others[0]);
+
+    setIsCameraStarting(true);
+    try {
+      const actual = targetCamera
+        ? await startStream({ facing: next, deviceId: targetCamera.deviceId })
+        : await startStream({ facing: next, exact: true });
+      setFacingMode(actual);
+    } catch (err) {
+      console.error("Gagal mengganti kamera:", err);
+      alert("Gagal mengganti kamera. Kembali ke kamera sebelumnya.");
+      await startStream({ facing: facingMode, deviceId: currentId })
+        .then(setFacingMode)
+        .catch(() => closeCamera());
+    } finally {
+      setIsCameraStarting(false);
+    }
+  };
+
+  /** Simpan foto sebagai bukti (ganti foto lama & bebaskan URL-nya). */
+  const applyPhoto = (file: File) => {
+    // URL lama dibebaskan oleh effect cleanup di bawah.
+    setCapturedPhoto(URL.createObjectURL(file));
+    setCapturedFile(file);
+  };
+
+  /** Ambil frame dari video sebagai foto JPEG. */
+  const takePhoto = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    // Kamera depan ditampilkan seperti cermin; simpan sama seperti yang dilihat.
+    if (facingMode === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        applyPhoto(new File([blob], `bukti-foto-${Date.now()}.jpg`, { type: "image/jpeg" }));
+        closeCamera();
+      },
+      "image/jpeg",
+      0.92,
+    );
+  };
+
+  // Pengaman: bila stream siap sebelum <video> modal ter-render, pasang di sini.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (isCameraOpen && video && streamRef.current && video.srcObject !== streamRef.current) {
+      video.srcObject = streamRef.current;
+      video.play().catch(() => {});
+    }
+  }, [isCameraOpen, isCameraStarting]);
+
+  // Lepas kamera saat halaman ditinggalkan.
+  useEffect(() => () => stopCameraStream(), []);
+
+  // Bebaskan object URL preview saat diganti / unmount.
+  useEffect(() => {
+    return () => {
+      if (capturedPhoto) URL.revokeObjectURL(capturedPhoto);
     };
-    reader.readAsDataURL(file);
+  }, [capturedPhoto]);
+
+  const handleCapture = () => {
+    openCamera();
+  };
+
+  /** Fallback input kamera bawaan (non-HTTPS / browser lama). */
+  const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     e.target.value = "";
+    if (!file) return;
+
+    if (
+      !/\.(jpe?g|png)$/i.test(file.name) &&
+      !["image/jpeg", "image/png"].includes(file.type)
+    ) {
+      alert("Bukti foto harus berupa file JPG/JPEG atau PNG.");
+      return;
+    }
+
+    applyPhoto(file);
   };
 
   const handleClearPhoto = () => {
@@ -89,9 +272,10 @@ function BuktiPendukungPage() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedDocument(e.target.files[0]);
-    }
+    const file = e.target.files?.[0];
+    // Reset supaya memilih file yang sama lagi tetap memicu onChange.
+    e.target.value = "";
+    if (file) setSelectedDocument(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -319,7 +503,8 @@ function BuktiPendukungPage() {
                 Bukti Foto (Opsional namun sangat disarankan)
               </label>
               <p className="text-[10px] text-gray-400 leading-tight">
-                Di HP: langsung buka kamera. Di laptop: pilih file gambar.
+                Ketuk tombol kamera untuk membuka kamera langsung di browser. Kamera depan/belakang
+                bisa diganti.
               </p>
 
               <input
@@ -370,6 +555,12 @@ function BuktiPendukungPage() {
                   <span>{capturedPhoto ? "Ambil Ulang Foto" : "Mulai Kamera"}</span>
                 </button>
               </div>
+
+              {cameraError && (
+                <p className="pt-1 text-center text-[10px] font-medium text-red-500">
+                  {cameraError}
+                </p>
+              )}
             </div>
 
             {/* Footer Buttons */}
@@ -486,6 +677,88 @@ function BuktiPendukungPage() {
           </div>
         </div>
       </footer>
+
+      {/* Modal Kamera Langsung */}
+      {isCameraOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Ambil foto bukti"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+        >
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-black shadow-2xl">
+            <div className="flex items-center justify-between bg-black/60 px-4 py-3">
+              <span className="text-[12px] font-semibold text-white">
+                Ambil Foto Bukti
+                <span className="ml-2 font-normal text-white/60">
+                  {facingMode === "user" ? "Kamera depan" : "Kamera belakang"}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="grid h-7 w-7 place-items-center rounded-full bg-white/15 text-white hover:bg-white/30 transition-colors"
+                aria-label="Tutup kamera"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="relative flex aspect-[3/4] w-full items-center justify-center bg-[#111]">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`h-full w-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`}
+              />
+              {isCameraStarting && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 text-white">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <span className="text-[11px]">Menyalakan kamera...</span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 items-center bg-black/60 px-4 py-5">
+              <button
+                type="button"
+                onClick={closeCamera}
+                className="justify-self-start rounded-lg border border-white/20 bg-white/10 px-5 py-2 text-[11px] font-semibold text-white hover:bg-white/20 transition-colors"
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={takePhoto}
+                disabled={isCameraStarting}
+                className="justify-self-center grid h-14 w-14 place-items-center rounded-full border-4 border-white bg-white/20 text-white hover:bg-white/40 transition-colors disabled:opacity-50"
+                aria-label="Ambil foto"
+              >
+                <Camera className="h-6 w-6" />
+              </button>
+
+              <div className="justify-self-end">
+                {canFlipCamera && (
+                  <button
+                    type="button"
+                    onClick={flipCamera}
+                    disabled={isCameraStarting}
+                    className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white hover:bg-white/30 transition-colors disabled:opacity-50"
+                    aria-label={
+                      facingMode === "user" ? "Ganti ke kamera belakang" : "Ganti ke kamera depan"
+                    }
+                    title={facingMode === "user" ? "Ganti ke kamera belakang" : "Ganti ke kamera depan"}
+                  >
+                    <SwitchCamera className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
