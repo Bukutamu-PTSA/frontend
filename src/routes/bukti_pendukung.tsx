@@ -159,6 +159,10 @@ function BuktiPendukungPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
+  // Simpan ID pengaduan yang sudah dibuat, supaya kalau upload lampiran gagal
+  // lalu user klik Simpan lagi, pengaduan tidak terbuat dua kali.
+  const createdComplaintIdRef = useRef<string | number | null>(null);
+
   /** Hentikan semua track kamera dan lepaskan stream. */
   const stopCameraStream = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -394,95 +398,116 @@ function BuktiPendukungPage() {
     const savedDraft = sessionStorage.getItem("draft_pengaduan");
     const draftData = savedDraft ? JSON.parse(savedDraft) : {};
 
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    const reportError = (status: number, data: any, title: string) => {
+      console.error(`Backend error (HTTP ${status}): ${data?.message ?? ""}`, data);
+      const description = data?.errors
+        ? Object.entries(data.errors)
+            .map(([f, m]: [string, any]) => `• ${f}: ${Array.isArray(m) ? m.join(", ") : m}`)
+            .join("\n")
+        : data?.message || ERROR_MESSAGES.pengaduanValidationFailed;
+      toast.error(`${title} (HTTP ${status})`, { description });
+    };
+
     setIsSubmitting(true);
 
     try {
-      // Validasi ulang di sisi submit supaya file yang lolos filter UI (mis.
-      // ditambahkan lewat drop) tetapTERcek.
       for (const file of [selectedDocument, capturedFile]) {
         if (!file) continue;
         const problem = validateEvidenceFile(file);
         if (problem) {
           setFileError(problem);
-          setIsSubmitting(false);
           return;
         }
       }
       setFileError(null);
 
-      const formData = new FormData();
+      // ── LANGKAH 1: buat pengaduan (TANPA attachments) ──────────────────
+      if (!createdComplaintIdRef.current) {
+        const formData = new FormData();
+        formData.append("category_id", String(draftData.category_id || 1));
+        formData.append("description", deskripsiAduan);
+        formData.append(
+          "complaint_date",
+          draftData.tanggalPelaporan || new Date().toISOString().split("T")[0],
+        );
 
-      // 1. Root Complaint Fields
-      formData.append("category_id", String(draftData.category_id || 1));
-      formData.append("description", deskripsiAduan);
-      formData.append(
-        "complaint_date",
-        draftData.tanggalPelaporan || new Date().toISOString().split("T")[0],
-      );
+        formData.append("complainant[nama_lengkap]", draftData.namaPelapor || "");
+        formData.append("complainant[nik]", draftData.nik || "");
+        formData.append("complainant[alamat]", draftData.alamatPelapor || "");
+        formData.append(
+          "complainant[jenis_kelamin]",
+          (draftData.jenisKelamin || "Laki-laki").toLowerCase(),
+        );
+        formData.append("complainant[jabatan]", draftData.jabatan || "");
+        formData.append("complainant[no_telp]", draftData.noTelpPelapor || "");
+        formData.append("complainant[email]", draftData.emailPelapor || "");
 
-      // 2. Complainant Nested Fields
-      formData.append("complainant[nama_lengkap]", draftData.namaPelapor || "");
-      formData.append("complainant[nik]", draftData.nik || "");
-      formData.append("complainant[alamat]", draftData.alamatPelapor || "");
-      formData.append(
-        "complainant[jenis_kelamin]",
-        (draftData.jenisKelamin || "Laki-laki").toLowerCase(),
-      );
-      formData.append("complainant[jabatan]", draftData.jabatan || "");
-      formData.append("complainant[no_telp]", draftData.noTelpPelapor || "");
-      formData.append("complainant[email]", draftData.emailPelapor || "");
+        formData.append("company[nama_perusahaan]", draftData.namaPerusahaan || "");
+        formData.append("company[sector_id]", String(draftData.sector_id || 1));
+        formData.append("company[alamat]", draftData.alamatPerusahaan || "");
+        formData.append("company[jumlah_naker]", String(draftData.jumlahPekerja || 0));
+        formData.append("company[provinsi]", draftData.provinsi || "");
+        formData.append("company[kota_kab]", draftData.kabupaten || "");
+        formData.append("company[kecamatan]", draftData.kecamatan || "");
+        formData.append("company[kelurahan]", draftData.kelurahan || "");
+        formData.append("company[no_telp]", draftData.noTelpPerusahaan || "");
+        formData.append("company[email]", draftData.emailPerusahaan || "");
 
-      // 3. Company Nested Fields
-      formData.append("company[nama_perusahaan]", draftData.namaPerusahaan || "");
-      formData.append("company[sector_id]", String(draftData.sector_id || 1));
-      formData.append("company[alamat]", draftData.alamatPerusahaan || "");
-      formData.append("company[jumlah_naker]", String(draftData.jumlahPekerja || 0));
-      formData.append("company[provinsi]", draftData.provinsi || "");
-      formData.append("company[kota_kab]", draftData.kabupaten || "");
-      formData.append("company[kecamatan]", draftData.kecamatan || "");
-      formData.append("company[kelurahan]", draftData.kelurahan || "");
-      formData.append("company[no_telp]", draftData.noTelpPerusahaan || "");
-      formData.append("company[email]", draftData.emailPerusahaan || "");
+        const res = await fetch(COMPLAINTS_API_URL, { method: "POST", headers, body: formData });
+        const data = await res.json().catch(() => null);
 
-      // 4. Attachments — backend memvalidasi `attachments.*` sebagai file,
-      //    jadi kirim sebagai array file datar (attachments[]). Format nested
-      //    attachments[i][file] ditolak: "The attachments.0 field must be a file".
-      //    Foto kamera dikirim lebih dulu, lalu dokumen.
-      if (capturedFile) {
-        formData.append("attachments[]", capturedFile);
+        if (!res.ok) {
+          reportError(res.status, data, ERROR_MESSAGES.pengaduanSubmitFailed);
+          return;
+        }
+
+        // Sesuaikan dengan bentuk response ComplaintController
+        createdComplaintIdRef.current = data?.data?.id ?? data?.id ?? null;
       }
+
+      // ── LANGKAH 2: upload lampiran ke AttachmentController ─────────────
+      const items: { file: File; file_type: "photo" | "document" }[] = [];
+      if (capturedFile) items.push({ file: capturedFile, file_type: "photo" });
       if (selectedDocument) {
-        formData.append("attachments[]", selectedDocument);
+        const isPdf =
+          selectedDocument.type === "application/pdf" || /\.pdf$/i.test(selectedDocument.name);
+        items.push({ file: selectedDocument, file_type: isPdf ? "document" : "photo" });
       }
 
-      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      if (items.length > 0) {
+        const complaintId = createdComplaintIdRef.current;
+        if (!complaintId) {
+          toast.error("Pengaduan tersimpan, tetapi ID pengaduan tidak ditemukan di response.");
+          return;
+        }
 
-      const res = await fetch(COMPLAINTS_API_URL, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
-      });
+        const fd = new FormData();
+        items.forEach((item, i) => {
+          fd.append(`attachments[${i}][file]`, item.file);
+          fd.append(`attachments[${i}][file_type]`, item.file_type);
+        });
 
-      const responseData = await res.json().catch(() => null);
+        const upRes = await fetch(apiUrl(`complaints/${complaintId}/attachments`), {
+          method: "POST",
+          headers,
+          body: fd,
+        });
+        const upData = await upRes.json().catch(() => null);
 
-      if (!res.ok) {
-        console.error("Backend validation error (HTTP 422):", responseData);
-        const errorMessages = responseData?.errors
-          ? Object.entries(responseData.errors)
-              .map(
-                ([field, msgs]: [string, any]) =>
-                  `• ${field}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`,
-              )
-              .join("\n")
-          : responseData?.message || ERROR_MESSAGES.pengaduanValidationFailed;
-
-        toast.error(ERROR_MESSAGES.pengaduanSubmitFailed, { description: errorMessages });
-        return;
+        if (!upRes.ok) {
+          // Pengaduan sudah tersimpan; klik Simpan lagi hanya akan mengulang upload.
+          reportError(upRes.status, upData, "Pengaduan tersimpan, tetapi lampiran gagal diunggah");
+          return;
+        }
       }
 
+      createdComplaintIdRef.current = null;
       sessionStorage.removeItem("draft_pengaduan");
       toast.success(SUCCESS_MESSAGES.pengaduanSubmitted);
       navigate({ to: "/" });
@@ -730,8 +755,8 @@ function BuktiPendukungPage() {
 
               {!canUseLiveCamera && (
                 <p className="pt-1 text-center text-[10px] text-amber-600">
-                  Halaman dibuka tanpa HTTPS, jadi foto diambil lewat aplikasi kamera HP. Buka
-                  lewat alamat https:// agar kamera tampil langsung di halaman ini.
+                  Halaman dibuka tanpa HTTPS, jadi foto diambil lewat aplikasi kamera HP. Buka lewat
+                  alamat https:// agar kamera tampil langsung di halaman ini.
                 </p>
               )}
             </div>
@@ -773,8 +798,8 @@ function BuktiPendukungPage() {
             <div>
               <h3 className="text-xl font-bold">{ORGANIZATION_UNIT}</h3>
               <p className="mt-4 text-sm leading-relaxed text-gray-300">
-                {ORGANIZATION_UNIT_FULL} adalah unsur pelaksana yang berada di bawah dan
-                bertanggung jawab kepada Menteri Ketenagakerjaan.
+                {ORGANIZATION_UNIT_FULL} adalah unsur pelaksana yang berada di bawah dan bertanggung
+                jawab kepada Menteri Ketenagakerjaan.
               </p>
               <div className="mt-6 flex gap-3">
                 {SOCIAL_LINKS.map(({ icon, href }, i) => {
@@ -833,7 +858,9 @@ function BuktiPendukungPage() {
           <hr className="mt-10 border-white/15" />
 
           <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
-            <p>Copyright © {SYSTEM_OWNER_NAME} || {COPYRIGHT_YEARS}</p>
+            <p>
+              Copyright © {SYSTEM_OWNER_NAME} || {COPYRIGHT_YEARS}
+            </p>
             <p>Designed by {DEVELOPER_NAME}</p>
           </div>
         </div>
@@ -1030,7 +1057,11 @@ function PhotoPicker({
                     : "border-gray-200 opacity-70 hover:opacity-100",
               )}
             >
-              <img src={photo.url} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" />
+              <img
+                src={photo.url}
+                alt={`Foto ${index + 1}`}
+                className="h-full w-full object-cover"
+              />
             </button>
             {isSelected && (
               <span className="pointer-events-none absolute bottom-1 left-1 grid h-4 w-4 place-items-center rounded-full bg-emerald-500 text-white">
