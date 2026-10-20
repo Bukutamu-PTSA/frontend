@@ -444,21 +444,15 @@ function BuktiPendukungPage() {
       formData.append("company[no_telp]", draftData.noTelpPerusahaan || "");
       formData.append("company[email]", draftData.emailPerusahaan || "");
 
-      // 4. Attachments — setiap lampiran dikirim beserta `file_type` supaya
-      //    backend bisa membedakan FOTO pelapor (dipakai di view_pdf &
-      //    detail_berkas lewat `att.file_type === "photo"`) dari DOKUMEN bukti.
-      //    Dikirim sebagai array ber-index terstruktur (pola Laravel), sejajar
-      //    dengan bentuk nested complainant[...]/company[...] di atas.
-      let attachmentIndex = 0;
+      // 4. Attachments — backend memvalidasi `attachments.*` sebagai file,
+      //    jadi kirim sebagai array file datar (attachments[]). Format nested
+      //    attachments[i][file] ditolak: "The attachments.0 field must be a file".
+      //    Foto kamera dikirim lebih dulu, lalu dokumen.
       if (capturedFile) {
-        formData.append(`attachments[${attachmentIndex}][file]`, capturedFile);
-        formData.append(`attachments[${attachmentIndex}][file_type]`, "photo");
-        attachmentIndex += 1;
+        formData.append("attachments[]", capturedFile);
       }
       if (selectedDocument) {
-        formData.append(`attachments[${attachmentIndex}][file]`, selectedDocument);
-        formData.append(`attachments[${attachmentIndex}][file_type]`, "document");
-        attachmentIndex += 1;
+        formData.append("attachments[]", selectedDocument);
       }
 
       const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
