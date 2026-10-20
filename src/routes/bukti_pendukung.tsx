@@ -13,7 +13,7 @@ import {
   Instagram,
   Upload,
   Check,
-  SwitchCamera,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { XIcon } from "@/components/x-icon";
@@ -101,26 +101,11 @@ interface CapturedPhoto {
   url: string;
 }
 
-/** Perangkat sentuh (HP/tablet) hampir selalu punya kamera depan & belakang. */
-function isTouchDevice(): boolean {
-  return typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
-}
-
 /** Tebak arah kamera dari label perangkat (label baru terisi setelah izin). */
 function guessFacingFromLabel(label: string): FacingMode | null {
   if (/front|user|depan|selfie|facetime/i.test(label)) return "user";
   if (/back|rear|environment|belakang/i.test(label)) return "environment";
   return null;
-}
-
-/** Daftar kamera (videoinput) yang tersedia di perangkat. */
-async function listCameras(): Promise<MediaDeviceInfo[]> {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    return devices.filter((d) => d.kind === "videoinput");
-  } catch {
-    return [];
-  }
 }
 
 /** Jumlah maksimal foto yang bisa diambil sebelum memilih satu. */
@@ -157,8 +142,16 @@ function BuktiPendukungPage() {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraStarting, setIsCameraStarting] = useState(false);
-  const [facingMode, setFacingMode] = useState<FacingMode>("environment");
-  const [canFlipCamera, setCanFlipCamera] = useState(false);
+  // Default kamera depan (selfie); bisa diganti lewat tombol Depan/Belakang.
+  const [facingMode, setFacingMode] = useState<FacingMode>("user");
+  // false = getUserMedia tidak tersedia (mis. dibuka lewat http://IP, bukan
+  // HTTPS) -> pakai kamera bawaan HP lewat <input capture>.
+  const [canUseLiveCamera, setCanUseLiveCamera] = useState(true);
+  // Popup pilih kamera yang muncul saat ikon kamera diklik.
+  const [isFacingPickerOpen, setIsFacingPickerOpen] = useState(false);
+  useEffect(() => {
+    setCanUseLiveCamera(Boolean(navigator.mediaDevices?.getUserMedia) && window.isSecureContext);
+  }, []);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -215,21 +208,23 @@ function BuktiPendukungPage() {
       settings.facingMode === "user" || settings.facingMode === "environment"
         ? settings.facingMode
         : (guessFacingFromLabel(track?.label ?? "") ?? target.facing);
-
-    // Tombol flip muncul bila ada >1 kamera, atau selalu di HP (beberapa
-    // browser HP hanya melaporkan 1 kamera lewat enumerateDevices).
-    setCanFlipCamera((await listCameras()).length > 1 || isTouchDevice());
     return actual;
   };
 
   /** Buka kamera langsung di browser lewat getUserMedia. */
-  const openCamera = async () => {
+  const openCamera = async (facing: FacingMode) => {
     setCameraError(null);
+    setIsFacingPickerOpen(false);
+    setFacingMode(facing);
 
     // Browser lama / konteks non-HTTPS tidak punya getUserMedia -> fallback
-    // ke input file bawaan (yang di HP langsung membuka kamera).
-    if (!navigator.mediaDevices?.getUserMedia) {
-      cameraInputRef.current?.click();
+    // ke kamera bawaan HP, dengan arah sesuai pilihan Depan/Belakang.
+    if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) {
+      const input = cameraInputRef.current;
+      if (input) {
+        input.setAttribute("capture", facing);
+        input.click();
+      }
       return;
     }
 
@@ -237,7 +232,9 @@ function BuktiPendukungPage() {
     setIsCameraOpen(true);
 
     try {
-      setFacingMode(await startStream({ facing: facingMode }));
+      // `exact` supaya HP benar-benar memakai kamera yang dipilih; bila tidak
+      // ada, startStream otomatis jatuh ke kamera apa pun.
+      setFacingMode(await startStream({ facing, exact: true }));
     } catch (err) {
       console.error("Gagal mengakses kamera:", err);
       stopCameraStream();
@@ -245,43 +242,6 @@ function BuktiPendukungPage() {
       setCameraError(
         "Tidak dapat mengakses kamera. Pastikan izin kamera diberikan, atau pilih file gambar sebagai gantinya.",
       );
-    } finally {
-      setIsCameraStarting(false);
-    }
-  };
-
-  /** Ganti antara kamera belakang dan kamera depan. */
-  const flipCamera = async () => {
-    const next: FacingMode = facingMode === "environment" ? "user" : "environment";
-    const currentId = streamRef.current?.getVideoTracks()[0]?.getSettings?.().deviceId;
-
-    // Pilih kamera tujuan lewat deviceId; facingMode saja sering diabaikan HP
-    // dan mengembalikan kamera yang sama.
-    const cameras = (await listCameras()).filter((c) => c.deviceId);
-    const others = cameras.filter((c) => c.deviceId !== currentId);
-    const currentIndex = cameras.findIndex((c) => c.deviceId === currentId);
-    const candidate =
-      others.find((c) => guessFacingFromLabel(c.label) === next) ??
-      (currentIndex >= 0 ? cameras[(currentIndex + 1) % cameras.length] : others[0]);
-    // Jangan "flip" ke kamera yang sama; pakai facingMode exact sebagai gantinya.
-    const targetCamera = candidate && candidate.deviceId !== currentId ? candidate : undefined;
-
-    setIsCameraStarting(true);
-    try {
-      let actual = targetCamera
-        ? await startStream({ facing: next, deviceId: targetCamera.deviceId })
-        : await startStream({ facing: next, exact: true });
-      // Bila deviceId ternyata membuka kamera dengan arah yang sama, coba facingMode.
-      if (actual !== next && targetCamera) {
-        actual = await startStream({ facing: next, exact: true });
-      }
-      setFacingMode(actual);
-    } catch (err) {
-      console.error("Gagal mengganti kamera:", err);
-      toast.error("Gagal mengganti kamera. Mencoba kembali ke kamera sebelumnya.");
-      await startStream({ facing: facingMode, deviceId: currentId })
-        .then(setFacingMode)
-        .catch(() => closeCamera());
     } finally {
       setIsCameraStarting(false);
     }
@@ -364,8 +324,9 @@ function BuktiPendukungPage() {
     };
   }, []);
 
+  /** Klik ikon kamera -> tampilkan pilihan kamera depan/belakang dulu. */
   const handleCapture = () => {
-    openCamera();
+    setIsFacingPickerOpen(true);
   };
 
   /** Terapkan file dari input kamera bawaan (fallback browser lama). */
@@ -700,7 +661,7 @@ function BuktiPendukungPage() {
                 ref={cameraInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/jpg"
-                capture="environment"
+                capture={facingMode}
                 onChange={handleCameraChange}
                 className="sr-only"
               />
@@ -770,6 +731,13 @@ function BuktiPendukungPage() {
               {cameraError && (
                 <p className="pt-1 text-center text-[10px] font-medium text-red-500">
                   {cameraError}
+                </p>
+              )}
+
+              {!canUseLiveCamera && (
+                <p className="pt-1 text-center text-[10px] text-amber-600">
+                  Halaman dibuka tanpa HTTPS, jadi foto diambil lewat aplikasi kamera HP. Buka
+                  lewat alamat https:// agar kamera tampil langsung di halaman ini.
                 </p>
               )}
             </div>
@@ -877,6 +845,64 @@ function BuktiPendukungPage() {
         </div>
       </footer>
 
+      {/* Popup pilih kamera (muncul saat ikon kamera diklik) */}
+      {isFacingPickerOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          onClick={() => setIsFacingPickerOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="facing-picker-title"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xs rounded-2xl bg-white p-4 shadow-xl"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2 id="facing-picker-title" className="text-[12px] font-bold text-gray-900">
+                Pilih Kamera
+              </h2>
+              <button
+                type="button"
+                onClick={() => setIsFacingPickerOpen(false)}
+                className="grid h-6 w-6 place-items-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Tutup"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { value: "user", label: "Kamera Depan" },
+                  { value: "environment", label: "Kamera Belakang" },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => openCamera(opt.value)}
+                  autoFocus={opt.value === "user"}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-xl border px-3 py-4 text-[11px] font-semibold transition-colors",
+                    opt.value === "user"
+                      ? "border-brand-secondary bg-brand-secondary text-white hover:bg-brand-secondary-hover"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                  )}
+                >
+                  {opt.value === "user" ? (
+                    <User className="h-5 w-5" />
+                  ) : (
+                    <Camera className="h-5 w-5" />
+                  )}
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Kamera Langsung */}
       {isCameraOpen && (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 p-4">
@@ -967,22 +993,7 @@ function BuktiPendukungPage() {
                 <Camera className="h-6 w-6" />
               </button>
 
-              <div className="justify-self-end">
-                {canFlipCamera && (
-                  <button
-                    type="button"
-                    onClick={flipCamera}
-                    disabled={isCameraStarting}
-                    className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white hover:bg-white/30 transition-colors disabled:opacity-50"
-                    aria-label={
-                      facingMode === "user" ? "Ganti ke kamera belakang" : "Ganti ke kamera depan"
-                    }
-                    title={facingMode === "user" ? "Ganti ke kamera belakang" : "Ganti ke kamera depan"}
-                  >
-                    <SwitchCamera className="h-5 w-5" />
-                  </button>
-                )}
-              </div>
+              <div className="justify-self-end" />
             </div>
           </div>
         </div>
