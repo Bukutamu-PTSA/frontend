@@ -7,7 +7,7 @@
 
 /** Host backend, mis. "http://192.168.147.199:8000". */
 const API_HOST: string = (
-  import.meta.env["VITE_API_HOST"] ?? "http://192.168.156.206:8000"
+  import.meta.env["VITE_API_HOST"] ?? ""
 ).replace(/\/+$/, "");
 
 /** Base URL REST utama, mis. "http://host:8000/api". */
