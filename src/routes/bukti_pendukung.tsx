@@ -159,10 +159,6 @@ function BuktiPendukungPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  // Simpan ID pengaduan yang sudah dibuat, supaya kalau upload lampiran gagal
-  // lalu user klik Simpan lagi, pengaduan tidak terbuat dua kali.
-  const createdComplaintIdRef = useRef<string | number | null>(null);
-
   /** Hentikan semua track kamera dan lepaskan stream. */
   const stopCameraStream = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -427,87 +423,49 @@ function BuktiPendukungPage() {
       }
       setFileError(null);
 
-      // ── LANGKAH 1: buat pengaduan (TANPA attachments) ──────────────────
-      if (!createdComplaintIdRef.current) {
-        const formData = new FormData();
-        formData.append("category_id", String(draftData.category_id || 1));
-        formData.append("description", deskripsiAduan);
-        formData.append(
-          "complaint_date",
-          draftData.tanggalPelaporan || new Date().toISOString().split("T")[0],
-        );
+      // Pengaduan + lampiran dikirim dalam 1 request ke /complaints.
+      const formData = new FormData();
+      formData.append("category_id", String(draftData.category_id || 1));
+      formData.append("description", deskripsiAduan);
+      formData.append(
+        "complaint_date",
+        draftData.tanggalPelaporan || new Date().toISOString().split("T")[0],
+      );
 
-        formData.append("complainant[nama_lengkap]", draftData.namaPelapor || "");
-        formData.append("complainant[nik]", draftData.nik || "");
-        formData.append("complainant[alamat]", draftData.alamatPelapor || "");
-        formData.append(
-          "complainant[jenis_kelamin]",
-          (draftData.jenisKelamin || "Laki-laki").toLowerCase(),
-        );
-        formData.append("complainant[jabatan]", draftData.jabatan || "");
-        formData.append("complainant[no_telp]", draftData.noTelpPelapor || "");
-        formData.append("complainant[email]", draftData.emailPelapor || "");
+      formData.append("complainant[nama_lengkap]", draftData.namaPelapor || "");
+      formData.append("complainant[nik]", draftData.nik || "");
+      formData.append("complainant[alamat]", draftData.alamatPelapor || "");
+      formData.append(
+        "complainant[jenis_kelamin]",
+        (draftData.jenisKelamin || "Laki-laki").toLowerCase(),
+      );
+      formData.append("complainant[jabatan]", draftData.jabatan || "");
+      formData.append("complainant[no_telp]", draftData.noTelpPelapor || "");
+      formData.append("complainant[email]", draftData.emailPelapor || "");
 
-        formData.append("company[nama_perusahaan]", draftData.namaPerusahaan || "");
-        formData.append("company[sector_id]", String(draftData.sector_id || 1));
-        formData.append("company[alamat]", draftData.alamatPerusahaan || "");
-        formData.append("company[jumlah_naker]", String(draftData.jumlahPekerja || 0));
-        formData.append("company[provinsi]", draftData.provinsi || "");
-        formData.append("company[kota_kab]", draftData.kabupaten || "");
-        formData.append("company[kecamatan]", draftData.kecamatan || "");
-        formData.append("company[kelurahan]", draftData.kelurahan || "");
-        formData.append("company[no_telp]", draftData.noTelpPerusahaan || "");
-        formData.append("company[email]", draftData.emailPerusahaan || "");
+      formData.append("company[nama_perusahaan]", draftData.namaPerusahaan || "");
+      formData.append("company[sector_id]", String(draftData.sector_id || 1));
+      formData.append("company[alamat]", draftData.alamatPerusahaan || "");
+      formData.append("company[jumlah_naker]", String(draftData.jumlahPekerja || 0));
+      formData.append("company[provinsi]", draftData.provinsi || "");
+      formData.append("company[kota_kab]", draftData.kabupaten || "");
+      formData.append("company[kecamatan]", draftData.kecamatan || "");
+      formData.append("company[kelurahan]", draftData.kelurahan || "");
+      formData.append("company[no_telp]", draftData.noTelpPerusahaan || "");
+      formData.append("company[email]", draftData.emailPerusahaan || "");
 
-        const res = await fetch(COMPLAINTS_API_URL, { method: "POST", headers, body: formData });
-        const data = await res.json().catch(() => null);
+      // Foto kamera = foto pemohon di PDF; dokumen = bukti pendukung.
+      if (capturedFile) formData.append("foto_pelapor", capturedFile);
+      if (selectedDocument) formData.append("attachments[]", selectedDocument);
 
-        if (!res.ok) {
-          reportError(res.status, data, ERROR_MESSAGES.pengaduanSubmitFailed);
-          return;
-        }
+      const res = await fetch(COMPLAINTS_API_URL, { method: "POST", headers, body: formData });
+      const data = await res.json().catch(() => null);
 
-        // Sesuaikan dengan bentuk response ComplaintController
-        createdComplaintIdRef.current = data?.data?.id ?? data?.id ?? null;
+      if (!res.ok) {
+        reportError(res.status, data, ERROR_MESSAGES.pengaduanSubmitFailed);
+        return;
       }
 
-      // ── LANGKAH 2: upload lampiran ke AttachmentController ─────────────
-      const items: { file: File; file_type: "photo" | "document" }[] = [];
-      if (capturedFile) items.push({ file: capturedFile, file_type: "photo" });
-      if (selectedDocument) {
-        const isPdf =
-          selectedDocument.type === "application/pdf" || /\.pdf$/i.test(selectedDocument.name);
-        items.push({ file: selectedDocument, file_type: isPdf ? "document" : "photo" });
-      }
-
-      if (items.length > 0) {
-        const complaintId = createdComplaintIdRef.current;
-        if (!complaintId) {
-          toast.error("Pengaduan tersimpan, tetapi ID pengaduan tidak ditemukan di response.");
-          return;
-        }
-
-        const fd = new FormData();
-        items.forEach((item, i) => {
-          fd.append(`attachments[${i}][file]`, item.file);
-          fd.append(`attachments[${i}][file_type]`, item.file_type);
-        });
-
-        const upRes = await fetch(apiUrl(`complaints/${complaintId}/attachments`), {
-          method: "POST",
-          headers,
-          body: fd,
-        });
-        const upData = await upRes.json().catch(() => null);
-
-        if (!upRes.ok) {
-          // Pengaduan sudah tersimpan; klik Simpan lagi hanya akan mengulang upload.
-          reportError(upRes.status, upData, "Pengaduan tersimpan, tetapi lampiran gagal diunggah");
-          return;
-        }
-      }
-
-      createdComplaintIdRef.current = null;
       sessionStorage.removeItem("draft_pengaduan");
       toast.success(SUCCESS_MESSAGES.pengaduanSubmitted);
       navigate({ to: "/" });
