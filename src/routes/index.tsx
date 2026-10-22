@@ -14,7 +14,6 @@ import { apiUrl, authHeaders } from "@/lib/api";
 
 import heroImage from "@/assets/gedung-kemnaker.jpg";
 import logoKemnaker from "@/assets/kemnaker_logo.png";
-import logoBinwasnaker from "@/assets/binwasnaker_logo.png";
 
 import {
   APP_NAME,
@@ -202,11 +201,6 @@ function Index() {
                 alt="Logo Kemnaker"
                 className="w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-md"
               />
-              <img
-                src={logoBinwasnaker}
-                alt="Logo Binwasnaker"
-                className="w-36 h-36 sm:w-44 sm:h-44 object-contain drop-shadow-md"
-              />
             </div>
           </div>
         </section>
@@ -252,10 +246,12 @@ function Index() {
         <div className="mx-auto max-w-6xl px-6 py-14">
           <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
             <div>
-              <h3 className="text-xl font-bold">
+              {/* Judul + garis dibuat sama dengan kolom "Ada Pertanyaan?" supaya sejajar. */}
+              <h3 className="text-lg font-semibold">
                 {ORGANIZATION_UNIT} <span className="text-emerald-400">& K3</span>
               </h3>
-              <p className="mt-4 text-sm leading-relaxed text-gray-300">
+              <hr className="mt-4 border-white/15" />
+              <p className="mt-5 text-sm leading-relaxed text-gray-300">
                 {ORGANIZATION_UNIT_FULL} adalah unsur pelaksana yang berada di bawah dan
                 bertanggung jawab kepada Menteri Ketenagakerjaan.
               </p>
