@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
+import faviconUrl from "@/assets/kemnaker_logo.png";
 import { APP_SHORT_NAME, applyBrandColors } from "@/config/app";
 
 const ROOT_DESCRIPTION = `Pelayanan Terpadu Satu Atap - ${APP_SHORT_NAME}`;
@@ -99,7 +100,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      // Ikon tab browser: logo Kemnaker.
+      { rel: "icon", href: faviconUrl, type: "image/png" },
+      { rel: "apple-touch-icon", href: faviconUrl },
     ],
   }),
   shellComponent: RootShell,
