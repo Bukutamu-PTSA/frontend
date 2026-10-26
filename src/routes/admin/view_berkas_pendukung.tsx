@@ -33,10 +33,17 @@ type EvidenceFile = {
   kind: "pdf" | "image" | "other";
 };
 
+/** Host backend tanpa "/api" ("" = origin yang sama, lewat proxy Caddy). */
+const API_HOST = BASE_API_URL.replace(/\/api$/, "");
+
 /**
- * URL file lampiran. AttachmentResource backend mengirim `url`
- * (Storage::url), bukan `file_path`. Kalau absolut (mis. APP_URL http://IP),
- * ambil path-nya saja supaya tetap lewat origin yang sama (proxy /storage).
+ * URL file lampiran dari AttachmentResource backend (`url`).
+ * - Path lengkap (mis. URL bertanda tangan
+ *   "/api/complaints/22/attachments/19/file?expires=..&signature=..",
+ *   atau "/storage/...") dipakai apa adanya, jangan ditambah "/storage".
+ * - URL absolut (mis. APP_URL http://IP) diambil path + query-nya saja supaya
+ *   tetap lewat origin yang sama; query tanda tangan ikut terbawa.
+ * - Path relatif tanpa "/" di depan (file_path mentah) → /storage/...
  */
 function attachmentUrl(att: any): string {
   const raw: string = att?.url || att?.file_path || "";
@@ -44,11 +51,12 @@ function attachmentUrl(att: any): string {
   if (/^(https?:)?\/\//.test(raw)) {
     try {
       const u = new URL(raw, "http://x");
-      return storageUrl(u.pathname + u.search);
+      return `${API_HOST}${u.pathname}${u.search}`;
     } catch {
       return raw;
     }
   }
+  if (raw.startsWith("/")) return `${API_HOST}${raw}`;
   return storageUrl(raw);
 }
 
