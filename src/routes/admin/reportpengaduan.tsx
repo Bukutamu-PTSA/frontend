@@ -244,9 +244,17 @@ function ReportPengaduanPage() {
   };
 
   // 5. Hapus Pengaduan
-  const handleDelete = async (id: number) => {
-    if (!window.confirm(CONFIRM_MESSAGES.deleteComplaint)) return;
+  // Konfirmasi hapus lewat toast (pengganti window.confirm).
+  const handleDelete = (id: number) => {
+    toast.warning(CONFIRM_MESSAGES.deleteComplaint, {
+      id: `confirm-delete-${id}`,
+      duration: 10000,
+      action: { label: "Hapus", onClick: () => void deleteComplaint(id) },
+      cancel: { label: "Batal", onClick: () => {} },
+    });
+  };
 
+  const deleteComplaint = async (id: number) => {
     const token =
       localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
