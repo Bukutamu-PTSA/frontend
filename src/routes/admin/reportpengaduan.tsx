@@ -10,6 +10,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { matchesSearch } from "@/lib/search";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
@@ -81,6 +91,8 @@ function ReportPengaduanPage() {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  // ID pengaduan yang menunggu konfirmasi hapus (null = modal tertutup).
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState("Semua Bulan");
   const [year, setYear] = useState("2026");
@@ -244,14 +256,9 @@ function ReportPengaduanPage() {
   };
 
   // 5. Hapus Pengaduan
-  // Konfirmasi hapus lewat toast (pengganti window.confirm).
+  // Konfirmasi hapus lewat modal di tengah layar; hasilnya tetap toast.
   const handleDelete = (id: number) => {
-    toast.warning(CONFIRM_MESSAGES.deleteComplaint, {
-      id: `confirm-delete-${id}`,
-      duration: 10000,
-      action: { label: "Hapus", onClick: () => void deleteComplaint(id) },
-      cancel: { label: "Batal", onClick: () => {} },
-    });
+    setPendingDeleteId(id);
   };
 
   const deleteComplaint = async (id: number) => {
@@ -630,6 +637,33 @@ function ReportPengaduanPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal konfirmasi hapus pengaduan */}
+      <AlertDialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteId(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Pengaduan</AlertDialogTitle>
+            <AlertDialogDescription>{CONFIRM_MESSAGES.deleteComplaint}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 text-white hover:bg-red-600"
+              onClick={() => {
+                if (pendingDeleteId !== null) void deleteComplaint(pendingDeleteId);
+                setPendingDeleteId(null);
+              }}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
