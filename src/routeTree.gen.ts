@@ -36,6 +36,7 @@ import { Route as AdminReportpengaduanRouteImport } from './routes/admin/reportp
 import { Route as AdminReportsurveiRouteImport } from './routes/admin/reportsurvei'
 import { Route as AdminSettingRouteImport } from './routes/admin/setting'
 import { Route as AdminTambah_userRouteImport } from './routes/admin/tambah_user'
+import { Route as AdminView_berkas_pendukungRouteImport } from './routes/admin/view_berkas_pendukung'
 import { Route as AdminView_pdfRouteImport } from './routes/admin/view_pdf'
 import { Route as AdminWilayahRouteImport } from './routes/admin/wilayah'
 
@@ -175,6 +176,12 @@ const AdminTambah_userRoute = AdminTambah_userRouteImport.update({
   path: '/tambah_user',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminView_berkas_pendukungRoute =
+  AdminView_berkas_pendukungRouteImport.update({
+    id: '/view_berkas_pendukung',
+    path: '/view_berkas_pendukung',
+    getParentRoute: () => AdminRouteRoute,
+  } as any)
 const AdminView_pdfRoute = AdminView_pdfRouteImport.update({
   id: '/view_pdf',
   path: '/view_pdf',
@@ -214,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/admin/reportsurvei': typeof AdminReportsurveiRoute
   '/admin/setting': typeof AdminSettingRoute
   '/admin/tambah_user': typeof AdminTambah_userRoute
+  '/admin/view_berkas_pendukung': typeof AdminView_berkas_pendukungRoute
   '/admin/view_pdf': typeof AdminView_pdfRoute
   '/admin/wilayah': typeof AdminWilayahRoute
 }
@@ -245,6 +253,7 @@ export interface FileRoutesByTo {
   '/admin/reportsurvei': typeof AdminReportsurveiRoute
   '/admin/setting': typeof AdminSettingRoute
   '/admin/tambah_user': typeof AdminTambah_userRoute
+  '/admin/view_berkas_pendukung': typeof AdminView_berkas_pendukungRoute
   '/admin/view_pdf': typeof AdminView_pdfRoute
   '/admin/wilayah': typeof AdminWilayahRoute
 }
@@ -277,6 +286,7 @@ export interface FileRoutesById {
   '/admin/reportsurvei': typeof AdminReportsurveiRoute
   '/admin/setting': typeof AdminSettingRoute
   '/admin/tambah_user': typeof AdminTambah_userRoute
+  '/admin/view_berkas_pendukung': typeof AdminView_berkas_pendukungRoute
   '/admin/view_pdf': typeof AdminView_pdfRoute
   '/admin/wilayah': typeof AdminWilayahRoute
 }
@@ -310,6 +320,7 @@ export interface FileRouteTypes {
     | '/admin/reportsurvei'
     | '/admin/setting'
     | '/admin/tambah_user'
+    | '/admin/view_berkas_pendukung'
     | '/admin/view_pdf'
     | '/admin/wilayah'
   fileRoutesByTo: FileRoutesByTo
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/admin/reportsurvei'
     | '/admin/setting'
     | '/admin/tambah_user'
+    | '/admin/view_berkas_pendukung'
     | '/admin/view_pdf'
     | '/admin/wilayah'
   id:
@@ -372,6 +384,7 @@ export interface FileRouteTypes {
     | '/admin/reportsurvei'
     | '/admin/setting'
     | '/admin/tambah_user'
+    | '/admin/view_berkas_pendukung'
     | '/admin/view_pdf'
     | '/admin/wilayah'
   fileRoutesById: FileRoutesById
@@ -578,6 +591,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTambah_userRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/view_berkas_pendukung': {
+      id: '/admin/view_berkas_pendukung'
+      path: '/view_berkas_pendukung'
+      fullPath: '/admin/view_berkas_pendukung'
+      preLoaderRoute: typeof AdminView_berkas_pendukungRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/view_pdf': {
       id: '/admin/view_pdf'
       path: '/view_pdf'
@@ -615,6 +635,7 @@ interface AdminRouteRouteChildren {
   AdminReportsurveiRoute: typeof AdminReportsurveiRoute
   AdminSettingRoute: typeof AdminSettingRoute
   AdminTambah_userRoute: typeof AdminTambah_userRoute
+  AdminView_berkas_pendukungRoute: typeof AdminView_berkas_pendukungRoute
   AdminView_pdfRoute: typeof AdminView_pdfRoute
   AdminWilayahRoute: typeof AdminWilayahRoute
 }
@@ -639,6 +660,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminReportsurveiRoute: AdminReportsurveiRoute,
   AdminSettingRoute: AdminSettingRoute,
   AdminTambah_userRoute: AdminTambah_userRoute,
+  AdminView_berkas_pendukungRoute: AdminView_berkas_pendukungRoute,
   AdminView_pdfRoute: AdminView_pdfRoute,
   AdminWilayahRoute: AdminWilayahRoute,
 }

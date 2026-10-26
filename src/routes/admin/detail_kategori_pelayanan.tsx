@@ -416,13 +416,14 @@ function DetailKategoriPage() {
                   <th className="px-6 py-3.5">JENIS PENGADUAN</th>
                   <th className="px-6 py-3.5">PELAPOR</th>
                   <th className="px-6 py-3.5">PERUSAHAAN</th>
+                  <th className="px-6 py-3.5">BUKTI PENDUKUNG</th>
                   <th className="px-6 py-3.5 text-right w-40">AKSI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 text-[12px]">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin text-[#007A64]" />
                         <span>Memuat data pengaduan...</span>
@@ -431,7 +432,7 @@ function DetailKategoriPage() {
                   </tr>
                 ) : displayedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400">
+                    <td colSpan={7} className="px-6 py-10 text-center text-gray-400">
                       Tidak ada data pengaduan untuk kategori ini.
                     </td>
                   </tr>
@@ -454,6 +455,18 @@ function DetailKategoriPage() {
                         <td className="px-6 py-3.5 text-gray-800 font-medium">{pelapor}</td>
                         <td className="px-6 py-3.5 text-gray-700">{perusahaan}</td>
                         <td className="px-6 py-3.5">
+                          <button
+                            type="button"
+                            title="Lihat Bukti Pendukung"
+                            onClick={() => {
+                              window.location.assign(`/admin/view_berkas_pendukung?id=${item.id}`);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-[#14B846] px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-[#12A63C] transition-colors cursor-pointer"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            View
+                          </button>
+                        </td>                        <td className="px-6 py-3.5">
                           <div className="flex items-center justify-end gap-1.5">
                             {/* Unduh PDF API */}
                             <button

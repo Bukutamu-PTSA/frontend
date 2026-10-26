@@ -34,7 +34,9 @@ export const ADDRESS_LINE_1 = import.meta.env.VITE_ADDRESS_LINE_1 || "Jl. Jend. 
 export const ADDRESS_LINE_2 = import.meta.env.VITE_ADDRESS_LINE_2 || "RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi";
 export const ADDRESS_LINE_3 = import.meta.env.VITE_ADDRESS_LINE_3 || "Kota Jakarta Selatan, DKI Jakarta 12950";
 
-export const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL || "pengaduanwlkp@gmail.com";
+export const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL || "pengaduanwlkp@kemnaker.go.id";
+/** Teks tautan email kontak di footer (mailto:CONTACT_EMAIL). */
+export const CONTACT_EMAIL_LABEL = import.meta.env.VITE_CONTACT_EMAIL_LABEL || "Pengaduan WLKP";
 export const MAPS_URL = import.meta.env.VITE_MAPS_URL || "https://maps.app.goo.gl/QiLps9tsVMszzHf79";
 
 export const SOCIAL_LINKS: SocialLink[] = [
@@ -265,6 +267,7 @@ export const PAGE_TITLES = {
   adminKategoriRekap: `Rekapitulasi Layanan Kategori - ${APP_SHORT_NAME}`,
   adminNotifications: `Pusat Notifikasi - ${APP_SHORT_NAME}`,
   adminViewPdf: `Cetak Dokumen Pengaduan - ${APP_SHORT_NAME}`,
+  adminViewBerkasPendukung: `Berkas Bukti Pendukung - ${APP_SHORT_NAME}`,
 };
 
 export const PAGE_DESCRIPTIONS = {
