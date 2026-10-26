@@ -8,6 +8,7 @@ import { matchesSearch } from "@/lib/search";
 import { apiUrl, authHeaders } from "@/lib/api";
 import { useTableExport } from "@/lib/use-table-export";
 import { ERROR_MESSAGES, CONFIRM_MESSAGES } from "@/config/app";
+import { confirmDialog } from "@/components/confirm-dialog";
 
 export const Route = createFileRoute("/admin/manajemen_user")({
   head: () => ({
@@ -209,7 +210,7 @@ function ManajemenUserPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm(CONFIRM_MESSAGES.deleteUser)) return;
+    if (!(await confirmDialog(CONFIRM_MESSAGES.deleteUser))) return;
     try {
       const response = await fetch(`${USERS_API_URL}/${id}`, {
         method: "DELETE",

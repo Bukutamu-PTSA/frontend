@@ -15,6 +15,7 @@ import { matchesSearch } from "@/lib/search";
 import { fetchNotifications, type NotificationItem } from "@/lib/notifications";
 import { dismissNotif, markAllNotifRead, markNotifRead } from "@/lib/notification-status";
 import { CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
+import { confirmDialog } from "@/components/confirm-dialog";
 
 export const Route = createFileRoute("/admin/notifications")({
   head: () => ({
@@ -98,9 +99,9 @@ function NotificationsPage() {
     );
   };
 
-  const handleDismissAll = () => {
+  const handleDismissAll = async () => {
     if (visible.length === 0) return;
-    if (!window.confirm(CONFIRM_MESSAGES.dismissAllNotifications(visible.length))) return;
+    if (!(await confirmDialog(CONFIRM_MESSAGES.dismissAllNotifications(visible.length)))) return;
     dismissNotif(visible.map((n) => n.id));
     setOpenActions(null);
     setNotifications((prev) =>

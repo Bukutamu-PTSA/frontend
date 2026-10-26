@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { matchesSearch } from "@/lib/search";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { pageWindow } from "@/lib/pagination";
 
 const CATEGORY_MAP: Record<number, { title: string; shortName: string }> = {
@@ -300,7 +301,13 @@ function DetailKategoriPage() {
   };
 
   const handleDelete = async (deleteId: number) => {
-    if (!window.confirm(CONFIRM_MESSAGES.deleteComplaint)) return;
+    if (
+      !(await confirmDialog({
+        title: "Hapus Pengaduan",
+        message: CONFIRM_MESSAGES.deleteComplaint,
+      }))
+    )
+      return;
 
     const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 

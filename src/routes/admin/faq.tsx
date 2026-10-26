@@ -8,6 +8,7 @@ import { apiUrl, authHeaders } from "@/lib/api";
 import { extractList, isRecord } from "@/lib/json";
 import { pageWindow } from "@/lib/pagination";
 import { CONFIRM_MESSAGES } from "@/config/app";
+import { confirmDialog } from "@/components/confirm-dialog";
 
 export const Route = createFileRoute("/admin/faq")({
   head: () => ({
@@ -178,7 +179,7 @@ function FaqPage() {
 
   // Hapus FAQ: DELETE /api/faqs/{id}.
   const handleDelete = async (id: number) => {
-    if (!window.confirm(CONFIRM_MESSAGES.deleteFaq)) return;
+    if (!(await confirmDialog(CONFIRM_MESSAGES.deleteFaq))) return;
 
     setDeletingId(id);
     setError(null);

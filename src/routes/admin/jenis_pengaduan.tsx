@@ -9,6 +9,7 @@ import { apiUrl, authHeaders } from "@/lib/api";
 import { useTableExport } from "@/lib/use-table-export";
 import { pageWindow } from "@/lib/pagination";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES } from "@/config/app";
+import { confirmDialog } from "@/components/confirm-dialog";
 
 export const Route = createFileRoute("/admin/jenis_pengaduan")({
   head: () => ({
@@ -151,7 +152,7 @@ function JenisPengaduanPage() {
   };
 
   const handleDelete = async (item: JenisItem) => {
-    if (!window.confirm(CONFIRM_MESSAGES.deleteJenisPengaduan(item.nama))) return;
+    if (!(await confirmDialog(CONFIRM_MESSAGES.deleteJenisPengaduan(item.nama)))) return;
     const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     try {

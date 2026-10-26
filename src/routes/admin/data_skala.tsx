@@ -9,6 +9,7 @@ import { apiUrl, authHeaders } from "@/lib/api";
 import { useTableExport } from "@/lib/use-table-export";
 import { pageWindow } from "@/lib/pagination";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES } from "@/config/app";
+import { confirmDialog } from "@/components/confirm-dialog";
 
 export const Route = createFileRoute("/admin/data_skala")({
   head: () => ({
@@ -91,7 +92,7 @@ function DataSkalaPage() {
   const displayed = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm(CONFIRM_MESSAGES.deleteSkala)) return;
+    if (!(await confirmDialog(CONFIRM_MESSAGES.deleteSkala))) return;
 
     setDeletingId(id);
     try {

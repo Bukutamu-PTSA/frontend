@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   copyToClipboard,
   exportCsv,
@@ -41,7 +42,7 @@ export function useTableExport({ baseName, headers, rows }: TableExportOptions) 
       showCopied();
     } catch (err) {
       console.error("Gagal menyalin data:", err);
-      alert("Gagal menyalin data ke clipboard.");
+      toast.error("Gagal menyalin data ke clipboard.");
     }
   }, [headers, rows, showCopied]);
 

@@ -8,6 +8,7 @@ import { useTableExport } from "@/lib/use-table-export";
 import { pageWindow } from "@/lib/pagination";
 import { editableQuestions, fetchSurveyQuestions, resolveSurveyId } from "@/lib/survey";
 import { CONFIRM_MESSAGES } from "@/config/app";
+import { confirmDialog } from "@/components/confirm-dialog";
 
 export const Route = createFileRoute("/admin/data_survei")({
   head: () => ({
@@ -98,8 +99,8 @@ function DataSurveiPage() {
     rows: buildExport.rows,
   });
 
-  const handleDelete = (id: number) => {
-    if (!window.confirm(CONFIRM_MESSAGES.deleteSurveiQuestion)) return;
+  const handleDelete = async (id: number) => {
+    if (!(await confirmDialog(CONFIRM_MESSAGES.deleteSurveiQuestion))) return;
     // TODO(backend): panggil DELETE /api/surveys/{survey}/{question} setelah
     // endpoint hapus perpertanyaan tersedia di backend.
     setRows((prev) => prev.filter((r) => r.id !== id));
