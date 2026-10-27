@@ -14,6 +14,7 @@ import {
   MapPin,
   Mail,
 } from "lucide-react";
+import { toast } from "sonner";
 import kemnakerLogo from "@/assets/kemnaker_logo.png";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
 import {
@@ -26,6 +27,7 @@ import {
   ADDRESS_LINE_2,
   ADDRESS_LINE_3,
   CONTACT_EMAIL,
+  CONTACT_EMAIL_LABEL,
   MAPS_URL,
   SOCIAL_LINKS,
   COPYRIGHT_YEARS,
@@ -317,6 +319,21 @@ function FormulirPengaduanPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validasi tambahan sebelum lanjut ke bukti_pendukung, supaya data yang
+    // pasti ditolak backend tidak sampai ke langkah kirim.
+    const invalid: { id: string; message: string } | null = !/^\d{16}$/.test(nik)
+      ? { id: "nik", message: "NIK harus 16 digit angka." }
+      : !noTelpPerusahaan.trim()
+        ? { id: "noTelpPerusahaan", message: "No Telp Perusahaan wajib diisi." }
+        : null;
+    if (invalid) {
+      toast.error(invalid.message);
+      const el = document.getElementById(invalid.id);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.focus();
+      return;
+    }
+
     const formData = {
       category_id: categoryId,
       jenisPengaduan,
@@ -500,10 +517,23 @@ function FormulirPengaduanPage() {
                 </label>
                 <input
                   suppressHydrationWarning
+                  id="nik"
                   type="text"
+                  inputMode="numeric"
                   value={nik}
-                  onChange={(e) => setNik(e.target.value.replace(/\D/g, "").slice(0, 16))}
+                  onChange={(e) => {
+                    e.currentTarget.setCustomValidity("");
+                    setNik(e.target.value.replace(/\D/g, "").slice(0, 16));
+                  }}
+                  onInvalid={(e) =>
+                    e.currentTarget.setCustomValidity(
+                      e.currentTarget.value ? "NIK harus 16 digit angka." : "NIK wajib diisi.",
+                    )
+                  }
                   placeholder="Masukkan 16 digit NIK"
+                  pattern="[0-9]{16}"
+                  minLength={16}
+                  maxLength={16}
                   required
                   className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
@@ -872,12 +902,22 @@ function FormulirPengaduanPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block font-medium text-gray-700">No Telp Perusahaan</label>
+                <label className="mb-1.5 block font-medium text-gray-700">
+                  No Telp Perusahaan <span className="text-red-500">*</span>
+                </label>
                 <input
                   suppressHydrationWarning
+                  id="noTelpPerusahaan"
                   type="tel"
                   value={noTelpPerusahaan}
-                  onChange={(e) => setNoTelpPerusahaan(e.target.value)}
+                  onChange={(e) => {
+                    e.currentTarget.setCustomValidity("");
+                    setNoTelpPerusahaan(e.target.value);
+                  }}
+                  onInvalid={(e) =>
+                    e.currentTarget.setCustomValidity("No Telp Perusahaan wajib diisi.")
+                  }
+                  required
                   placeholder="021-xxxxxxx"
                   className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
@@ -974,7 +1014,7 @@ function FormulirPengaduanPage() {
                   href={`mailto:${CONTACT_EMAIL}`}
                   className="text-gray-300 hover:text-emerald-400 transition-colors"
                 >
-                  Pengaduan WLKP
+                  {CONTACT_EMAIL_LABEL}
                 </a>
               </div>
               {/* FAQ di bawah kontak */}
