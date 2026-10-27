@@ -325,7 +325,11 @@ function FormulirPengaduanPage() {
       ? { id: "nik", message: "NIK harus 16 digit angka." }
       : !noTelpPerusahaan.trim()
         ? { id: "noTelpPerusahaan", message: "No Telp Perusahaan wajib diisi." }
-        : null;
+        : !/^[0-9+\-() ]{8,20}$/.test(noTelpPerusahaan.trim())
+          ? { id: "noTelpPerusahaan", message: "Format No Telp Perusahaan tidak valid." }
+          : !emailPerusahaan.trim()
+          ? { id: "emailPerusahaan", message: "Email Perusahaan wajib diisi." }
+          : null;
     if (invalid) {
       toast.error(invalid.message);
       const el = document.getElementById(invalid.id);
@@ -889,12 +893,26 @@ function FormulirPengaduanPage() {
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block font-medium text-gray-700">Email Perusahaan</label>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Email Perusahaan <span className="text-red-500">*</span>
+                  </label>
                   <input
                     suppressHydrationWarning
+                    id="emailPerusahaan"
                     type="email"
                     value={emailPerusahaan}
-                    onChange={(e) => setEmailPerusahaan(e.target.value)}
+                    onChange={(e) => {
+                      e.currentTarget.setCustomValidity("");
+                      setEmailPerusahaan(e.target.value);
+                    }}
+                    onInvalid={(e) =>
+                      e.currentTarget.setCustomValidity(
+                        e.currentTarget.value
+                          ? "Format Email Perusahaan tidak valid."
+                          : "Email Perusahaan wajib diisi.",
+                      )
+                    }
+                    required
                     placeholder="hrdperusahaan.com"
                     className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                   />
@@ -915,9 +933,17 @@ function FormulirPengaduanPage() {
                     setNoTelpPerusahaan(e.target.value);
                   }}
                   onInvalid={(e) =>
-                    e.currentTarget.setCustomValidity("No Telp Perusahaan wajib diisi.")
+                    e.currentTarget.setCustomValidity(
+                      e.currentTarget.value
+                        ? "Format No Telp Perusahaan tidak valid (8–20 karakter: angka, spasi, +, -, ( ))."
+                        : "No Telp Perusahaan wajib diisi.",
+                    )
                   }
                   required
+                  // Backend: string max 20 karakter.
+                  pattern="[0-9+\-\(\) ]{8,20}"
+                  maxLength={20}
+                  inputMode="tel"
                   placeholder="021-xxxxxxx"
                   className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
