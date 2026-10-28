@@ -97,6 +97,28 @@ function parseLocationResponse(json: any): DropdownItem[] {
   return [];
 }
 
+/**
+ * Nama field untuk pesan "wajib diisi": data-label, atau teks <label> terdekat
+ * (tanpa tanda * dan keterangan dalam kurung).
+ */
+function fieldLabel(el: Element): string {
+  const explicit = (el as HTMLElement).dataset?.["label"];
+  if (explicit) return explicit;
+  let node: Element | null = el.parentElement;
+  while (node) {
+    const label = node.querySelector("label");
+    if (label) {
+      const text = (label.firstChild?.textContent ?? label.textContent ?? "")
+        .replace(/\*/g, "")
+        .replace(/\(.*?\)/g, "")
+        .trim();
+      if (text) return text;
+    }
+    node = node.parentElement;
+  }
+  return "Field ini";
+}
+
 function FormulirPengaduanPage() {
   const navigate = useNavigate();
 
@@ -393,11 +415,30 @@ function FormulirPengaduanPage() {
     fetchVillages();
   }, [selectedDistrictCode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Validasi tambahan sebelum lanjut ke bukti_pendukung, supaya data yang
-    // pasti ditolak backend tidak sampai ke langkah kirim.
+    // 1. Field wajib yang masih kosong (termasuk isian spasi saja, yang lolos
+    //    validasi bawaan browser). Ambil yang pertama sesuai urutan form.
+    const emptyField = Array.from(e.currentTarget.elements).find(
+      (el): el is HTMLInputElement =>
+        (el instanceof HTMLInputElement ||
+          el instanceof HTMLSelectElement ||
+          el instanceof HTMLTextAreaElement) &&
+        el.required &&
+        !el.disabled &&
+        el.type !== "radio" &&
+        el.value.trim() === "",
+    );
+    if (emptyField) {
+      toast.error(`${fieldLabel(emptyField)} wajib diisi.`);
+      emptyField.scrollIntoView({ behavior: "smooth", block: "center" });
+      emptyField.focus();
+      return;
+    }
+
+    // 2. Validasi format sebelum lanjut ke bukti_pendukung, supaya data yang
+    //    pasti ditolak backend tidak sampai ke langkah kirim.
     const invalid: { id: string; message: string } | null = !/^\d{16}$/.test(nik)
       ? { id: "nik", message: "NIK harus 16 digit angka." }
       : !noTelpPerusahaan.trim()
@@ -487,7 +528,25 @@ function FormulirPengaduanPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6" suppressHydrationWarning>
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6"
+          suppressHydrationWarning
+          // Pesan "wajib diisi" berbahasa Indonesia untuk semua field required.
+          // Field dengan onInvalid sendiri (NIK, telp, email) menimpa pesan ini.
+          onInvalidCapture={(e) => {
+            const el = e.target as unknown as HTMLInputElement;
+            if (el.validity?.valueMissing) {
+              el.setCustomValidity(`${fieldLabel(el)} wajib diisi.`);
+            }
+          }}
+          onInputCapture={(e) =>
+            (e.target as unknown as HTMLInputElement).setCustomValidity?.("")
+          }
+          onChangeCapture={(e) =>
+            (e.target as unknown as HTMLInputElement).setCustomValidity?.("")
+          }
+        >
           {/* ================= CARD 1: JENIS PENGADUAN ================= */}
           <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xs">
             <div className="mb-5 flex items-center gap-2.5 border-b border-gray-100 pb-3">
@@ -540,6 +599,8 @@ function FormulirPengaduanPage() {
                   value={lainnya}
                   onChange={(e) => setLainnya(e.target.value)}
                   disabled={String(categoryId) !== "other"}
+                  required={String(categoryId) === "other"}
+                  data-label="Jenis Pengaduan Lainnya"
                   placeholder={
                     String(categoryId) === "other"
                       ? "Masukkan Jenis Pengaduan"
