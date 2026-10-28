@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   FileText,
@@ -152,6 +152,51 @@ function FormulirPengaduanPage() {
 
   // Inisialisasi tanggal di browser client untuk menghindari hydration warning
 
+  // Draft yang dipulihkan dari sessionStorage. Kode wilayah anak (kota,
+  // kecamatan, kelurahan) dipasang bertahap oleh effect cascading di bawah,
+  // karena tiap effect me-reset level di bawahnya saat parent berubah.
+  const pendingWilayahRef = useRef<any>(null);
+
+  // 0. Pulihkan data form bila user kembali dari halaman bukti_pendukung.
+  //    Draft hanya dihapus setelah pengaduan berhasil dikirim (lihat
+  //    bukti_pendukung.tsx), jadi kalau gagal / klik "Kembali" datanya tetap ada.
+  useEffect(() => {
+    let draft: any = null;
+    try {
+      const raw = sessionStorage.getItem("draft_pengaduan");
+      draft = raw ? JSON.parse(raw) : null;
+    } catch {
+      draft = null;
+    }
+    if (!draft || typeof draft !== "object") return;
+
+    const str = (v: unknown) => (v == null ? "" : String(v));
+    setCategoryId(draft.category_id ?? "");
+    setJenisPengaduan(str(draft.jenisPengaduan));
+    setLainnya(str(draft.lainnya));
+    setTanggalPelaporan(str(draft.tanggalPelaporan));
+    setNamaPelapor(str(draft.namaPelapor));
+    setNik(str(draft.nik));
+    setAlamatPelapor(str(draft.alamatPelapor));
+    setJenisKelamin(draft.jenisKelamin === "Perempuan" ? "Perempuan" : "Laki-laki");
+    setJabatan(str(draft.jabatan));
+    setNoTelpPelapor(str(draft.noTelpPelapor));
+    setEmailPelapor(str(draft.emailPelapor));
+    setNamaPerusahaan(str(draft.namaPerusahaan));
+    setSectorId(draft.sector_id ?? "");
+    setSektorIndustri(str(draft.sektorIndustri));
+    setJumlahPekerja(draft.jumlahPekerja ?? 0);
+    setNoTelpPerusahaan(str(draft.noTelpPerusahaan));
+    setEmailPerusahaan(str(draft.emailPerusahaan));
+    setAlamatPerusahaan(str(draft.alamatPerusahaan));
+
+    if (draft.province_code) {
+      pendingWilayahRef.current = draft;
+      setSelectedProvCode(str(draft.province_code));
+      setProvinsiName(str(draft.provinsi));
+    }
+  }, []);
+
   // 1. Fetch Kategori, Sektor, & Provinsi dari Backend
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -236,6 +281,17 @@ function FormulirPengaduanPage() {
 
     if (!selectedProvCode) return;
 
+    // Pulihkan kota dari draft (setelah reset di atas).
+    const pending = pendingWilayahRef.current;
+    if (pending && String(pending.province_code) === selectedProvCode) {
+      if (pending.city_code) {
+        setSelectedCityCode(String(pending.city_code));
+        setKabupatenName(String(pending.kabupaten ?? ""));
+      } else {
+        pendingWilayahRef.current = null;
+      }
+    }
+
     const fetchCities = async () => {
       setLoadingKab(true);
       try {
@@ -266,6 +322,17 @@ function FormulirPengaduanPage() {
 
     if (!selectedCityCode) return;
 
+    // Pulihkan kecamatan dari draft.
+    const pending = pendingWilayahRef.current;
+    if (pending && String(pending.city_code) === selectedCityCode) {
+      if (pending.district_code) {
+        setSelectedDistrictCode(String(pending.district_code));
+        setKecamatanName(String(pending.kecamatan ?? ""));
+      } else {
+        pendingWilayahRef.current = null;
+      }
+    }
+
     const fetchDistricts = async () => {
       setLoadingKec(true);
       try {
@@ -294,6 +361,16 @@ function FormulirPengaduanPage() {
     setKelurahanList([]);
 
     if (!selectedDistrictCode) return;
+
+    // Pulihkan kelurahan dari draft (level terakhir, lalu selesai).
+    const pending = pendingWilayahRef.current;
+    if (pending && String(pending.district_code) === selectedDistrictCode) {
+      if (pending.village_code) {
+        setSelectedVillageCode(String(pending.village_code));
+        setKelurahanName(String(pending.kelurahan ?? ""));
+      }
+      pendingWilayahRef.current = null;
+    }
 
     const fetchVillages = async () => {
       setLoadingKel(true);
