@@ -4,7 +4,6 @@ import {
   FileText,
   User,
   Building2,
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Loader2,
@@ -142,7 +141,7 @@ function FormulirPengaduanPage() {
   const [lainnya, setLainnya] = useState("");
   const [tanggalPelaporan, setTanggalPelaporan] = useState("");
 
-  const [namaPelapor, setNamaPelapor] = useState("Nama Lengkap");
+  const [namaPelapor, setNamaPelapor] = useState("");
   const [nik, setNik] = useState("");
   const [alamatPelapor, setAlamatPelapor] = useState("");
   const [jenisKelamin, setJenisKelamin] = useState<"Laki-laki" | "Perempuan">("Laki-laki");
@@ -153,7 +152,7 @@ function FormulirPengaduanPage() {
   const [namaPerusahaan, setNamaPerusahaan] = useState("");
   const [sektorIndustri, setSektorIndustri] = useState("");
   const [sectorId, setSectorId] = useState<number | string>("");
-  const [jumlahPekerja, setJumlahPekerja] = useState<number | string>(0);
+  const [jumlahPekerja, setJumlahPekerja] = useState<string>("");
 
   // Cascading Wilayah State (Code dipakai untuk query path backend, Name untuk display/payload)
   const [selectedProvCode, setSelectedProvCode] = useState<string>("");
@@ -172,16 +171,9 @@ function FormulirPengaduanPage() {
   const [emailPerusahaan, setEmailPerusahaan] = useState("");
   const [alamatPerusahaan, setAlamatPerusahaan] = useState("");
 
-  // Inisialisasi tanggal di browser client untuk menghindari hydration warning
-
-  // Draft yang dipulihkan dari sessionStorage. Kode wilayah anak (kota,
-  // kecamatan, kelurahan) dipasang bertahap oleh effect cascading di bawah,
-  // karena tiap effect me-reset level di bawahnya saat parent berubah.
   const pendingWilayahRef = useRef<any>(null);
 
   // 0. Pulihkan data form bila user kembali dari halaman bukti_pendukung.
-  //    Draft hanya dihapus setelah pengaduan berhasil dikirim (lihat
-  //    bukti_pendukung.tsx), jadi kalau gagal / klik "Kembali" datanya tetap ada.
   useEffect(() => {
     let draft: any = null;
     try {
@@ -207,7 +199,7 @@ function FormulirPengaduanPage() {
     setNamaPerusahaan(str(draft.namaPerusahaan));
     setSectorId(draft.sector_id ?? "");
     setSektorIndustri(str(draft.sektorIndustri));
-    setJumlahPekerja(draft.jumlahPekerja ?? 0);
+    setJumlahPekerja(str(draft.jumlahPekerja));
     setNoTelpPerusahaan(str(draft.noTelpPerusahaan));
     setEmailPerusahaan(str(draft.emailPerusahaan));
     setAlamatPerusahaan(str(draft.alamatPerusahaan));
@@ -228,7 +220,6 @@ function FormulirPengaduanPage() {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      // Kategori: GET /api/complaint-categories
       try {
         const resCat = await fetch(`${BASE_API_URL}/complaint-categories`, { headers });
         if (resCat.ok) {
@@ -249,7 +240,6 @@ function FormulirPengaduanPage() {
         console.error("Gagal load complaint-categories:", e);
       }
 
-      // Sektor: GET /api/industrial-sectors
       try {
         const resSek = await fetch(`${BASE_API_URL}/industrial-sectors`, { headers });
         if (resSek.ok) {
@@ -270,7 +260,6 @@ function FormulirPengaduanPage() {
         console.error("Gagal load industrial-sectors:", e);
       }
 
-      // Provinsi: GET /api/provinces (Key-Value Object)
       try {
         setLoadingProv(true);
         const resProv = await fetch(`${BASE_API_URL}/provinces`, { headers });
@@ -289,7 +278,7 @@ function FormulirPengaduanPage() {
     fetchInitialData();
   }, []);
 
-  // 2. Fetch Kota/Kabupaten: GET /api/cities/{province_code}
+  // 2. Fetch Kota/Kabupaten
   useEffect(() => {
     setSelectedCityCode("");
     setKabupatenName("");
@@ -303,7 +292,6 @@ function FormulirPengaduanPage() {
 
     if (!selectedProvCode) return;
 
-    // Pulihkan kota dari draft (setelah reset di atas).
     const pending = pendingWilayahRef.current;
     if (pending && String(pending.province_code) === selectedProvCode) {
       if (pending.city_code) {
@@ -333,7 +321,7 @@ function FormulirPengaduanPage() {
     fetchCities();
   }, [selectedProvCode]);
 
-  // 3. Fetch Kecamatan: GET /api/districts/{city_code}
+  // 3. Fetch Kecamatan
   useEffect(() => {
     setSelectedDistrictCode("");
     setKecamatanName("");
@@ -344,7 +332,6 @@ function FormulirPengaduanPage() {
 
     if (!selectedCityCode) return;
 
-    // Pulihkan kecamatan dari draft.
     const pending = pendingWilayahRef.current;
     if (pending && String(pending.city_code) === selectedCityCode) {
       if (pending.district_code) {
@@ -376,7 +363,7 @@ function FormulirPengaduanPage() {
     fetchDistricts();
   }, [selectedCityCode]);
 
-  // 4. Fetch Kelurahan: GET /api/villages/{district_code}
+  // 4. Fetch Kelurahan
   useEffect(() => {
     setSelectedVillageCode("");
     setKelurahanName("");
@@ -384,7 +371,6 @@ function FormulirPengaduanPage() {
 
     if (!selectedDistrictCode) return;
 
-    // Pulihkan kelurahan dari draft (level terakhir, lalu selesai).
     const pending = pendingWilayahRef.current;
     if (pending && String(pending.district_code) === selectedDistrictCode) {
       if (pending.village_code) {
@@ -418,8 +404,6 @@ function FormulirPengaduanPage() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // 1. Field wajib yang masih kosong (termasuk isian spasi saja, yang lolos
-    //    validasi bawaan browser). Ambil yang pertama sesuai urutan form.
     const emptyField = Array.from(e.currentTarget.elements).find(
       (el): el is HTMLInputElement =>
         (el instanceof HTMLInputElement ||
@@ -437,17 +421,17 @@ function FormulirPengaduanPage() {
       return;
     }
 
-    // 2. Validasi format sebelum lanjut ke bukti_pendukung, supaya data yang
-    //    pasti ditolak backend tidak sampai ke langkah kirim.
     const invalid: { id: string; message: string } | null = !/^\d{16}$/.test(nik)
       ? { id: "nik", message: "NIK harus 16 digit angka." }
-      : !noTelpPerusahaan.trim()
-        ? { id: "noTelpPerusahaan", message: "No Telp Perusahaan wajib diisi." }
-        : !/^[0-9+\-() ]{8,20}$/.test(noTelpPerusahaan.trim())
-          ? { id: "noTelpPerusahaan", message: "Format No Telp Perusahaan tidak valid." }
-          : !emailPerusahaan.trim()
-          ? { id: "emailPerusahaan", message: "Email Perusahaan wajib diisi." }
-          : null;
+      : !jumlahPekerja.trim()
+        ? { id: "jumlahPekerja", message: "Jumlah Pekerja wajib diisi." }
+        : !noTelpPerusahaan.trim()
+          ? { id: "noTelpPerusahaan", message: "No Telp Perusahaan wajib diisi." }
+          : !/^[0-9+\-() ]{8,20}$/.test(noTelpPerusahaan.trim())
+            ? { id: "noTelpPerusahaan", message: "Format No Telp Perusahaan tidak valid." }
+            : !emailPerusahaan.trim()
+              ? { id: "emailPerusahaan", message: "Email Perusahaan wajib diisi." }
+              : null;
     if (invalid) {
       toast.error(invalid.message);
       const el = document.getElementById(invalid.id);
@@ -532,8 +516,6 @@ function FormulirPengaduanPage() {
           onSubmit={handleSubmit}
           className="space-y-6"
           suppressHydrationWarning
-          // Pesan "wajib diisi" berbahasa Indonesia untuk semua field required.
-          // Field dengan onInvalid sendiri (NIK, telp, email) menimpa pesan ini.
           onInvalidCapture={(e) => {
             const el = e.target as unknown as HTMLInputElement;
             if (el.validity?.valueMissing) {
@@ -762,10 +744,7 @@ function FormulirPengaduanPage() {
 
               <div>
                 <label className="mb-1.5 block font-medium text-gray-700">
-                  Email <span className="text-red-500">*</span>{" "}
-                  <span className="text-gray-400 font-normal">
-                    (Alamat email yang digunakan untuk mengirim berkas pengaduan)
-                  </span>
+                  Email <span className="text-red-500">*</span>
                 </label>
                 <input
                   suppressHydrationWarning
@@ -776,15 +755,6 @@ function FormulirPengaduanPage() {
                   required
                   className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                 />
-              </div>
-
-              <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-[10.5px] leading-relaxed text-amber-900">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-                <p>
-                  <strong className="font-semibold text-amber-700">PENTING:</strong> Alamat email
-                  yang dicantumkan di formulir ini harus sama persis dengan alamat email yang Anda
-                  gunakan saat mengirimkan dokumen/berkas pengaduan untuk kebutuhan verifikasi.
-                </p>
               </div>
             </div>
           </section>
@@ -853,17 +823,27 @@ function FormulirPengaduanPage() {
                   </label>
                   <input
                     suppressHydrationWarning
-                    type="number"
+                    id="jumlahPekerja"
+                    type="text"
                     value={jumlahPekerja}
-                    onChange={(e) => setJumlahPekerja(e.target.value)}
-                    placeholder="0"
-                    min={0}
+                    onChange={(e) => {
+                      e.currentTarget.setCustomValidity("");
+                      setJumlahPekerja(e.target.value);
+                    }}
+                    onInvalid={(e) =>
+                      e.currentTarget.setCustomValidity(
+                        e.currentTarget.value.trim() === ""
+                          ? "Jumlah Pekerja wajib diisi."
+                          : "Jumlah Pekerja wajib diisi.",
+                      )
+                    }
+                    placeholder="Minimal 1 Tenaga Kerja"
                     required
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
                   />
                 </div>
 
-                {/* Dropdown 1: Provinsi -> GET /api/provinces */}
+                {/* Dropdown 1: Provinsi */}
                 <div>
                   <label className="mb-1.5 block font-medium text-gray-700">
                     Provinsi <span className="text-red-500">*</span>
@@ -902,7 +882,7 @@ function FormulirPengaduanPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {/* Dropdown 2: Kota / Kabupaten -> GET /api/cities/{province_code} */}
+                {/* Dropdown 2: Kota / Kabupaten */}
                 <div>
                   <label className="mb-1.5 block font-medium text-gray-700">
                     Kota/Kabupaten <span className="text-red-500">*</span>
@@ -944,7 +924,7 @@ function FormulirPengaduanPage() {
                   </div>
                 </div>
 
-                {/* Dropdown 3: Kecamatan -> GET /api/districts/{city_code} */}
+                {/* Dropdown 3: Kecamatan */}
                 <div>
                   <label className="mb-1.5 block font-medium text-gray-700">
                     Kecamatan <span className="text-red-500">*</span>
@@ -988,7 +968,7 @@ function FormulirPengaduanPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {/* Dropdown 4: Kelurahan -> GET /api/villages/{district_code} */}
+                {/* Dropdown 4: Kelurahan */}
                 <div>
                   <label className="mb-1.5 block font-medium text-gray-700">
                     Kelurahan <span className="text-red-500">*</span>
@@ -1078,7 +1058,6 @@ function FormulirPengaduanPage() {
                     )
                   }
                   required
-                  // Backend: string max 20 karakter.
                   pattern="[0-9+\-\(\) ]{8,20}"
                   maxLength={20}
                   inputMode="tel"
