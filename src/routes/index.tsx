@@ -29,6 +29,7 @@ import {
   ADDRESS_LINE_2,
   ADDRESS_LINE_3,
   CONTACT_EMAIL,
+  CONTACT_EMAIL_LABEL,
   MAPS_URL,
   COPYRIGHT_START_YEAR,
   COPYRIGHT_END_YEAR,
@@ -293,7 +294,7 @@ function Index() {
                   href={`mailto:${CONTACT_EMAIL}`}
                   className="text-gray-300 hover:text-emerald-400 transition-colors"
                 >
-                  Pengaduan WLKP
+                  {CONTACT_EMAIL_LABEL}
                 </a>
               </div>
               <div className="mt-6 pt-4 border-t border-white/15">

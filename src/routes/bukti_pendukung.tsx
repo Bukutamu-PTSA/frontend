@@ -93,6 +93,9 @@ function validateEvidenceFile(file: File): string | null {
 /** Arah kamera: "environment" = belakang, "user" = depan (selfie). */
 type FacingMode = "environment" | "user";
 
+/** Tujuan hasil kamera: foto pelapor atau file bukti pendukung. */
+type CaptureTarget = "photo" | "document";
+
 /** Satu foto hasil jepretan kamera di galeri. */
 interface CapturedPhoto {
   id: string;
@@ -149,6 +152,9 @@ function BuktiPendukungPage() {
   const [canUseLiveCamera, setCanUseLiveCamera] = useState(true);
   // Popup pilih kamera yang muncul saat ikon kamera diklik.
   const [isFacingPickerOpen, setIsFacingPickerOpen] = useState(false);
+  // Menentukan hasil kamera dipakai sebagai foto pelapor atau bukti pendukung.
+  const [captureTarget, setCaptureTarget] = useState<CaptureTarget>("photo");
+  const captureTargetRef = useRef<CaptureTarget>("photo");
   useEffect(() => {
     setCanUseLiveCamera(Boolean(navigator.mediaDevices?.getUserMedia) && window.isSecureContext);
   }, []);
@@ -158,6 +164,7 @@ function BuktiPendukungPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   /** Hentikan semua track kamera dan lepaskan stream. */
   const stopCameraStream = () => {
@@ -267,6 +274,7 @@ function BuktiPendukungPage() {
     };
     setPhotos((prev) => [...prev, photo]);
     setSelectedPhotoId(photo.id);
+    setPhotoError(null);
     return true;
   };
 
@@ -277,7 +285,7 @@ function BuktiPendukungPage() {
   const takePhoto = () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) return;
-    if (photosRef.current.length >= MAX_PHOTOS) {
+    if (captureTargetRef.current === "photo" && photosRef.current.length >= MAX_PHOTOS) {
       toast.error(`Maksimal ${MAX_PHOTOS} foto. Hapus salah satu foto dulu.`);
       return;
     }
@@ -309,6 +317,12 @@ function BuktiPendukungPage() {
         }
 
         setFileError(null);
+        // Dari area bukti pendukung: jadikan file dokumen lalu tutup kamera.
+        if (captureTargetRef.current === "document") {
+          setSelectedDocument(file);
+          closeCamera();
+          return;
+        }
         addPhoto(file);
       },
       "image/jpeg",
@@ -325,7 +339,9 @@ function BuktiPendukungPage() {
   }, []);
 
   /** Klik ikon kamera -> tampilkan pilihan kamera depan/belakang dulu. */
-  const handleCapture = () => {
+  const handleCapture = (target: CaptureTarget = "photo") => {
+    captureTargetRef.current = target;
+    setCaptureTarget(target);
     setIsFacingPickerOpen(true);
   };
 
@@ -340,6 +356,10 @@ function BuktiPendukungPage() {
     }
 
     setFileError(null);
+    if (captureTargetRef.current === "document") {
+      setSelectedDocument(file);
+      return;
+    }
     addPhoto(file);
   };
 
@@ -390,6 +410,16 @@ function BuktiPendukungPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Foto bukti wajib: pengaduan tidak boleh diselesaikan tanpa foto validasi.
+    if (!capturedFile) {
+      setPhotoError("Foto bukti wajib diambil sebelum pengaduan dapat dikirim.");
+      toast.error("Foto bukti belum diambil", {
+        description: "Ambil foto terlebih dahulu untuk validasi sebelum menyelesaikan pengaduan.",
+      });
+      return;
+    }
+    setPhotoError(null);
 
     const savedDraft = sessionStorage.getItem("draft_pengaduan");
     const draftData = savedDraft ? JSON.parse(savedDraft) : {};
@@ -603,16 +633,30 @@ function BuktiPendukungPage() {
                     <p className="text-[11px] text-gray-500 font-medium">
                       {isDragging ? "Lepaskan file di sini" : "Tarik file ke sini atau"}
                     </p>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        fileInputRef.current?.click();
-                      }}
-                      className="mt-2.5 rounded-lg border border-gray-300 bg-white px-5 py-1.5 text-[10.5px] font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 transition-colors"
-                    >
-                      Browse...
-                    </button>
+                    <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-5 py-1.5 text-[10.5px] font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 transition-colors"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Browse...
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCapture("document");
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-secondary bg-brand-secondary px-5 py-1.5 text-[10.5px] font-semibold text-white shadow-2xs hover:bg-brand-secondary-hover transition-colors"
+                      >
+                        <Camera className="h-3.5 w-3.5" />
+                        Kamera
+                      </button>
+                    </div>
                     <p className="mt-2 text-[10px] text-gray-400">
                       JPG, PNG, atau PDF &middot; maksimal 5 MB
                     </p>
@@ -628,10 +672,11 @@ function BuktiPendukungPage() {
             {/* Bukti Foto Kamera */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-semibold text-gray-800">
-                Bukti Foto (Opsional namun sangat disarankan)
+                Bukti Foto <span className="text-red-500">*</span>
               </label>
               <p className="text-[10px] text-gray-400 leading-tight">
-                Ketuk tombol kamera untuk membuka kamera langsung di browser dan ambil foto.
+                Wajib diambil sebagai validasi. Ketuk tombol kamera untuk membuka kamera langsung di
+                browser dan ambil foto.
               </p>
 
               <input
@@ -682,7 +727,7 @@ function BuktiPendukungPage() {
                 </div>
               ) : (
                 <div
-                  onClick={handleCapture}
+                  onClick={() => handleCapture("photo")}
                   className="mt-3 flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 bg-[#FAFBFD] text-gray-400 hover:bg-gray-50 hover:text-brand-secondary transition-colors"
                 >
                   <Camera className="h-6 w-6" />
@@ -695,7 +740,7 @@ function BuktiPendukungPage() {
               <div className="flex justify-center pt-2">
                 <button
                   type="button"
-                  onClick={handleCapture}
+                  onClick={() => handleCapture("photo")}
                   className="flex flex-col items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-brand-secondary transition-colors cursor-pointer"
                 >
                   <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand-secondary text-white shadow-xs hover:bg-brand-secondary-hover transition-colors">
@@ -709,6 +754,10 @@ function BuktiPendukungPage() {
                 <p className="pt-1 text-center text-[10px] font-medium text-red-500">
                   {cameraError}
                 </p>
+              )}
+
+              {photoError && (
+                <p className="pt-1 text-center text-[10px] font-medium text-red-500">{photoError}</p>
               )}
 
               {!canUseLiveCamera && (
@@ -888,7 +937,7 @@ function BuktiPendukungPage() {
           <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-black shadow-2xl">
             <div className="flex items-center justify-between bg-black/60 px-4 py-3">
               <span className="text-[12px] font-semibold text-white">
-                Ambil Foto Bukti
+                {captureTarget === "document" ? "Ambil Foto Bukti Pendukung" : "Ambil Foto Bukti"}
                 <span className="ml-2 font-normal text-white/60">
                   {facingMode === "user" ? "Kamera depan" : "Kamera belakang"}
                 </span>
@@ -921,7 +970,7 @@ function BuktiPendukungPage() {
                   <span className="text-[11px]">Menyalakan kamera...</span>
                 </div>
               )}
-              {photos.length > 0 && (
+              {photos.length > 0 && captureTarget === "photo" && (
                 <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">
                   {photos.length}/{MAX_PHOTOS} foto
                 </span>
@@ -929,7 +978,7 @@ function BuktiPendukungPage() {
             </div>
 
             {/* Galeri hasil jepretan: ketuk untuk memilih foto yang digunakan */}
-            {photos.length > 0 && (
+            {photos.length > 0 && captureTarget === "photo" && (
               <div className="bg-black/60 px-4 pt-3">
                 <PhotoPicker
                   photos={photos}
@@ -943,7 +992,7 @@ function BuktiPendukungPage() {
 
             <div className="grid grid-cols-3 items-center bg-black/60 px-4 py-5">
               <div className="justify-self-start">
-                {photos.length > 0 ? (
+                {captureTarget === "photo" && photos.length > 0 ? (
                   <button
                     type="button"
                     onClick={closeCamera}
@@ -965,7 +1014,9 @@ function BuktiPendukungPage() {
               <button
                 type="button"
                 onClick={takePhoto}
-                disabled={isCameraStarting || photos.length >= MAX_PHOTOS}
+                disabled={
+                  isCameraStarting || (captureTarget === "photo" && photos.length >= MAX_PHOTOS)
+                }
                 className="justify-self-center grid h-14 w-14 place-items-center rounded-full border-4 border-white bg-white/20 text-white hover:bg-white/40 transition-colors disabled:opacity-50"
                 aria-label="Ambil foto"
               >
