@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { matchesSearch } from "@/lib/search";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
+import { isSuperAdmin } from "@/lib/auth";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
 import { confirmDialog } from "@/components/confirm-dialog";
 import { pageWindow } from "@/lib/pagination";
@@ -114,7 +115,12 @@ function DetailKategoriPage() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [canDelete, setCanDelete] = useState(false);
   const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCanDelete(isSuperAdmin());
+  }, []);
 
   const fetchCategoryComplaints = useCallback(async () => {
     setLoading(true);
@@ -473,7 +479,8 @@ function DetailKategoriPage() {
                             <Eye className="h-3.5 w-3.5" />
                             View
                           </button>
-                        </td>                        <td className="px-6 py-3.5">
+                        </td>
+                        <td className="px-6 py-3.5">
                           <div className="flex items-center justify-end gap-1.5">
                             {/* Unduh PDF API */}
                             <button
@@ -514,15 +521,17 @@ function DetailKategoriPage() {
                               <Eye className="h-3.5 w-3.5" />
                             </button>
 
-                            {/* Hapus */}
-                            <button
-                              type="button"
-                              title="Hapus"
-                              onClick={() => handleDelete(item.id)}
-                              className="grid h-7 w-7 place-items-center rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                            {/* Hapus (khusus super admin) */}
+                            {canDelete && (
+                              <button
+                                type="button"
+                                title="Hapus"
+                                onClick={() => handleDelete(item.id)}
+                                className="grid h-7 w-7 place-items-center rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

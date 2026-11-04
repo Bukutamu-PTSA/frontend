@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import {
-  Send,
-  Building2,
-  Facebook,
-  Instagram,
-  MapPin,
-  Mail,
-  Loader2,
-  XIcon,
-} from "lucide-react";
+import { Send, Building2, Facebook, Instagram, MapPin, Mail, Loader2, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import logoKemnaker from "@/assets/kemnaker_logo.png";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
@@ -38,6 +29,7 @@ import {
   SUCCESS_MESSAGES,
   ERROR_MESSAGES,
   SURVEY_QUESTION_NUMBERS,
+  SURVEY_DISPLAY_NUMBERS,
 } from "@/config/app";
 
 export const Route = createFileRoute("/survei")({
@@ -82,8 +74,6 @@ const parseOfficerData = (res: any): OfficerItem[] => {
 function FormSurveiPage() {
   const navigate = useNavigate();
 
-  const [officers, setOfficers] = useState<OfficerItem[]>([]);
-  const [loadingOfficers, setLoadingOfficers] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -96,38 +86,34 @@ function FormSurveiPage() {
   });
 
   useEffect(() => {
+    const applyDefaultOfficer = (list: OfficerItem[]) => {
+      const fallback = list[0] ?? MOCK_OFFICERS[0] ?? { id: "petugas", name: "Petugas" };
+      setFormData((prev) => ({
+        ...prev,
+        officer_id: String(fallback.id),
+        officer_name: fallback.name,
+      }));
+    };
+
     const fetchOfficers = async () => {
-      setLoadingOfficers(true);
       try {
         const res = await fetch(`${BASE_API_URL}/officers`).catch(() =>
           fetch(`${BASE_API_URL}/petugas`),
         );
 
         if (res && res.ok) {
-          const data = await res.json();
-          setOfficers(parseOfficerData(data));
+          applyDefaultOfficer(parseOfficerData(await res.json()));
         } else {
-          setOfficers(MOCK_OFFICERS);
+          applyDefaultOfficer(MOCK_OFFICERS);
         }
       } catch (error) {
         console.error("Gagal memuat petugas:", error);
-      } finally {
-        setLoadingOfficers(false);
+        applyDefaultOfficer(MOCK_OFFICERS);
       }
     };
 
     fetchOfficers();
   }, []);
-
-  const handleOfficerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedId = e.target.value;
-    const selectedObj = officers.find((o) => String(o.id) === selectedId);
-    setFormData((prev) => ({
-      ...prev,
-      officer_id: selectedId,
-      officer_name: selectedObj ? selectedObj.name : "",
-    }));
-  };
 
   const handleRatingSelect = (
     field: "komunikasi_petugas" | "penjelasan_materi" | "sarana_prasarana",
@@ -155,10 +141,15 @@ function FormSurveiPage() {
     try {
       const responses = [
         { question_number: SURVEY_QUESTION_NUMBERS.officer, answer: formData.officer_name },
-        { question_number: SURVEY_QUESTION_NUMBERS.komunikasi, answer: formData.komunikasi_petugas },
+        {
+          question_number: SURVEY_QUESTION_NUMBERS.komunikasi,
+          answer: formData.komunikasi_petugas,
+        },
         { question_number: SURVEY_QUESTION_NUMBERS.penjelasan, answer: formData.penjelasan_materi },
         { question_number: SURVEY_QUESTION_NUMBERS.sarana, answer: formData.sarana_prasarana },
-        ...(formData.catatan ? [{ question_number: SURVEY_QUESTION_NUMBERS.catatan, answer: formData.catatan }] : []),
+        ...(formData.catatan
+          ? [{ question_number: SURVEY_QUESTION_NUMBERS.catatan, answer: formData.catatan }]
+          : []),
       ];
 
       const response = await fetch(`${BASE_API_URL}/surveys`, {
@@ -176,6 +167,7 @@ function FormSurveiPage() {
           const json = await response.json();
           if (json?.message) message = json.message;
         } catch {
+          // Abaikan body error yang bukan JSON; pakai pesan default.
         }
         throw new Error(message);
       }
@@ -209,7 +201,10 @@ function FormSurveiPage() {
             </span>
           </Link>
 
-          <nav aria-label="Navigasi utama" className="hidden items-center gap-8 md:flex text-[15px]">
+          <nav
+            aria-label="Navigasi utama"
+            className="hidden items-center gap-8 md:flex text-[15px]"
+          >
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.to}
@@ -235,10 +230,15 @@ function FormSurveiPage() {
               <span>KEMNAKER</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: primaryColor }}>
+            <h1
+              className="text-3xl sm:text-4xl font-extrabold tracking-tight"
+              style={{ color: primaryColor }}
+            >
               FORM SURVEI
             </h1>
-            <p className="text-sm font-bold" style={{ color: primaryColor }} mt-1>#SURVEI LAYANAN PTSA</p>
+            <p className="text-sm font-bold" style={{ color: primaryColor }} mt-1>
+              #SURVEI LAYANAN PTSA
+            </p>
             <p className="text-xs sm:text-sm text-gray-500 max-w-lg mx-auto mt-2 leading-relaxed">
               Partisipasi Anda sangat berarti bagi kami untuk meningkatkan kualitas layanan
               Pelayanan Terpadu Satu Atap (PTSA) Kementerian Ketenagakerjaan.
@@ -250,31 +250,11 @@ function FormSurveiPage() {
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
-                    {SURVEY_QUESTION_NUMBERS.officer}
+                    {SURVEY_DISPLAY_NUMBERS.komunikasi}
                   </span>
-                  <label className="text-sm font-bold text-gray-900">{FORM_LABELS.survei.officer}</label>
-                </div>
-                <select
-                  value={formData.officer_id}
-                  onChange={handleOfficerChange}
-                  required
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm bg-white text-gray-700 focus:border-[#032749] focus:outline-none focus:ring-1 focus:ring-[#032749]"
-                >
-                  <option value="">{loadingOfficers ? "Memuat petugas..." : FORM_PLACEHOLDERS.survei.selectOfficer}</option>
-                  {officers.map((officer) => (
-                    <option key={officer.id} value={officer.id}>
-                      {officer.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
-                    {SURVEY_QUESTION_NUMBERS.komunikasi}
-                  </span>
-                  <label className="text-sm font-bold text-gray-900">{FORM_LABELS.survei.komunikasiPetugas}</label>
+                  <label className="text-sm font-bold text-gray-900">
+                    {FORM_LABELS.survei.komunikasiPetugas}
+                  </label>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {RATING_OPTIONS.map((option) => {
@@ -300,9 +280,11 @@ function FormSurveiPage() {
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
-                    {SURVEY_QUESTION_NUMBERS.penjelasan}
+                    {SURVEY_DISPLAY_NUMBERS.penjelasan}
                   </span>
-                  <label className="text-sm font-bold text-gray-900">{FORM_LABELS.survei.penjelasanMateri}</label>
+                  <label className="text-sm font-bold text-gray-900">
+                    {FORM_LABELS.survei.penjelasanMateri}
+                  </label>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {RATING_OPTIONS.map((option) => {
@@ -328,9 +310,11 @@ function FormSurveiPage() {
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
-                    {SURVEY_QUESTION_NUMBERS.sarana}
+                    {SURVEY_DISPLAY_NUMBERS.sarana}
                   </span>
-                  <label className="text-sm font-bold text-gray-900">{FORM_LABELS.survei.saranaPrasarana}</label>
+                  <label className="text-sm font-bold text-gray-900">
+                    {FORM_LABELS.survei.saranaPrasarana}
+                  </label>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {RATING_OPTIONS.map((option) => {
@@ -356,9 +340,11 @@ function FormSurveiPage() {
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="flex size-7 items-center justify-center rounded-full bg-[#032749] text-xs font-bold text-white">
-                    {SURVEY_QUESTION_NUMBERS.catatan}
+                    {SURVEY_DISPLAY_NUMBERS.catatan}
                   </span>
-                  <label className="text-sm font-bold text-gray-900">{FORM_LABELS.survei.catatan}</label>
+                  <label className="text-sm font-bold text-gray-900">
+                    {FORM_LABELS.survei.catatan}
+                  </label>
                 </div>
                 <textarea
                   rows={4}
@@ -402,8 +388,8 @@ function FormSurveiPage() {
                 {ORGANIZATION_UNIT} <span className="text-emerald-400">& K3</span>
               </h3>
               <p className="mt-4 text-sm leading-relaxed text-gray-300">
-                {ORGANIZATION_UNIT_FULL} adalah unsur pelaksana yang berada di bawah dan
-                bertanggung jawab kepada Menteri Ketenagakerjaan.
+                {ORGANIZATION_UNIT_FULL} adalah unsur pelaksana yang berada di bawah dan bertanggung
+                jawab kepada Menteri Ketenagakerjaan.
               </p>
               <div className="mt-6 flex gap-3">
                 {SOCIAL_LINKS.map(({ icon, href }, i) => {
@@ -460,7 +446,9 @@ function FormSurveiPage() {
           <hr className="mt-10 border-white/15" />
 
           <div className="mt-6 flex flex-col items-center gap-1 text-center text-sm text-gray-300">
-            <p>Copyright © BINSIS || {COPYRIGHT_START_YEAR}–{COPYRIGHT_END_YEAR}</p>
+            <p>
+              Copyright © BINSIS || {COPYRIGHT_START_YEAR}–{COPYRIGHT_END_YEAR}
+            </p>
             <p>
               Designed by <span className="text-emerald-400">TUBSPK</span>
             </p>

@@ -1,18 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Search,
-  Download,
-  FileText,
-  Eye,
-  Trash2,
-  Loader2,
-} from "lucide-react";
+import { Search, Download, FileText, Eye, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { confirmDialog } from "@/components/confirm-dialog";
 import { matchesSearch } from "@/lib/search";
+import { pageWindow } from "@/lib/pagination";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
+import { isSuperAdmin } from "@/lib/auth";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
 
 export const Route = createFileRoute("/admin/reportpengaduan")({
@@ -25,8 +20,6 @@ export const Route = createFileRoute("/admin/reportpengaduan")({
   }),
   component: ReportPengaduanPage,
 });
-
-
 
 const nf = new Intl.NumberFormat("id-ID");
 
@@ -92,13 +85,17 @@ function ReportPengaduanPage() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [canDelete, setCanDelete] = useState(false);
   const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCanDelete(isSuperAdmin());
+  }, []);
 
   // 1. Fetch seluruh aduan dari API (menghandle pagination backend hingga tuntas)
   const fetchComplaints = async () => {
     setLoading(true);
-    const token =
-      localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     const authHeaders = {
       "Content-Type": "application/json",
@@ -106,47 +103,71 @@ function ReportPengaduanPage() {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
+    const extractList = (json: any): any[] => {
+      if (Array.isArray(json?.data)) return json.data;
+      if (Array.isArray(json?.data?.data)) return json.data.data;
+      if (Array.isArray(json?.complaints)) return json.complaints;
+      if (Array.isArray(json)) return json;
+      return [];
+    };
+
+    const readPagination = (json: any, fallbackSize: number) => {
+      const meta = json?.meta ?? json?.data?.meta ?? {};
+      const total = Number(meta?.total ?? json?.total ?? json?.data?.total ?? 0);
+      const perPage = Number(meta?.per_page ?? json?.per_page ?? fallbackSize) || fallbackSize;
+      const explicitLastPage = Number(
+        meta?.last_page ?? json?.last_page ?? json?.data?.last_page ?? 0,
+      );
+      const lastPage =
+        explicitLastPage > 0
+          ? explicitLastPage
+          : total > 0 && perPage > 0
+            ? Math.ceil(total / perPage)
+            : 1;
+      return { lastPage, perPage };
+    };
+
     try {
-      let allData: any[] = [];
-      const res = await fetch(`${COMPLAINTS_API_URL}/complaints?per_page=50`, {
-        method: "GET",
-        headers: authHeaders,
-      });
+      const requestedPerPage = 100;
+      const res = await fetch(
+        `${COMPLAINTS_API_URL}/complaints?page=1&per_page=${requestedPerPage}`,
+        {
+          method: "GET",
+          headers: authHeaders,
+        },
+      );
 
-      if (res.ok) {
-        const json = await res.json();
-        const firstPageData = Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json?.data?.data)
-          ? json.data.data
-          : Array.isArray(json)
-          ? json
-          : [];
+      if (!res.ok) {
+        setComplaints([]);
+        return;
+      }
 
-        allData = [...firstPageData];
+      const json = await res.json();
+      const firstPageData = extractList(json);
+      let allData = [...firstPageData];
+      const { lastPage, perPage } = readPagination(json, firstPageData.length || requestedPerPage);
 
-        const lastPage = Number(json?.last_page ?? json?.data?.last_page ?? 1);
-        if (lastPage > 1 && allData.length < Number(json?.total ?? json?.data?.total ?? 0)) {
-          for (let p = 2; p <= lastPage; p++) {
-            const nextRes = await fetch(`${COMPLAINTS_API_URL}/complaints?page=${p}&per_page=50`, {
+      if (lastPage > 1) {
+        const pages = Array.from({ length: lastPage - 1 }, (_, i) => i + 2);
+        const results = await Promise.all(
+          pages.map((p) =>
+            fetch(`${COMPLAINTS_API_URL}/complaints?page=${p}&per_page=${perPage}`, {
               headers: authHeaders,
-            });
-            if (nextRes.ok) {
-              const nextJson = await nextRes.json();
-              const nextItems = Array.isArray(nextJson?.data)
-                ? nextJson.data
-                : Array.isArray(nextJson?.data?.data)
-                ? nextJson.data.data
-                : [];
-              allData = [...allData, ...nextItems];
-            }
-          }
-        }
+            })
+              .then((nextRes) => (nextRes.ok ? nextRes.json() : null))
+              .catch(() => null),
+          ),
+        );
+
+        results.forEach((nextJson) => {
+          if (nextJson) allData = [...allData, ...extractList(nextJson)];
+        });
       }
 
       setComplaints(allData);
     } catch (err) {
       console.error("Gagal mengambil data report pengaduan:", err);
+      setComplaints([]);
     } finally {
       setLoading(false);
     }
@@ -202,9 +223,7 @@ function ReportPengaduanPage() {
     let besar = 0;
 
     filteredComplaints.forEach((item) => {
-      const naker = Number(
-        item.company?.jumlah_naker ?? item.jumlah_naker ?? 0
-      );
+      const naker = Number(item.company?.jumlah_naker ?? item.jumlah_naker ?? 0);
 
       if (naker > 1 && naker < 4) mikro++;
       else if (naker >= 5 && naker < 19) kecil++;
@@ -225,11 +244,13 @@ function ReportPengaduanPage() {
   const totalData = filteredComplaints.length;
   const totalPages = Math.max(1, Math.ceil(totalData / itemsPerPage));
   const displayedRows = useMemo(() => {
-    return filteredComplaints.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    );
+    return filteredComplaints.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   }, [filteredComplaints, currentPage, itemsPerPage]);
+  const visiblePages = pageWindow(currentPage, totalPages);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   const handleFilter = () => {
     setAppliedFilters({ search, month, year });
@@ -255,8 +276,7 @@ function ReportPengaduanPage() {
   };
 
   const deleteComplaint = async (id: number) => {
-    const token =
-      localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
     try {
       const res = await fetch(`${COMPLAINTS_API_URL}/complaints/${id}`, {
@@ -281,19 +301,15 @@ function ReportPengaduanPage() {
   const handleDownloadPdf = async (complaintId: number, ticketNumber?: string) => {
     try {
       setDownloadingId(complaintId);
-      const token =
-        localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-      const response = await fetch(
-        apiUrl(`complaints/${complaintId}/pdf`),
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/pdf, application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      const response = await fetch(apiUrl(`complaints/${complaintId}/pdf`), {
+        method: "GET",
+        headers: {
+          Accept: "application/pdf, application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
 
       if (!response.ok) throw new Error("Gagal mengunduh PDF");
 
@@ -320,9 +336,7 @@ function ReportPengaduanPage() {
 
       // Kasus 2: Backend mengembalikan Binary Stream File PDF murni
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(
-        new Blob([blob], { type: "application/pdf" })
-      );
+      const downloadUrl = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
       const a = document.createElement("a");
       a.href = downloadUrl;
       a.download = `Pengaduan_${ticketNumber ?? complaintId}.pdf`;
@@ -435,9 +449,7 @@ function ReportPengaduanPage() {
               </p>
               <p className="mt-2 text-[18px] font-bold text-gray-900 leading-none">
                 {nf.format(stat.total)}{" "}
-                <span className="text-[12px] font-medium text-gray-500">
-                  Pengaduan
-                </span>
+                <span className="text-[12px] font-medium text-gray-500">Pengaduan</span>
               </p>
             </div>
           ))}
@@ -470,10 +482,7 @@ function ReportPengaduanPage() {
                   </tr>
                 ) : displayedRows.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-6 py-10 text-center text-gray-400"
-                    >
+                    <td colSpan={7} className="px-6 py-10 text-center text-gray-400">
                       Tidak ada data pengaduan yang ditemukan.
                     </td>
                   </tr>
@@ -487,30 +496,15 @@ function ReportPengaduanPage() {
                       "-";
                     const pelapor = item.complainant?.nama_lengkap ?? "-";
                     const perusahaan = item.company?.nama_perusahaan ?? "-";
-                    const tanggal = formatDateIndo(
-                      item.complaint_date ?? item.created_at
-                    );
+                    const tanggal = formatDateIndo(item.complaint_date ?? item.created_at);
 
                     return (
-                      <tr
-                        key={item.id ?? index}
-                        className="hover:bg-gray-50/60 transition-colors"
-                      >
-                        <td className="px-6 py-3.5 text-gray-600 font-medium">
-                          {rowNumber}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-700">
-                          {tanggal}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-700 font-medium">
-                          {jenis}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-800 font-medium">
-                          {pelapor}
-                        </td>
-                        <td className="px-6 py-3.5 text-gray-700">
-                          {perusahaan}
-                        </td>
+                      <tr key={item.id ?? index} className="hover:bg-gray-50/60 transition-colors">
+                        <td className="px-6 py-3.5 text-gray-600 font-medium">{rowNumber}</td>
+                        <td className="px-6 py-3.5 text-gray-700">{tanggal}</td>
+                        <td className="px-6 py-3.5 text-gray-700 font-medium">{jenis}</td>
+                        <td className="px-6 py-3.5 text-gray-800 font-medium">{pelapor}</td>
+                        <td className="px-6 py-3.5 text-gray-700">{perusahaan}</td>
                         <td className="px-6 py-3.5">
                           <button
                             type="button"
@@ -523,16 +517,15 @@ function ReportPengaduanPage() {
                             <Eye className="h-3.5 w-3.5" />
                             View
                           </button>
-                        </td>                        <td className="px-6 py-3.5">
+                        </td>
+                        <td className="px-6 py-3.5">
                           <div className="flex items-center justify-end gap-1.5">
                             {/* Unduh */}
                             <button
                               type="button"
                               title="Unduh PDF"
                               disabled={downloadingId === item.id}
-                              onClick={() =>
-                                handleDownloadPdf(item.id, item.ticket_number)
-                              }
+                              onClick={() => handleDownloadPdf(item.id, item.ticket_number)}
                               className="grid h-7 w-7 place-items-center rounded-md bg-[#007A64] text-white hover:bg-[#00654F] transition-colors cursor-pointer disabled:opacity-50"
                             >
                               {downloadingId === item.id ? (
@@ -554,7 +547,7 @@ function ReportPengaduanPage() {
                               <FileText className="h-3.5 w-3.5" />
                             </button>
                             {/* Lihat (Detail) */}
-                              
+
                             <button
                               type="button"
                               title="Detail Berkas"
@@ -566,15 +559,17 @@ function ReportPengaduanPage() {
                               <Eye className="h-3.5 w-3.5" />
                             </button>
 
-                            {/* Hapus */}
-                            <button
-                              type="button"
-                              title="Hapus"
-                              onClick={() => handleDelete(item.id)}
-                              className="grid h-7 w-7 place-items-center rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                            {/* Hapus (khusus super admin) */}
+                            {canDelete && (
+                              <button
+                                type="button"
+                                title="Hapus"
+                                onClick={() => handleDelete(item.id)}
+                                className="grid h-7 w-7 place-items-center rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -590,8 +585,8 @@ function ReportPengaduanPage() {
         <div className="flex items-center justify-between px-1">
           <p className="text-[11px] text-gray-500">
             Menampilkan {displayedRows.length ? (currentPage - 1) * itemsPerPage + 1 : 0} to{" "}
-            {(currentPage - 1) * itemsPerPage + displayedRows.length} dari{" "}
-            {nf.format(totalData)} data
+            {(currentPage - 1) * itemsPerPage + displayedRows.length} dari {nf.format(totalData)}{" "}
+            data
           </p>
 
           <div className="flex items-center gap-1.5">
@@ -604,7 +599,7 @@ function ReportPengaduanPage() {
               ‹
             </button>
 
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
+            {visiblePages.map((page) => (
               <button
                 key={page}
                 type="button"

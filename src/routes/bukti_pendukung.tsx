@@ -18,7 +18,7 @@ import {
 import { toast } from "sonner";
 import { XIcon } from "@/components/x-icon";
 import { apiUrl } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, compressImageIfNeeded } from "@/lib/utils";
 import {
   SUCCESS_MESSAGES,
   ERROR_MESSAGES,
@@ -443,7 +443,14 @@ function BuktiPendukungPage() {
     setIsSubmitting(true);
 
     try {
-      for (const file of [selectedDocument, capturedFile]) {
+      // Kompres gambar yang lebih dari 2 MB saat akan disimpan. File PDF dan
+      // gambar yang sudah <= 2 MB dikembalikan apa adanya.
+      const [documentFile, photoFile] = await Promise.all([
+        selectedDocument ? compressImageIfNeeded(selectedDocument) : Promise.resolve(null),
+        capturedFile ? compressImageIfNeeded(capturedFile) : Promise.resolve(null),
+      ]);
+
+      for (const file of [documentFile, photoFile]) {
         if (!file) continue;
         const problem = validateEvidenceFile(file);
         if (problem) {
@@ -485,8 +492,8 @@ function BuktiPendukungPage() {
       formData.append("company[email]", draftData.emailPerusahaan || "");
 
       // Foto kamera = foto pemohon di PDF; dokumen = bukti pendukung.
-      if (capturedFile) formData.append("foto_pelapor", capturedFile);
-      if (selectedDocument) formData.append("attachments[]", selectedDocument);
+      if (photoFile) formData.append("foto_pelapor", photoFile);
+      if (documentFile) formData.append("attachments[]", documentFile);
 
       const res = await fetch(COMPLAINTS_API_URL, { method: "POST", headers, body: formData });
       const data = await res.json().catch(() => null);
@@ -757,7 +764,9 @@ function BuktiPendukungPage() {
               )}
 
               {photoError && (
-                <p className="pt-1 text-center text-[10px] font-medium text-red-500">{photoError}</p>
+                <p className="pt-1 text-center text-[10px] font-medium text-red-500">
+                  {photoError}
+                </p>
               )}
 
               {!canUseLiveCamera && (
