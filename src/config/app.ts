@@ -1,20 +1,23 @@
 import type { NavLink, SocialLink, Step, RatingOption, CategoryConfig } from "@/types/config";
 
-export const APP_NAME = import.meta.env.VITE_APP_NAME || "Sistem Pengaduan Tenaga Kerja";
-export const APP_SHORT_NAME = import.meta.env.VITE_APP_SHORT_NAME || "PTSA Kemnaker";
-export const ORGANIZATION_NAME = import.meta.env.VITE_ORGANIZATION_NAME || "Kementerian Ketenagakerjaan RI";
-export const ORGANIZATION_NAME_SHORT = import.meta.env.VITE_ORGANIZATION_NAME_SHORT || "Kementerian Ketenagakerjaan";
-export const ORGANIZATION_UNIT = import.meta.env.VITE_ORGANIZATION_UNIT || "BINWASNAKER & K3";
-export const ORGANIZATION_UNIT_FULL = import.meta.env.VITE_ORGANIZATION_UNIT_FULL || "Ditjen Binwasnaker & K3";
+export const APP_NAME = import.meta.env["VITE_APP_NAME"] || "Sistem Pengaduan Tenaga Kerja";
+export const APP_SHORT_NAME = import.meta.env["VITE_APP_SHORT_NAME"] || "PTSA Kemnaker";
+export const ORGANIZATION_NAME =
+  import.meta.env["VITE_ORGANIZATION_NAME"] || "Kementerian Ketenagakerjaan RI";
+export const ORGANIZATION_NAME_SHORT =
+  import.meta.env["VITE_ORGANIZATION_NAME_SHORT"] || "Kementerian Ketenagakerjaan";
+export const ORGANIZATION_UNIT = import.meta.env["VITE_ORGANIZATION_UNIT"] || "BINWASNAKER & K3";
+export const ORGANIZATION_UNIT_FULL =
+  import.meta.env["VITE_ORGANIZATION_UNIT_FULL"] || "Ditjen Binwasnaker & K3";
 
-export const BRAND_PRIMARY_COLOR = import.meta.env.VITE_BRAND_PRIMARY_COLOR || "#032749";
-export const BRAND_SECONDARY_COLOR = import.meta.env.VITE_BRAND_SECONDARY_COLOR || "#0E3B68";
-export const BRAND_ACCENT_COLOR = import.meta.env.VITE_BRAND_ACCENT_COLOR || "#10B981";
+export const BRAND_PRIMARY_COLOR = import.meta.env["VITE_BRAND_PRIMARY_COLOR"] || "#032749";
+export const BRAND_SECONDARY_COLOR = import.meta.env["VITE_BRAND_SECONDARY_COLOR"] || "#0E3B68";
+export const BRAND_ACCENT_COLOR = import.meta.env["VITE_BRAND_ACCENT_COLOR"] || "#10B981";
 
-export const DEFAULT_TOTAL_LAPORAN = Number(import.meta.env.VITE_DEFAULT_TOTAL_LAPORAN || 12450);
+export const DEFAULT_TOTAL_LAPORAN = Number(import.meta.env["VITE_DEFAULT_TOTAL_LAPORAN"] || 12450);
 
-export const COPYRIGHT_START_YEAR = Number(import.meta.env.VITE_COPYRIGHT_START_YEAR || 2024);
-export const COPYRIGHT_END_YEAR = Number(import.meta.env.VITE_COPYRIGHT_END_YEAR || 2026);
+export const COPYRIGHT_START_YEAR = Number(import.meta.env["VITE_COPYRIGHT_START_YEAR"] || 2024);
+export const COPYRIGHT_END_YEAR = Number(import.meta.env["VITE_COPYRIGHT_END_YEAR"] || 2026);
 
 /** Rentang tahun hak cipta, mis. "2024–2026" (atau satu tahun bila sama). */
 export const COPYRIGHT_YEARS =
@@ -23,39 +26,48 @@ export const COPYRIGHT_YEARS =
     : `${COPYRIGHT_START_YEAR}–${COPYRIGHT_END_YEAR}`;
 
 /** Nama pengembang / vendor aplikasi (ditampilkan di footer). */
-export const DEVELOPER_NAME = import.meta.env.VITE_DEVELOPER_NAME || "TUBSPK";
+export const DEVELOPER_NAME = import.meta.env["VITE_DEVELOPER_NAME"] || "TUBSPK";
 /** Nama unit sistem informasi / pemilik aplikasi (ditampilkan di footer). */
-export const SYSTEM_OWNER_NAME = import.meta.env.VITE_SYSTEM_OWNER_NAME || "BINSIS";
+export const SYSTEM_OWNER_NAME = import.meta.env["VITE_SYSTEM_OWNER_NAME"] || "BINSIS";
 /** Tagline / motto yang ditampilkan di footer admin. */
 export const FOOTER_TAGLINE =
-  import.meta.env.VITE_FOOTER_TAGLINE || "Bangga Melayani Bangsa · BerAKHLAK";
+  import.meta.env["VITE_FOOTER_TAGLINE"] || "Bangga Melayani Bangsa · BerAKHLAK";
 
-export const ADDRESS_LINE_1 = import.meta.env.VITE_ADDRESS_LINE_1 || "Jl. Jend. Gatot Subroto Kav. 51";
-export const ADDRESS_LINE_2 = import.meta.env.VITE_ADDRESS_LINE_2 || "RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi";
-export const ADDRESS_LINE_3 = import.meta.env.VITE_ADDRESS_LINE_3 || "Kota Jakarta Selatan, DKI Jakarta 12950";
+export const ADDRESS_LINE_1 =
+  import.meta.env["VITE_ADDRESS_LINE_1"] || "Jl. Jend. Gatot Subroto Kav. 51";
+export const ADDRESS_LINE_2 =
+  import.meta.env["VITE_ADDRESS_LINE_2"] || "RT.5/RW.4, Kuningan Timur, Kecamatan Setiabudi";
+export const ADDRESS_LINE_3 =
+  import.meta.env["VITE_ADDRESS_LINE_3"] || "Kota Jakarta Selatan, DKI Jakarta 12950";
 
-export const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL || "pengaduanwlkp@kemnaker.go.id";
+export const CONTACT_EMAIL =
+  import.meta.env["VITE_CONTACT_EMAIL"] || "pengaduanwlkp@kemnaker.go.id";
 /** Teks tautan email kontak di footer (mailto:CONTACT_EMAIL). */
-export const CONTACT_EMAIL_LABEL = import.meta.env.VITE_CONTACT_EMAIL_LABEL || "Pengaduan WLKP";
-export const MAPS_URL = import.meta.env.VITE_MAPS_URL || "https://maps.app.goo.gl/QiLps9tsVMszzHf79";
+export const CONTACT_EMAIL_LABEL = import.meta.env["VITE_CONTACT_EMAIL_LABEL"] || "Pengaduan WLKP";
+export const MAPS_URL =
+  import.meta.env["VITE_MAPS_URL"] || "https://maps.app.goo.gl/QiLps9tsVMszzHf79";
 
 export const SOCIAL_LINKS: SocialLink[] = [
   {
     platform: "x",
     label: "X (Twitter)",
-    href: import.meta.env.VITE_SOCIAL_X_URL || "https://x.com/KemnakerRI",
+    href: import.meta.env["VITE_SOCIAL_X_URL"] || "https://x.com/KemnakerRI",
     icon: "XIcon",
   },
   {
     platform: "facebook",
     label: "Facebook",
-    href: import.meta.env.VITE_SOCIAL_FACEBOOK_URL || "https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr",
+    href:
+      import.meta.env["VITE_SOCIAL_FACEBOOK_URL"] ||
+      "https://www.facebook.com/share/1B4YgTmbGG/?mibextid=wwXIfr",
     icon: "Facebook",
   },
   {
     platform: "instagram",
     label: "Instagram",
-    href: import.meta.env.VITE_SOCIAL_INSTAGRAM_URL || "https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ==",
+    href:
+      import.meta.env["VITE_SOCIAL_INSTAGRAM_URL"] ||
+      "https://www.instagram.com/kemnaker?stkn=MWdxZjhmMG81aTZ3YQ==",
     icon: "Instagram",
   },
 ];
@@ -114,11 +126,7 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: 12, code: "SKP", title: "SKP" },
 ];
 
-export const MOCK_OFFICERS = [
-  { id: "1", name: "Ahmad Fauzi - Petugas PTSA 1" },
-  { id: "2", name: "Siti Rahmawati - Petugas PTSA 2" },
-  { id: "3", name: "Budi Santoso - Petugas PTSA 3" },
-];
+export const MOCK_OFFICERS = [{ id: "petugas", name: "Petugas" }];
 
 export const FORM_PLACEHOLDERS = {
   pengaduan: {
@@ -142,7 +150,7 @@ export const FORM_PLACEHOLDERS = {
     selectSector: "Pilih Sektor",
   },
   survei: {
-    selectOfficer: "Pilih",
+    selectOfficer: "Pilih Petugas",
     catatan: "isi dengan singkat catatan untuk perbaikan pelayanan",
   },
   login: {
@@ -175,7 +183,7 @@ export const FORM_LABELS = {
     alamatPerusahaan: "Alamat Perusahaan",
   },
   survei: {
-    officer: "Masukkan Nama Petugas",
+    officer: "Petugas",
     komunikasiPetugas: "Bagaimana Komunikasi Petugas Dalam Memberikan Layanan:",
     penjelasanMateri: "Bagaimana Penjelasan Materi yang Diberikan oleh Petugas:",
     saranaPrasarana: "Bagaimana Sarana dan Prasarana Layanan PTSA:",
@@ -194,7 +202,7 @@ export const VALIDATION_MESSAGES = {
   email: "Format email tidak valid",
   nikLength: "NIK harus 16 digit",
   selectOption: "Silakan pilih opsi",
-  selectOfficer: "Silakan pilih nama petugas terlebih dahulu",
+  selectOfficer: "Silakan pilih petugas terlebih dahulu",
   completeSurvey: "Silakan lengkapi seluruh penilaian survei",
   loginFailed: "Email atau password yang Anda masukkan salah.",
   submitFailed: "Gagal mengirim data. Silakan coba kembali.",
@@ -273,7 +281,8 @@ export const PAGE_TITLES = {
 export const PAGE_DESCRIPTIONS = {
   home: "Portal resmi pelaporan pelanggaran norma kerja, perselisihan hubungan industrial, dan masalah ketenagakerjaan secara aman dan terpantau.",
   pengaduan: "Formulir pengaduan pelanggaran norma kerja dan masalah ketenagakerjaan.",
-  survei: "Form survei kepuasan layanan Pelayanan Terpadu Satu Atap (PTSA) Kementerian Ketenagakerjaan.",
+  survei:
+    "Form survei kepuasan layanan Pelayanan Terpadu Satu Atap (PTSA) Kementerian Ketenagakerjaan.",
 };
 
 export const FOOTER_LINKS = [
@@ -324,6 +333,17 @@ export const SURVEY_QUESTION_NUMBERS = {
   catatan: 5,
 };
 
+/**
+ * Nomor urut yang ditampilkan di form survei. Petugas disembunyikan dari UI,
+ * jadi penilaian komunikasi tampil sebagai pertanyaan nomor 1.
+ */
+export const SURVEY_DISPLAY_NUMBERS = {
+  komunikasi: 1,
+  penjelasan: 2,
+  sarana: 3,
+  catatan: 4,
+};
+
 export const API_ENDPOINTS = {
   login: "/v1/auth/login",
   complaintCategories: "/complaint-categories",
@@ -346,7 +366,7 @@ export const STORAGE_KEYS = {
   draftPengaduan: "draft_pengaduan",
 };
 
-export const SESSION_TIMEOUT = Number(import.meta.env.VITE_SESSION_TIMEOUT || 3600000);
+export const SESSION_TIMEOUT = Number(import.meta.env["VITE_SESSION_TIMEOUT"] || 3600000);
 
 /**
  * Terapkan warna brand dari env ke CSS custom properties (softcode runtime).
