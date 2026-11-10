@@ -4,7 +4,6 @@ import { Search, Download, FileText, Eye, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { confirmDialog } from "@/components/confirm-dialog";
-import { matchesSearch } from "@/lib/search";
 import { pageWindow } from "@/lib/pagination";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
 import { isSuperAdmin } from "@/lib/auth";
@@ -79,10 +78,16 @@ function ReportPengaduanPage() {
   const [month, setMonth] = useState("Semua Bulan");
   const [year, setYear] = useState("2026");
   const [appliedFilters, setAppliedFilters] = useState({
-    search: "",
     month: "Semua Bulan",
     year: "2026",
   });
+  // Pagination server: total & jumlah halaman datang dari backend (meta).
+  const [totalData, setTotalData] = useState(0);
+  const [lastPage, setLastPage] = useState(1);
+  // Pencarian yang sudah dikirim ke backend (setelah jeda ketik).
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Naikkan untuk memuat ulang halaman aktif (mis. setelah hapus).
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [canDelete, setCanDelete] = useState(false);
@@ -96,7 +101,7 @@ function ReportPengaduanPage() {
     setCanDelete(isSuperAdmin());
   }, []);
 
-  useEffect(() => {
+  const loadSizeSummary = () => {
     const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
     fetch(apiUrl("v1/dashboard/company-size-summary"), {
       headers: {
@@ -110,130 +115,81 @@ function ReportPengaduanPage() {
         if (data && typeof data === "object") setSizeSummary(data as Record<string, number>);
       })
       .catch((err) => console.error("Gagal memuat ringkasan skala usaha:", err));
-  }, []);
-
-  // 1. Fetch seluruh aduan dari API (menghandle pagination backend hingga tuntas)
-  const fetchComplaints = async () => {
-    setLoading(true);
-    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
-
-    const authHeaders = {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-
-    const extractList = (json: any): any[] => {
-      if (Array.isArray(json?.data)) return json.data;
-      if (Array.isArray(json?.data?.data)) return json.data.data;
-      if (Array.isArray(json?.complaints)) return json.complaints;
-      if (Array.isArray(json)) return json;
-      return [];
-    };
-
-    const readPagination = (json: any, fallbackSize: number) => {
-      const meta = json?.meta ?? json?.data?.meta ?? {};
-      const total = Number(meta?.total ?? json?.total ?? json?.data?.total ?? 0);
-      const perPage = Number(meta?.per_page ?? json?.per_page ?? fallbackSize) || fallbackSize;
-      const explicitLastPage = Number(
-        meta?.last_page ?? json?.last_page ?? json?.data?.last_page ?? 0,
-      );
-      const lastPage =
-        explicitLastPage > 0
-          ? explicitLastPage
-          : total > 0 && perPage > 0
-            ? Math.ceil(total / perPage)
-            : 1;
-      return { lastPage, perPage };
-    };
-
-    try {
-      const requestedPerPage = 100;
-      const res = await fetch(
-        `${COMPLAINTS_API_URL}/complaints?page=1&per_page=${requestedPerPage}`,
-        {
-          method: "GET",
-          headers: authHeaders,
-        },
-      );
-
-      if (!res.ok) {
-        setComplaints([]);
-        return;
-      }
-
-      const json = await res.json();
-      const firstPageData = extractList(json);
-      let allData = [...firstPageData];
-      const { lastPage, perPage } = readPagination(json, firstPageData.length || requestedPerPage);
-
-      if (lastPage > 1) {
-        const pages = Array.from({ length: lastPage - 1 }, (_, i) => i + 2);
-        const results = await Promise.all(
-          pages.map((p) =>
-            fetch(`${COMPLAINTS_API_URL}/complaints?page=${p}&per_page=${perPage}`, {
-              headers: authHeaders,
-            })
-              .then((nextRes) => (nextRes.ok ? nextRes.json() : null))
-              .catch(() => null),
-          ),
-        );
-
-        results.forEach((nextJson) => {
-          if (nextJson) allData = [...allData, ...extractList(nextJson)];
-        });
-      }
-
-      setComplaints(allData);
-    } catch (err) {
-      console.error("Gagal mengambil data report pengaduan:", err);
-      setComplaints([]);
-    } finally {
-      setLoading(false);
-    }
   };
 
   useEffect(() => {
-    fetchComplaints();
+    loadSizeSummary();
   }, []);
 
-  // 2. Filter data berdasarkan pencarian, bulan, dan tahun
-  const filteredComplaints = useMemo(() => {
-    return complaints.filter((item) => {
-      // Pencarian bersifat incremental: memakai `search` langsung (tiap ketikan),
-      // sedangkan bulan/tahun tetap diterapkan lewat tombol Filter.
-      const isMatch = matchesSearch(search, [
-        item.complainant?.nama_lengkap,
-        item.company?.nama_perusahaan,
-        item.category?.category_name ?? item.category?.category_code,
-        item.ticket_number,
-      ]);
+  // 1. Ambil data PER HALAMAN dari backend (pagination server). Hanya 10 baris
+  //    yang diminta tiap kali, bukan seluruh aduan. Pencarian, bulan, dan tahun
+  //    dikirim sebagai parameter ke GET /complaints.
 
-      if (!isMatch) return false;
+  // Pencarian incremental dengan jeda 350 ms supaya backend tidak dipanggil di
+  // setiap huruf yang diketik.
+  useEffect(() => {
+    const term = search.trim().slice(0, 255);
+    if (term === debouncedSearch) return;
+    const timer = setTimeout(() => {
+      setDebouncedSearch(term);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search, debouncedSearch]);
 
-      const dateStr = item.complaint_date ?? item.created_at;
-      if (!dateStr) return true;
+  useEffect(() => {
+    const controller = new AbortController();
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-      const d = new Date(String(dateStr).replace(" ", "T"));
-      if (isNaN(d.getTime())) return true;
-
-      // Filter Tahun
-      if (
-        appliedFilters.year !== "Semua Tahun" &&
-        d.getFullYear() !== Number(appliedFilters.year)
-      ) {
-        return false;
-      }
-
-      // Filter Bulan
-      if (appliedFilters.month !== "Semua Bulan") {
-        const targetMonth = MONTH_MAP[appliedFilters.month];
-        if (d.getMonth() + 1 !== targetMonth) return false;
-      }
-
-      return true;
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      per_page: String(itemsPerPage),
     });
-  }, [complaints, appliedFilters, search]);
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    const monthNo = MONTH_MAP[appliedFilters.month];
+    if (monthNo) params.set("month", String(monthNo));
+    if (appliedFilters.year !== "Semua Tahun") params.set("year", appliedFilters.year);
+
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${COMPLAINTS_API_URL}/complaints?${params.toString()}`, {
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json = await res.json();
+        const rows: any[] = Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json)
+            ? json
+            : [];
+        const meta = json?.meta ?? {};
+        const total = Number(meta.total ?? json?.total ?? rows.length) || 0;
+        const last =
+          Number(meta.last_page ?? json?.last_page ?? Math.ceil(total / itemsPerPage)) || 1;
+
+        setComplaints(rows);
+        setTotalData(total);
+        setLastPage(Math.max(1, last));
+      } catch (err) {
+        // Request lama yang dibatalkan (pindah halaman / ganti filter) bukan error.
+        if ((err as Error)?.name === "AbortError") return;
+        console.error("Gagal mengambil data report pengaduan:", err);
+        setComplaints([]);
+        setTotalData(0);
+        setLastPage(1);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [currentPage, debouncedSearch, appliedFilters.month, appliedFilters.year, reloadKey]);
 
   // 3. Stat skala usaha dari ringkasan backend (bukan dihitung dari seluruh
   //    aduan). Backend memakai pembagian min/max karyawan yang resmi.
@@ -247,28 +203,29 @@ function ReportPengaduanPage() {
     ];
   }, [sizeSummary]);
 
-  // 4. Pagination
-  const totalData = filteredComplaints.length;
-  const totalPages = Math.max(1, Math.ceil(totalData / itemsPerPage));
-  const displayedRows = useMemo(() => {
-    return filteredComplaints.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  }, [filteredComplaints, currentPage, itemsPerPage]);
+  // 4. Pagination: total & jumlah halaman dari backend; baris = halaman aktif.
+  const totalPages = Math.max(1, lastPage);
+  const displayedRows = complaints;
   const visiblePages = pageWindow(currentPage, totalPages);
 
   useEffect(() => {
-    setCurrentPage((page) => Math.min(page, totalPages));
-  }, [totalPages]);
+    // Setelah hapus/filter, halaman aktif bisa melewati halaman terakhir.
+    if (!loading) setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages, loading]);
 
   const handleFilter = () => {
-    setAppliedFilters({ search, month, year });
+    // Terapkan juga pencarian yang masih menunggu jeda ketik.
+    setDebouncedSearch(search.trim().slice(0, 255));
+    setAppliedFilters({ month, year });
     setCurrentPage(1);
   };
 
   const handleReset = () => {
     setSearch("");
+    setDebouncedSearch("");
     setMonth("Semua Bulan");
     setYear("2026");
-    setAppliedFilters({ search: "", month: "Semua Bulan", year: "2026" });
+    setAppliedFilters({ month: "Semua Bulan", year: "2026" });
     setCurrentPage(1);
   };
 
@@ -295,8 +252,12 @@ function ReportPengaduanPage() {
       });
 
       if (res.ok) {
-        setComplaints((prev) => prev.filter((item) => item.id !== id));
         toast.success(SUCCESS_MESSAGES.complaintDeleted);
+        // Ambil ulang halaman aktif; bila baris terakhir di halaman ini terhapus,
+        // mundur satu halaman. Angka skala usaha ikut disegarkan.
+        if (complaints.length === 1 && currentPage > 1) setCurrentPage((p) => p - 1);
+        else setReloadKey((k) => k + 1);
+        loadSizeSummary();
       } else {
         toast.error(ERROR_MESSAGES.complaintDeleteFailed);
       }
@@ -477,8 +438,12 @@ function ReportPengaduanPage() {
                   <th className="px-6 py-3.5 text-right w-40">AKSI</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50 text-[12px]">
-                {loading ? (
+              <tbody
+                className={`divide-y divide-gray-50 text-[12px] transition-opacity ${
+                  loading ? "opacity-50" : ""
+                }`}
+              >
+                {loading && displayedRows.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
                       <div className="flex items-center justify-center gap-2">

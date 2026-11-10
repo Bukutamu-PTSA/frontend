@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search, Download, FileText, Eye, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
-import { matchesSearch } from "@/lib/search";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
 import { isSuperAdmin } from "@/lib/auth";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
@@ -95,10 +94,16 @@ function DetailKategoriPage() {
   const [month, setMonth] = useState("Semua Bulan");
   const [year, setYear] = useState("2026");
   const [appliedFilters, setAppliedFilters] = useState({
-    search: "",
     month: "Semua Bulan",
     year: "2026",
   });
+  // Pagination server: total & jumlah halaman datang dari backend (meta).
+  const [totalData, setTotalData] = useState(0);
+  const [lastPage, setLastPage] = useState(1);
+  // Pencarian yang sudah dikirim ke backend (setelah jeda ketik).
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Naikkan untuk memuat ulang halaman aktif (mis. setelah hapus).
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [canDelete, setCanDelete] = useState(false);
@@ -142,141 +147,110 @@ function DetailKategoriPage() {
     setCanDelete(isSuperAdmin());
   }, []);
 
-  const fetchCategoryComplaints = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
-    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
-
-    const authHeaders = {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-
-    try {
-      let allData: any[] = [];
-      const res = await fetch(
-        `${COMPLAINTS_API_URL}/complaints?category_id=${categoryId}&per_page=50`,
-        {
-          method: "GET",
-          headers: authHeaders,
-          ...(signal ? { signal } : {}),
-        },
-      );
-
-      if (res.ok) {
-        const json = await res.json();
-        const firstPageData = Array.isArray(json?.data)
-          ? json.data
-          : Array.isArray(json?.data?.data)
-            ? json.data.data
-            : Array.isArray(json)
-              ? json
-              : [];
-
-        allData = [...firstPageData];
-
-        const meta = json?.meta ?? json?.data?.meta ?? {};
-        const lastPage = Number(meta?.last_page ?? json?.last_page ?? json?.data?.last_page ?? 1);
-        const total = Number(meta?.total ?? json?.total ?? json?.data?.total ?? allData.length);
-
-        if (lastPage > 1 && allData.length < total) {
-          for (let p = 2; p <= lastPage; p++) {
-            const nextRes = await fetch(
-              `${COMPLAINTS_API_URL}/complaints?category_id=${categoryId}&page=${p}&per_page=50`,
-              { method: "GET", headers: authHeaders, ...(signal ? { signal } : {}) },
-            );
-            if (nextRes.ok) {
-              const nextJson = await nextRes.json();
-              const nextItems = Array.isArray(nextJson?.data)
-                ? nextJson.data
-                : Array.isArray(nextJson?.data?.data)
-                  ? nextJson.data.data
-                  : Array.isArray(nextJson)
-                    ? nextJson
-                    : [];
-              allData = [...allData, ...nextItems];
-            }
-          }
-        }
-
-        allData = allData.filter((item: any) => {
-          const itemCatId = Number(item.category_id ?? item.category?.id);
-          return itemCatId === categoryId;
-        });
-      }
-
-      // Respons kategori lama jangan menimpa data kategori yang sedang dibuka.
-      if (signal?.aborted) return;
-      setComplaints(allData);
-    } catch (err) {
-      if ((err as Error)?.name === "AbortError") return;
-      console.error("Gagal menarik data pengaduan kategori:", err);
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, [categoryId]);
-
+  // Pindah kategori: kosongkan data lama dan kembali ke halaman 1.
   useEffect(() => {
-    const controller = new AbortController();
     setComplaints([]);
     setCurrentPage(1);
-    fetchCategoryComplaints(controller.signal);
-    return () => controller.abort();
-  }, [fetchCategoryComplaints, categoryId]);
+  }, [categoryId]);
 
-  const filteredComplaints = useMemo(() => {
-    return complaints.filter((item) => {
-      const isMatch = matchesSearch(appliedFilters.search, [
-        item.complainant?.nama_lengkap,
-        item.company?.nama_perusahaan,
-        item.category?.category_name ?? item.category?.category_code,
-        item.ticket_number,
-      ]);
+  // Pencarian incremental dengan jeda 350 ms supaya backend tidak dipanggil di
+  // setiap huruf yang diketik.
+  useEffect(() => {
+    const term = searchInput.trim().slice(0, 255);
+    if (term === debouncedSearch) return;
+    const timer = setTimeout(() => {
+      setDebouncedSearch(term);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput, debouncedSearch]);
 
-      if (!isMatch) return false;
+  // Ambil data PER HALAMAN dari backend (pagination server): hanya 10 baris tiap
+  // request. Kategori, pencarian, bulan, dan tahun difilter oleh backend.
+  useEffect(() => {
+    const controller = new AbortController();
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-      const dateStr = item.complaint_date ?? item.created_at;
-      if (!dateStr) return true;
-
-      const d = new Date(String(dateStr).replace(" ", "T"));
-      if (isNaN(d.getTime())) return true;
-
-      if (
-        appliedFilters.year !== "Semua Tahun" &&
-        d.getFullYear() !== Number(appliedFilters.year)
-      ) {
-        return false;
-      }
-
-      if (appliedFilters.month !== "Semua Bulan") {
-        const targetMonth = MONTH_MAP[appliedFilters.month];
-        if (d.getMonth() + 1 !== targetMonth) return false;
-      }
-
-      return true;
+    const params = new URLSearchParams({
+      category_id: String(categoryId),
+      page: String(currentPage),
+      per_page: String(itemsPerPage),
     });
-  }, [complaints, appliedFilters]);
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    const monthNo = MONTH_MAP[appliedFilters.month];
+    if (monthNo) params.set("month", String(monthNo));
+    if (appliedFilters.year !== "Semua Tahun") params.set("year", appliedFilters.year);
 
-  const totalData = filteredComplaints.length;
-  const totalPages = Math.max(1, Math.ceil(totalData / itemsPerPage));
-  const displayedRows = useMemo(() => {
-    return filteredComplaints.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  }, [filteredComplaints, currentPage, itemsPerPage]);
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${COMPLAINTS_API_URL}/complaints?${params.toString()}`, {
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json = await res.json();
+        const rows: any[] = Array.isArray(json?.data)
+          ? json.data
+          : Array.isArray(json)
+            ? json
+            : [];
+        const meta = json?.meta ?? {};
+        const total = Number(meta.total ?? json?.total ?? rows.length) || 0;
+        const last =
+          Number(meta.last_page ?? json?.last_page ?? Math.ceil(total / itemsPerPage)) || 1;
+
+        setComplaints(rows);
+        setTotalData(total);
+        setLastPage(Math.max(1, last));
+      } catch (err) {
+        // Request lama yang dibatalkan (pindah halaman / kategori / filter) bukan error.
+        if ((err as Error)?.name === "AbortError") return;
+        console.error("Gagal menarik data pengaduan kategori:", err);
+        setComplaints([]);
+        setTotalData(0);
+        setLastPage(1);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [
+    categoryId,
+    currentPage,
+    debouncedSearch,
+    appliedFilters.month,
+    appliedFilters.year,
+    reloadKey,
+  ]);
+
+  // Pagination: total & jumlah halaman dari backend; baris = halaman aktif.
+  const totalPages = Math.max(1, lastPage);
+  const displayedRows = complaints;
 
   useEffect(() => {
-    setCurrentPage((p) => Math.min(p, totalPages));
-  }, [totalPages]);
+    // Setelah hapus/filter, halaman aktif bisa melewati halaman terakhir.
+    if (!loading) setCurrentPage((p) => Math.min(p, totalPages));
+  }, [totalPages, loading]);
 
   const handleFilter = () => {
-    setAppliedFilters({ search: searchInput, month, year });
+    // Terapkan juga pencarian yang masih menunggu jeda ketik.
+    setDebouncedSearch(searchInput.trim().slice(0, 255));
+    setAppliedFilters({ month, year });
     setCurrentPage(1);
   };
 
   const handleReset = () => {
     setSearchInput("");
+    setDebouncedSearch("");
     setMonth("Semua Bulan");
     setYear("2026");
-    setAppliedFilters({ search: "", month: "Semua Bulan", year: "2026" });
+    setAppliedFilters({ month: "Semua Bulan", year: "2026" });
     setCurrentPage(1);
   };
 
@@ -355,8 +329,11 @@ function DetailKategoriPage() {
       });
 
       if (res.ok) {
-        setComplaints((prev) => prev.filter((item) => item.id !== deleteId));
         toast.success(SUCCESS_MESSAGES.complaintDeleted);
+        // Ambil ulang halaman aktif; bila baris terakhir di halaman ini terhapus,
+        // mundur satu halaman.
+        if (complaints.length === 1 && currentPage > 1) setCurrentPage((p) => p - 1);
+        else setReloadKey((k) => k + 1);
       } else {
         toast.error(ERROR_MESSAGES.complaintDeleteFailed);
       }
@@ -383,12 +360,7 @@ function DetailKategoriPage() {
               <input
                 type="text"
                 value={searchInput}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setSearchInput(v);
-                  setAppliedFilters((prev) => ({ ...prev, search: v }));
-                  setCurrentPage(1);
-                }}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Cari pengaduan..."
                 className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-4 py-2 text-[11px] text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#007A64]"
               />
@@ -461,8 +433,12 @@ function DetailKategoriPage() {
                   <th className="px-6 py-3.5 text-right w-40">AKSI</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50 text-[12px]">
-                {loading ? (
+              <tbody
+                className={`divide-y divide-gray-50 text-[12px] transition-opacity ${
+                  loading ? "opacity-50" : ""
+                }`}
+              >
+                {loading && displayedRows.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
                       <div className="flex items-center justify-center gap-2">
