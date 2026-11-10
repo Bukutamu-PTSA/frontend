@@ -10,20 +10,7 @@ import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from 
 import { confirmDialog } from "@/components/confirm-dialog";
 import { pageWindow } from "@/lib/pagination";
 
-const CATEGORY_MAP: Record<number, { title: string; shortName: string }> = {
-  1: { title: "Wajib Lapor Ketenagakerjaan", shortName: "WLKP" },
-  2: { title: "Upah Kerja", shortName: "Upah Kerja" },
-  3: { title: "Jaminan Sosial", shortName: "Jaminan Sosial" },
-  4: { title: "Hubungan Kerja", shortName: "Hubungan Kerja" },
-  5: { title: "Kecelakaan Kerja", shortName: "Kecelakaan Kerja" },
-  6: { title: "Waktu Kerja & Istirahat", shortName: "Waktu Kerja & Waktu Istirahat" },
-  7: { title: "Kader Norma Ketenagakerjaan", shortName: "Kader Norma Ketenagakerjaan" },
-  8: { title: "Penempatan TK Dalam & LN", shortName: "Penempatan TK" },
-  9: { title: "K3", shortName: "K3" },
-  10: { title: "Perempuan & Anak", shortName: "Perempuan & Anak" },
-  11: { title: "Norma K3", shortName: "Norma K3" },
-  12: { title: "SKP", shortName: "SKP" },
-};
+
 
 const MONTH_OPTIONS = [
   "Semua Bulan",
@@ -96,10 +83,9 @@ export const Route = createFileRoute("/admin/detail_kategori_pelayanan")({
 function DetailKategoriPage() {
   const search = Route.useSearch();
   const categoryId = Number(search["id"] ?? 1);
-  const currentCategory = CATEGORY_MAP[categoryId] ?? {
-    title: `Kategori #${categoryId}`,
-    shortName: `Kategori #${categoryId}`,
-  };
+  // Nama kategori diambil dari backend (bukan peta hardcode, karena urutan ID
+  // di database bisa berbeda dari yang ditulis di frontend).
+  const [categoryName, setCategoryName] = useState<string | null>(null);
 
   const [complaints, setComplaints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,11 +104,45 @@ function DetailKategoriPage() {
   const [canDelete, setCanDelete] = useState(false);
   const itemsPerPage = 10;
 
+  // Nama untuk judul: dari ringkasan kategori, lalu dari aduan pertama, lalu "Kategori #id".
+  const categoryLabel =
+    categoryName ?? complaints[0]?.category?.category_name ?? `Kategori #${categoryId}`;
+
+  useEffect(() => {
+    setCategoryName(null);
+    const controller = new AbortController();
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+
+    (async () => {
+      try {
+        const res = await fetch(apiUrl("dashboard/complaint-summary"), {
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const list: any[] = Array.isArray(json?.data) ? json.data : [];
+        const found = list.find((c) => Number(c.id ?? c.category_id) === categoryId);
+        const name = found?.category_name ?? found?.category_code;
+        if (name) setCategoryName(String(name));
+      } catch (err) {
+        if ((err as Error)?.name !== "AbortError") {
+          console.error("Gagal mengambil nama kategori:", err);
+        }
+      }
+    })();
+
+    return () => controller.abort();
+  }, [categoryId]);
+
   useEffect(() => {
     setCanDelete(isSuperAdmin());
   }, []);
 
-  const fetchCategoryComplaints = useCallback(async () => {
+  const fetchCategoryComplaints = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
@@ -139,6 +159,7 @@ function DetailKategoriPage() {
         {
           method: "GET",
           headers: authHeaders,
+          ...(signal ? { signal } : {}),
         },
       );
 
@@ -162,7 +183,7 @@ function DetailKategoriPage() {
           for (let p = 2; p <= lastPage; p++) {
             const nextRes = await fetch(
               `${COMPLAINTS_API_URL}/complaints?category_id=${categoryId}&page=${p}&per_page=50`,
-              { method: "GET", headers: authHeaders },
+              { method: "GET", headers: authHeaders, ...(signal ? { signal } : {}) },
             );
             if (nextRes.ok) {
               const nextJson = await nextRes.json();
@@ -184,16 +205,23 @@ function DetailKategoriPage() {
         });
       }
 
+      // Respons kategori lama jangan menimpa data kategori yang sedang dibuka.
+      if (signal?.aborted) return;
       setComplaints(allData);
     } catch (err) {
+      if ((err as Error)?.name === "AbortError") return;
       console.error("Gagal menarik data pengaduan kategori:", err);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [categoryId]);
 
   useEffect(() => {
-    fetchCategoryComplaints();
+    const controller = new AbortController();
+    setComplaints([]);
+    setCurrentPage(1);
+    fetchCategoryComplaints(controller.signal);
+    return () => controller.abort();
   }, [fetchCategoryComplaints, categoryId]);
 
   const filteredComplaints = useMemo(() => {
@@ -343,7 +371,7 @@ function DetailKategoriPage() {
       <div className="space-y-5">
         <div>
           <h1 className="text-[15px] font-bold text-gray-800 tracking-tight">
-            Report Pengaduan {currentCategory.shortName}
+            Report Pengaduan {categoryLabel}
           </h1>
         </div>
 
@@ -455,7 +483,7 @@ function DetailKategoriPage() {
                     const jenis =
                       item.category?.category_name ??
                       item.category?.category_code ??
-                      currentCategory.shortName;
+                      categoryLabel;
                     const pelapor = item.complainant?.nama_lengkap ?? "-";
                     const perusahaan = item.company?.nama_perusahaan ?? "-";
                     const tanggal = formatDateIndo(item.complaint_date ?? item.created_at);

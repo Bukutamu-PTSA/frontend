@@ -21,6 +21,7 @@ import {
   Search,
   X,
   Plus,
+  type LucideIcon,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { matchesSearch } from "@/lib/search";
@@ -44,110 +45,31 @@ interface CategoryMeta {
   id: number;
   code: string;
   title: string;
+  /** Jumlah pengaduan dari backend. */
+  count: number;
   /** Ikon lucide (dipakai semua kategori). */
-  icon?: React.ElementType;
+  icon?: LucideIcon;
   iconColor: string;
   bgColor: string;
 }
 
-const CATEGORIES_CONFIG: CategoryMeta[] = [
-  {
-    id: 1,
-    code: "WAJIB_LAPOR",
-    title: "WAJIB LAPOR KETENAGAKERJAAN",
-    icon: FileText,
-    iconColor: "text-red-500",
-    bgColor: "bg-red-50",
-  },
-  {
-    id: 2,
-    code: "UPAH_KERJA",
-    title: "UPAH KERJA",
-    icon: WalletCards,
-    iconColor: "text-slate-600",
-    bgColor: "bg-slate-100",
-  },
-  {
-    id: 3,
-    code: "JAMINAN_SOSIAL",
-    title: "JAMINAN SOSIAL",
-    icon: ShieldCheck,
-    iconColor: "text-emerald-500",
-    bgColor: "bg-emerald-50",
-  },
-  {
-    id: 4,
-    code: "HUBUNGAN_KERJA",
-    title: "HUBUNGAN KERJA",
-    icon: Handshake,
-    iconColor: "text-purple-500",
-    bgColor: "bg-purple-50",
-  },
-  {
-    id: 5,
-    code: "KECELAKAAN_KERJA",
-    title: "KECELAKAAN KERJA",
-    icon: PersonStanding,
-    iconColor: "text-orange-500",
-    bgColor: "bg-orange-50",
-  },
-  {
-    id: 6,
-    code: "WAKTU_KERJA",
-    title: "WAKTU KERJA & WAKTU ISTIRAHAT",
-    icon: Clock3,
-    iconColor: "text-amber-500",
-    bgColor: "bg-amber-50",
-  },
-  {
-    id: 7,
-    code: "KADER_NORMA",
-    title: "KADER NORMA KETENAGAKERJAAN",
-    icon: Scale,
-    iconColor: "text-blue-500",
-    bgColor: "bg-blue-50",
-  },
-  {
-    id: 8,
-    code: "PENEMPATAN_TK",
-    title: "PENEMPATAN TK DALAM & LUAR NEGERI",
-    icon: BriefcaseBusiness,
-    iconColor: "text-cyan-600",
-    bgColor: "bg-cyan-50",
-  },
-  {
-    id: 9,
-    code: "K3",
-    title: "KESELAMATAN & KESEHATAN KERJA",
-    icon: HeartPulse,
-    iconColor: "text-red-500",
-    bgColor: "bg-red-50",
-  },
-  {
-    id: 10,
-    code: "PEREMPUAN_ANAK",
-    title: "PEREMPUAN & ANAK",
-    icon: Baby,
-    iconColor: "text-purple-600",
-    bgColor: "bg-purple-50",
-  },
-  {
-    id: 11,
-    code: "NORMA_K3",
-    title: "Kader Norma K3",
-    icon: Award,
-    iconColor: "text-amber-700",
-    bgColor: "bg-amber-50",
-  },
-  {
-    id: 12,
-    code: "SKP",
-    title: "SKP",
-    icon: FileCheck,
-    iconColor: "text-slate-600",
-    bgColor: "bg-slate-100",
-  },
-];
+/** Hanya ikon & warna per ID kategori. Nama & jumlah diambil dari backend. */
+const CATEGORY_STYLES: Record<number, { icon: LucideIcon; iconColor: string; bgColor: string }> = {
+  1: { icon: FileText, iconColor: "text-red-500", bgColor: "bg-red-50" },
+  2: { icon: WalletCards, iconColor: "text-slate-600", bgColor: "bg-slate-100" },
+  3: { icon: ShieldCheck, iconColor: "text-emerald-500", bgColor: "bg-emerald-50" },
+  4: { icon: Handshake, iconColor: "text-purple-500", bgColor: "bg-purple-50" },
+  5: { icon: PersonStanding, iconColor: "text-orange-500", bgColor: "bg-orange-50" },
+  6: { icon: Clock3, iconColor: "text-amber-500", bgColor: "bg-amber-50" },
+  7: { icon: Scale, iconColor: "text-blue-500", bgColor: "bg-blue-50" },
+  8: { icon: BriefcaseBusiness, iconColor: "text-cyan-600", bgColor: "bg-cyan-50" },
+  9: { icon: HeartPulse, iconColor: "text-red-500", bgColor: "bg-red-50" },
+  10: { icon: Baby, iconColor: "text-purple-600", bgColor: "bg-purple-50" },
+  11: { icon: Award, iconColor: "text-amber-700", bgColor: "bg-amber-50" },
+  12: { icon: FileCheck, iconColor: "text-slate-600", bgColor: "bg-slate-100" },
+};
+
+const DEFAULT_STYLE = { icon: Layers, iconColor: "text-slate-600", bgColor: "bg-slate-100" };
 
 const nf = new Intl.NumberFormat("id-ID");
 
@@ -157,15 +79,10 @@ function KategoriPelayananPage() {
   const [search, setSearch] = useState("");
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [categoryCounts, setCategoryCounts] = useState<Record<number, number>>({});
 
-  // Kategori yang hanya muncul di ringkasan API (tidak ada di config statis).
-  const [customCategories, setCustomCategories] = useState<CategoryMeta[]>([]);
-
-  const allCategories = useMemo(
-    () => [...CATEGORIES_CONFIG, ...customCategories],
-    [customCategories],
-  );
+  // Daftar kategori LANGSUNG dari backend (id, nama, jumlah) supaya judul kartu
+  // selalu cocok dengan data yang dibuka di halaman detail.
+  const [allCategories, setAllCategories] = useState<CategoryMeta[]>([]);
 
   // Filter kartu kategori berdasarkan nama/kode.
   const filteredCategories = useMemo(() => {
@@ -207,7 +124,7 @@ function KategoriPelayananPage() {
       "data:text/csv;charset=utf-8," +
       "ID Kategori,Nama Kategori,Total Pengaduan\n" +
       filteredCategories
-        .map((cat) => `"${cat.id}","${cat.title}",${categoryCounts[cat.id] ?? 0}`)
+        .map((cat) => `"${cat.id}","${cat.title}",${cat.count}`)
         .join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -242,47 +159,23 @@ function KategoriPelayananPage() {
             ? resJson
             : [];
 
-        const merged = new Map<number, CategoryMeta>();
-        CATEGORIES_CONFIG.forEach((cat) => merged.set(cat.id, cat));
-
-        list.forEach((item) => {
-          const id = Number(item.id);
-          if (!id) return;
-          if (!merged.has(id)) {
-            merged.set(id, {
+        const categories: CategoryMeta[] = list
+          .map((item): CategoryMeta | null => {
+            const id = Number(item.id ?? item.category_id);
+            if (!Number.isFinite(id) || id <= 0) return null;
+            const style = CATEGORY_STYLES[id] ?? DEFAULT_STYLE;
+            return {
               id,
               code: String(item.category_code ?? ""),
-              title: String(item.category_name ?? "Kategori").toUpperCase(),
-              icon: Layers,
-              iconColor: "text-slate-600",
-              bgColor: "bg-slate-100",
-            });
-          }
-        });
+              title: String(item.category_name ?? item.category_code ?? "Kategori").toUpperCase(),
+              count: Number(item.count ?? item.total ?? 0),
+              ...style,
+            };
+          })
+          .filter((c): c is CategoryMeta => c !== null)
+          .sort((a, b) => a.id - b.id);
 
-        const counts: Record<number, number> = {};
-        merged.forEach((_, id) => {
-          counts[id] = 0;
-        });
-
-        list.forEach((item) => {
-          const id = Number(item.id);
-          const count = Number(item.count ?? 0);
-
-          if (counts[id] !== undefined) {
-            counts[id] = count;
-          } else {
-            const matched = [...merged.values()].find(
-              (c) => c.code === String(item.category_code ?? "").toUpperCase(),
-            );
-            if (matched) counts[matched.id] = count;
-          }
-        });
-
-        setCustomCategories(
-          [...merged.values()].filter((cat) => !CATEGORIES_CONFIG.some((c) => c.id === cat.id)),
-        );
-        setCategoryCounts(counts);
+        setAllCategories(categories);
       }
     } catch (err) {
       console.error("Gagal mengambil data complaint-summary:", err);
@@ -369,7 +262,7 @@ function KategoriPelayananPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredCategories.map((item) => {
-              const count = categoryCounts[item.id] ?? 0;
+              const count = item.count;
 
               return (
                 <div

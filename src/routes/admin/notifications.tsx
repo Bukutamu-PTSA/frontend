@@ -14,8 +14,9 @@ import { AppShell } from "@/components/app-shell";
 import { matchesSearch } from "@/lib/search";
 import { fetchNotifications, type NotificationItem } from "@/lib/notifications";
 import { dismissNotif, markAllNotifRead, markNotifRead } from "@/lib/notification-status";
-import { CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
+import { CONFIRM_MESSAGES, PAGE_TITLES, SUCCESS_MESSAGES, ERROR_MESSAGES } from "@/config/app";
 import { confirmDialog } from "@/components/confirm-dialog";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/notifications")({
   head: () => ({
@@ -74,12 +75,19 @@ function NotificationsPage() {
     [notifications],
   );
 
+  // Tandai 1 notifikasi dibaca (optimistic) lalu buka detailnya. Bila PATCH ke
+  // backend gagal, status dibaca dikembalikan dan muncul toast.
   const handleOpen = (item: NotificationItem) => {
     if (!item.read) {
-      markNotifRead([item.id]);
       setNotifications((prev) =>
         prev.map((n) => (String(n.id) === String(item.id) ? { ...n, read: true } : n)),
       );
+      markNotifRead([item.id]).catch(() => {
+        toast.error(ERROR_MESSAGES.markNotifReadFailed);
+        setNotifications((prev) =>
+          prev.map((n) => (String(n.id) === String(item.id) ? { ...n, read: false } : n)),
+        );
+      });
     }
     navigate({ to: "/admin/detail_berkas", search: { id: String(item.id) } });
   };
@@ -87,8 +95,13 @@ function NotificationsPage() {
   const handleMarkAllRead = () => {
     const unread = notifications.filter((n) => !n.read && !n.dismissed);
     if (unread.length === 0) return;
-    markAllNotifRead(unread);
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllNotifRead(unread)
+      .then(() => toast.success(SUCCESS_MESSAGES.allNotifRead))
+      .catch(() => {
+        toast.error(ERROR_MESSAGES.markNotifReadFailed);
+        void load();
+      });
   };
 
   const handleDismiss = (item: NotificationItem) => {

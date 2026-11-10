@@ -88,8 +88,28 @@ function ReportPengaduanPage() {
   const [canDelete, setCanDelete] = useState(false);
   const itemsPerPage = 10;
 
+  // Ringkasan skala usaha langsung dari backend (hemat: cukup angka count,
+  // tidak perlu menghitung dari seluruh aduan). Lihat GET company-size-summary.
+  const [sizeSummary, setSizeSummary] = useState<Record<string, number> | null>(null);
+
   useEffect(() => {
     setCanDelete(isSuperAdmin());
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    fetch(apiUrl("v1/dashboard/company-size-summary"), {
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        const data = json?.data ?? json;
+        if (data && typeof data === "object") setSizeSummary(data as Record<string, number>);
+      })
+      .catch((err) => console.error("Gagal memuat ringkasan skala usaha:", err));
   }, []);
 
   // 1. Fetch seluruh aduan dari API (menghandle pagination backend hingga tuntas)
@@ -215,30 +235,17 @@ function ReportPengaduanPage() {
     });
   }, [complaints, appliedFilters, search]);
 
-  // 3. Hitung Stat Skala Usaha dari data terfilter
+  // 3. Stat skala usaha dari ringkasan backend (bukan dihitung dari seluruh
+  //    aduan). Backend memakai pembagian min/max karyawan yang resmi.
   const scaleStats = useMemo(() => {
-    let mikro = 0;
-    let kecil = 0;
-    let menengah = 0;
-    let besar = 0;
-
-    filteredComplaints.forEach((item) => {
-      const naker = Number(item.company?.jumlah_naker ?? item.jumlah_naker ?? 0);
-
-      if (naker > 1 && naker < 4) mikro++;
-      else if (naker >= 5 && naker < 19) kecil++;
-      else if (naker >= 20 && naker < 99) menengah++;
-      else if (naker >= 100) besar++;
-      else mikro++;
-    });
-
+    const s = sizeSummary ?? {};
     return [
-      { key: "mikro", label: "MIKRO", total: mikro },
-      { key: "kecil", label: "KECIL", total: kecil },
-      { key: "menengah", label: "MENENGAH", total: menengah },
-      { key: "besar", label: "BESAR", total: besar },
+      { key: "mikro", label: "MIKRO", total: Number(s["Mikro"] ?? 0) },
+      { key: "kecil", label: "KECIL", total: Number(s["Kecil"] ?? 0) },
+      { key: "menengah", label: "MENENGAH", total: Number(s["Menengah"] ?? 0) },
+      { key: "besar", label: "BESAR", total: Number(s["Besar"] ?? 0) },
     ];
-  }, [filteredComplaints]);
+  }, [sizeSummary]);
 
   // 4. Pagination
   const totalData = filteredComplaints.length;

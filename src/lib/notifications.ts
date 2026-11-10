@@ -1,17 +1,20 @@
 /**
  * Lapisan data notifikasi.
  *
- * Backend belum menyediakan endpoint notifikasi khusus, jadi notifikasi
- * diturunkan dari data pengaduan (GET /api/complaints) yang sudah ada:
- * setiap aduan baru direpresentasikan sebagai satu notifikasi "Aduan Baru".
+ * Sumber: endpoint notifikasi backend.
+ *   GET   /api/v1/dashboard/notifications?limit=1-50 (default 10)
+ *   PATCH /api/v1/dashboard/notifications/{complaint}/read
  *
- * Status dibaca/diabaikan disimpan lokal, lihat `./notification-status`.
+ * Status "sudah dibaca" (is_read) berasal dari backend, bukan localStorage.
+ * Status "dismissed" (sembunyikan dari daftar) tetap lokal karena backend
+ * belum menyediakannya, lihat `./notification-status`.
  */
 import { apiUrl, authHeaders } from "@/lib/api";
-import { extractList, isRecord } from "@/lib/json";
+import { isRecord } from "@/lib/json";
 import { loadNotifStatus, type NotifStatus } from "@/lib/notification-status";
 
 export interface NotificationItem {
+  /** complaint_id dari backend (dipakai juga untuk PATCH read). */
   id: string;
   title: string;
   description: string;
@@ -23,14 +26,16 @@ export interface NotificationItem {
   dismissed: boolean;
 }
 
-type RawComplaint = {
-  id?: unknown;
+export const NOTIFICATIONS_PATH = "v1/dashboard/notifications";
+
+type RawNotification = {
+  complaint_id?: unknown;
   ticket_number?: unknown;
-  created_at?: unknown;
-  complaint_date?: unknown;
-  complainant?: unknown;
-  company?: unknown;
   category?: unknown;
+  complainant_name?: unknown;
+  company?: unknown;
+  is_read?: unknown;
+  created_at?: unknown;
   [key: string]: unknown;
 };
 
@@ -39,14 +44,11 @@ function parseDate(value: string | null | undefined): Date | null {
   const text = String(value ?? "").trim();
   if (!text) return null;
 
-  // ISO dengan timezone eksplisit (Z atau +HH:MM / -HH:MM) → biarkan Date
-  // native yang handle UTC dengan benar.
   if (/Z$|[+-]\d{2}:?\d{2}$/.test(text)) {
     const d = new Date(text);
     return Number.isNaN(d.getTime()) ? null : d;
   }
 
-  // ISO tanpa timezone → asumsikan lokal (perilaku lama).
   const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
   if (iso) {
     return new Date(
@@ -98,52 +100,47 @@ function timeAgo(value: string | null | undefined): string {
   return `${Math.floor(days / 365)} tahun yang lalu`;
 }
 
-function firstValue(source: unknown, keys: readonly string[]): string | undefined {
-  if (!isRecord(source)) return undefined;
-  for (const key of keys) {
-    const value = source[key];
-    if (value != null) return String(value);
+function companyName(raw: RawNotification): string {
+  const company = raw.company;
+  if (typeof company === "string") return company;
+  if (isRecord(company) && company["nama_perusahaan"] != null) {
+    return String(company["nama_perusahaan"]);
   }
-  return undefined;
+  return "";
 }
 
-function toNotification(raw: RawComplaint, status: NotifStatus): NotificationItem {
-  const id = String(raw.id ?? raw.ticket_number ?? Math.random().toString(36).slice(2));
+function toNotification(raw: RawNotification, status: NotifStatus): NotificationItem {
+  const id = String(raw.complaint_id ?? raw.ticket_number ?? Math.random().toString(36).slice(2));
 
-  const complainantName =
-    firstValue(raw.complainant, ["nama_lengkap", "nama"]) ??
-    firstValue(raw, ["nama_pelapor"]) ??
-    "Pengunjung";
-  const companyName =
-    firstValue(raw.company, ["nama_perusahaan"]) ?? firstValue(raw, ["nama_perusahaan"]) ?? "";
-  const categoryName =
-    firstValue(raw.category, ["category_name", "category_code", "code"]) ??
-    firstValue(raw, ["jenis_pengaduan"]) ??
-    "Laporan";
-
-  const createdAt = String(raw.created_at ?? raw.complaint_date ?? "");
+  const complainant = raw.complainant_name != null ? String(raw.complainant_name) : "Pengunjung";
+  const company = companyName(raw);
+  const category = raw.category != null ? String(raw.category) : "Laporan";
+  const createdAt = String(raw.created_at ?? "");
 
   return {
     id,
     title: "Aduan Baru",
-    description: companyName
-      ? `Terdapat laporan baru dari ${complainantName} (${companyName}) yang perlu ditinjau.`
-      : `Terdapat laporan baru dari ${complainantName} yang perlu ditinjau.`,
+    description: company
+      ? `Terdapat laporan baru dari ${complainant} (${company}) yang perlu ditinjau.`
+      : `Terdapat laporan baru dari ${complainant} yang perlu ditinjau.`,
     ticket: String(raw.ticket_number ?? "-"),
-    category: categoryName,
+    category,
     time: timeAgo(createdAt),
     createdAt,
-    read: status.read.has(id),
+    // Backend adalah sumber kebenaran untuk "sudah dibaca".
+    read: raw.is_read === true,
+    // Dismissed masih lokal (belum ada di backend).
     dismissed: status.dismissed.has(id),
   };
 }
 
 /**
- * Ambil notifikasi terbaru dari data pengaduan, terurut paling baru duluan.
+ * Ambil notifikasi aduan belum dibaca dari backend, terurut paling baru duluan.
  * @throws Error bila fetch gagal.
  */
 export async function fetchNotifications(limit = 50): Promise<NotificationItem[]> {
-  const res = await fetch(`${apiUrl("complaints")}?per_page=${limit}`, {
+  const safeLimit = Math.min(50, Math.max(1, Math.trunc(limit) || 10));
+  const res = await fetch(`${apiUrl(NOTIFICATIONS_PATH)}?limit=${safeLimit}`, {
     headers: authHeaders(),
   });
 
@@ -152,9 +149,11 @@ export async function fetchNotifications(limit = 50): Promise<NotificationItem[]
   }
 
   const json: unknown = await res.json();
+  const data = isRecord(json) && isRecord(json["data"]) ? json["data"] : json;
+  const rawList = isRecord(data) && Array.isArray(data["notifications"]) ? data["notifications"] : [];
   const status = loadNotifStatus();
 
-  return extractList(json)
+  return rawList
     .filter(isRecord)
     .map((raw) => toNotification(raw, status))
     .sort((a, b) => timeMs(b.createdAt) - timeMs(a.createdAt));

@@ -18,13 +18,12 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { matchesSearch } from "@/lib/search";
 import { apiUrl, authHeaders } from "@/lib/api";
-import { computeGrowth, formatGrowth } from "@/lib/growth";
+import { formatGrowth } from "@/lib/growth";
 import { fetchSatisfactionSummary, type SatisfactionSummary } from "@/lib/satisfaction";
 import { PAGE_TITLES, APP_SHORT_NAME, DEFAULT_TOTAL_LAPORAN } from "@/config/app";
 
 const SUMMARY_API_URL = apiUrl("dashboard/complaint-summary");
 const PROVINCE_SUMMARY_API_URL = apiUrl("dashboard/province-summary");
-const COMPLAINTS_API_URL = apiUrl("complaints");
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({
@@ -38,27 +37,6 @@ export const Route = createFileRoute("/admin/dashboard")({
 });
 
 const nf = new Intl.NumberFormat("id-ID");
-
-interface CategoryConfig {
-  id: number;
-  code: string;
-  title: string;
-}
-
-const ALL_CATEGORIES: CategoryConfig[] = [
-  { id: 1, code: "WAJIB_LAPOR", title: "WAJIB LAPOR KETENAGAKERJAAN" },
-  { id: 2, code: "UPAH_KERJA", title: "Upah Kerja" },
-  { id: 3, code: "JAMINAN_SOSIAL", title: "Jaminan Sosial" },
-  { id: 4, code: "HUBUNGAN_KERJA", title: "Hubungan Kerja" },
-  { id: 5, code: "KECELAKAAN_KERJA", title: "Kecelakaan Kerja" },
-  { id: 6, code: "WAKTU_KERJA", title: "Waktu Kerja & Istirahat" },
-  { id: 7, code: "KADER_NORMA", title: "Kader Norma Kerja" },
-  { id: 8, code: "PENEMPATAN_TK", title: "Penempatan Tenaga Kerja" },
-  { id: 9, code: "K3", title: "Keselamatan & Kesehatan (K3)" },
-  { id: 10, code: "PEREMPUAN_ANAK", title: "Perlindungan Perempuan & Anak" },
-  { id: 11, code: "NORMA_K3", title: "Kader Norma K3" },
-  { id: 12, code: "SKP", title: "SKP" },
-];
 
 interface WilayahRow {
   no: number;
@@ -136,18 +114,13 @@ function DashboardExecutive() {
   const [wilayahData, setWilayahData] = useState<WilayahRow[]>([]);
 
   const [totalAduan, setTotalAduan] = useState(DEFAULT_TOTAL_LAPORAN);
-  // Persentase kenaikan/penurunan aduan (dihitung riil, sama seperti page Grafik).
-  const [growth, setGrowth] = useState<number | null>(null);
+  const growth: number | null = null;
   // Indeks kepuasan: endpoint agregat bila ada, fallback hitung dari respons survei.
   const [satisfaction, setSatisfaction] = useState<SatisfactionSummary | null>(null);
-  const [categoryCounts, setCategoryCounts] = useState<Record<number, number>>({
-    1: 11267,
-    2: 245,
-    3: 19,
-    4: 12,
-    5: 8,
-    6: 5,
-  });
+  // Kategori teratas langsung dari ringkasan agregat (tanpa menarik seluruh aduan).
+  const [topCategories, setTopCategories] = useState<
+    { id: number; title: string; count: number }[]
+  >([]);
 
   // Drag-to-Scroll & Animation Refs
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -156,74 +129,11 @@ function DashboardExecutive() {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [hasMoved, setHasMoved] = useState(false);
 
-  // Sinkronisasi data dashboard terpusat. Kalau filter kalender aktif
-  // (tanggal/bulan/tahun), total aduan & jumlah per kategori dihitung dari
-  // daftar aduan yang dipotong prefix tanggal, dan pertumbuhan membandingkan
-  // periode terpilih dengan periode sebelumnya yang sebanding.
+  // Total aduan & rekap kategori cukup diambil dari endpoint ringkasan agregat,
+  // jadi dashboard tidak perlu menarik seluruh daftar aduan (beserta lampiran).
   useEffect(() => {
     const headers = authHeaders();
     const prefix = selectedDate;
-
-    const extractList = (json: any): any[] =>
-      Array.isArray(json?.data)
-        ? json.data
-        : Array.isArray(json?.data?.data)
-          ? json.data.data
-          : Array.isArray(json)
-            ? json
-            : Array.isArray(json?.complaints)
-              ? json.complaints
-              : [];
-
-    const fetchAll = async () => {
-      try {
-        const first = await fetch(`${COMPLAINTS_API_URL}?per_page=100`, {
-          headers,
-        });
-        if (!first.ok) return;
-
-        const firstJson = await first.json();
-        let rawList: any[] = [...extractList(firstJson)];
-
-        const lastPage = Number(
-          firstJson?.meta?.last_page ?? firstJson?.last_page ?? firstJson?.data?.last_page ?? 1,
-        );
-        if (Number.isFinite(lastPage) && lastPage > 1) {
-          const pages = Array.from({ length: lastPage - 1 }, (_, i) => i + 2);
-          const results = await Promise.all(
-            pages.map((p) =>
-              fetch(`${COMPLAINTS_API_URL}?page=${p}&per_page=100`, { headers })
-                .then((r) => (r.ok ? r.json() : null))
-                .catch(() => null),
-            ),
-          );
-          results.forEach((json) => {
-            if (json) rawList = rawList.concat(extractList(json));
-          });
-        }
-
-        if (!prefix) {
-          setGrowth(computeGrowth(rawList, null));
-          return;
-        }
-
-        const filtered = rawList.filter((it: any) =>
-          String(it.complaint_date ?? it.created_at ?? "").startsWith(prefix),
-        );
-        setTotalAduan(filtered.length);
-        setGrowth(computeGrowth(rawList, prefix));
-
-        const newCounts: Record<number, number> = {};
-        filtered.forEach((it: any) => {
-          const code = String(it.category?.category_code ?? it.category?.code ?? "").toUpperCase();
-          const match = ALL_CATEGORIES.find((c) => c.code === code);
-          if (match) newCounts[match.id] = (newCounts[match.id] ?? 0) + 1;
-        });
-        setCategoryCounts(newCounts);
-      } catch (err) {
-        console.error("Gagal menyinkronkan data dashboard:", err);
-      }
-    };
 
     const fetchSummary = async () => {
       try {
@@ -231,31 +141,34 @@ function DashboardExecutive() {
           ? `${SUMMARY_API_URL}?date=${encodeURIComponent(prefix)}`
           : SUMMARY_API_URL;
         const res = await fetch(url, { headers });
-        if (res.ok) {
-          const json = await res.json();
-          const items = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-          let total = 0;
-          const newCounts: Record<number, number> = {};
+        if (!res.ok) return;
 
-          items.forEach((item: any) => {
-            const count = Number(item.count || item.total || 0);
-            const id = Number(item.id || item.category_id);
-            total += count;
-            if (id) newCounts[id] = count;
-          });
+        const json = await res.json();
+        const items = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
 
-          if (total > 0) setTotalAduan(total);
-          if (Object.keys(newCounts).length > 0) {
-            setCategoryCounts((prev) => ({ ...prev, ...newCounts }));
-          }
-        }
+        const rows: { id: number; title: string; count: number }[] = items
+          .map((item: any) => ({
+            id: Number(item.id ?? item.category_id),
+            title: String(item.category_name ?? item.category_code ?? "Tanpa Nama"),
+            count: Number(item.count ?? item.total ?? 0),
+          }))
+          .filter((row: { id: number; title: string; count: number }) => Number.isFinite(row.id) && row.id > 0)
+          .sort(
+            (a: { count: number }, b: { count: number }) => b.count - a.count,
+          );
+
+        const total = Number(
+          json?.meta?.total ?? rows.reduce((sum: number, row) => sum + row.count, 0),
+        );
+
+        if (total > 0) setTotalAduan(total);
+        setTopCategories(rows.slice(0, 5));
       } catch (err) {
         console.error("Gagal sinkron data dashboard:", err);
       }
     };
 
-    fetchAll();
-    if (!prefix) fetchSummary();
+    fetchSummary();
   }, [selectedDate]);
 
   // Indeks kepuasan: ambil ringkasan secara terpusat (agregat + fallback respons).
@@ -319,18 +232,6 @@ function DashboardExecutive() {
 
     fetchProvinces();
   }, [selectedDate]);
-
-  // Urutkan kategori dari yang paling banyak ke paling sedikit (Descending)
-  const sortedCategories = useMemo(() => {
-    return [...ALL_CATEGORIES].sort((a, b) => {
-      const countA = categoryCounts[a.id] ?? 0;
-      const countB = categoryCounts[b.id] ?? 0;
-      return countB - countA;
-    });
-  }, [categoryCounts]);
-
-  // Tampilkan hanya 5 kategori dengan jumlah pengaduan terbanyak.
-  const topCategories = useMemo(() => sortedCategories.slice(0, 5), [sortedCategories]);
 
   // Filter table wilayah berdasarkan keyword provinsi.
   const filteredWilayah = useMemo(() => {
@@ -580,7 +481,7 @@ function DashboardExecutive() {
             `}
           >
             {topCategories.map((item) => {
-              const count = categoryCounts[item.id] ?? 0;
+              const count = item.count;
 
               return (
                 <div

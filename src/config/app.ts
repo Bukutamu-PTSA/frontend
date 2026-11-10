@@ -220,6 +220,7 @@ export const SUCCESS_MESSAGES = {
   skalaDeleted: "Skala perusahaan berhasil dihapus.",
   jenisPengaduanDeleted: "Jenis pengaduan berhasil dihapus.",
   complaintDeleted: "Aduan berhasil dihapus.",
+  allNotifRead: "Semua notifikasi ditandai sudah dibaca.",
 };
 
 export const ERROR_MESSAGES = {
@@ -238,6 +239,7 @@ export const ERROR_MESSAGES = {
   skalaDeleteFailed: "Gagal menghapus skala. Coba lagi.",
   jenisPengaduanDeleteFailed: "Gagal menghapus jenis pengaduan. Coba lagi.",
   complaintDeleteFailed: "Gagal menghapus aduan.",
+  markNotifReadFailed: "Gagal menandai notifikasi dibaca. Coba lagi.",
   complaintDeleteError: "Terjadi kesalahan saat menghapus aduan.",
   pdfExportFailed: "Terjadi kesalahan saat mengunduh PDF.",
   pdfComplaintExportFailed: "Terjadi kesalahan saat mengunduh PDF pengaduan.",

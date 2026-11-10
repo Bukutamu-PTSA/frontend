@@ -1,13 +1,18 @@
 /**
- * Status notifikasi (sudah dibaca / diabaikan) disimpan di localStorage agar
- * tetap bertahan antar sesi. Semua akses storage dijaga agar aman saat SSR.
+ * Status notifikasi.
+ *
+ * - "Sudah dibaca" (is_read) ditangani BACKEND lewat
+ *   PATCH /api/v1/dashboard/notifications/{complaint}/read.
+ * - "Dismissed" (sembunyikan dari daftar) belum ada di backend, jadi disimpan
+ *   di localStorage agar tetap bertahan antar sesi. Akses storage dijaga aman
+ *   saat SSR.
  */
+import { apiUrl, authHeaders } from "@/lib/api";
+import { NOTIFICATIONS_PATH } from "@/lib/notifications";
 
-const READ_IDS_KEY = "ptsa_notif_read_ids";
 const DISMISSED_IDS_KEY = "ptsa_notif_dismissed_ids";
 
 export type NotifStatus = {
-  read: Set<string>;
   dismissed: Set<string>;
 };
 
@@ -30,23 +35,31 @@ function saveIds(key: string, ids: Iterable<string>): void {
   localStorage.setItem(key, JSON.stringify([...ids]));
 }
 
-/** Baca kedua set sekaligus agar localStorage tidak di-parse berulang kali. */
 export function loadNotifStatus(): NotifStatus {
   return {
-    read: new Set(readIds(READ_IDS_KEY)),
     dismissed: new Set(readIds(DISMISSED_IDS_KEY)),
   };
 }
 
-export function markNotifRead(ids: Iterable<string | number>): void {
-  const next = new Set([...readIds(READ_IDS_KEY), ...Array.from(ids, String)]);
-  saveIds(READ_IDS_KEY, next);
+/** Tandai satu notifikasi sudah dibaca di backend (PATCH). */
+export async function markNotifRead(ids: Iterable<string | number>): Promise<void> {
+  await Promise.all(
+    Array.from(ids, (id) =>
+      fetch(apiUrl(`${NOTIFICATIONS_PATH}/${id}/read`), {
+        method: "PATCH",
+        headers: authHeaders(),
+      }).catch((err) => {
+        console.error(`Gagal menandai notifikasi ${id} dibaca:`, err);
+      }),
+    ),
+  );
 }
 
-export function markAllNotifRead(list: { id: string | number }[]): void {
-  markNotifRead(list.map((item) => item.id));
+export async function markAllNotifRead(list: { id: string | number }[]): Promise<void> {
+  await markNotifRead(list.map((item) => item.id));
 }
 
+/** Sembunyikan notifikasi dari daftar (lokal, backend belum mendukung). */
 export function dismissNotif(ids: Iterable<string | number>): void {
   const next = new Set([...readIds(DISMISSED_IDS_KEY), ...Array.from(ids, String)]);
   saveIds(DISMISSED_IDS_KEY, next);
