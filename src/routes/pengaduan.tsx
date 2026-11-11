@@ -118,6 +118,14 @@ function fieldLabel(el: Element): string {
   return "Field ini";
 }
 
+/**
+ * Saklar opsi "Lainnya" pada Jenis Pengaduan (opsi di dropdown + field isiannya).
+ * Disembunyikan karena backend belum punya kategori "Lainnya": category_id
+ * "other" bukan ID kategori yang valid sehingga pengaduan gagal disimpan.
+ * Ubah ke true bila backend sudah mendukung.
+ */
+const SHOW_KATEGORI_LAINNYA = false;
+
 function FormulirPengaduanPage() {
   const navigate = useNavigate();
 
@@ -185,7 +193,11 @@ function FormulirPengaduanPage() {
     if (!draft || typeof draft !== "object") return;
 
     const str = (v: unknown) => (v == null ? "" : String(v));
-    setCategoryId(draft.category_id ?? "");
+    // Draft lama yang memilih "Lainnya" tidak dipulihkan selagi opsinya disembunyikan,
+    // supaya "other" tidak terkirim sebagai category_id.
+    setCategoryId(
+      !SHOW_KATEGORI_LAINNYA && String(draft.category_id) === "other" ? "" : (draft.category_id ?? ""),
+    );
     setJenisPengaduan(str(draft.jenisPengaduan));
     setLainnya(str(draft.lainnya));
     setTanggalPelaporan(str(draft.tanggalPelaporan));
@@ -562,7 +574,7 @@ function FormulirPengaduanPage() {
                         {kat.name}
                       </option>
                     ))}
-                    <option value="other">Lainnya</option>
+                    {SHOW_KATEGORI_LAINNYA && <option value="other">Lainnya</option>}
                   </select>
                   <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
                     ▼
@@ -570,6 +582,7 @@ function FormulirPengaduanPage() {
                 </div>
               </div>
 
+              {SHOW_KATEGORI_LAINNYA && (
               <div>
                 <label className="mb-1.5 block font-medium text-gray-700">
                   Lainnya{" "}
@@ -591,6 +604,7 @@ function FormulirPengaduanPage() {
                   className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                 />
               </div>
+              )}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
