@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Printer, User, Loader2, AlertCircle } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
+import { jenisPengaduanLabel } from "@/lib/complaint";
 import { PAGE_TITLES } from "@/config/app";
 
 export type ViewPdfSearch = {
@@ -172,10 +173,10 @@ function ViewPdfPage() {
                   <span className="w-44 shrink-0 font-medium">Jenis Layanan Pengaduan</span>
                   <span className="w-4 shrink-0">:</span>
                   <span className="font-bold text-gray-900">
-                    {category.category_name ||
-                      detail.category_name ||
-                      detail.jenis_pengaduan ||
-                      "Wajib Lapor Ketenagakerjaan Perusahaan - WLKP"}
+                    {jenisPengaduanLabel(
+                      detail,
+                      "Wajib Lapor Ketenagakerjaan Perusahaan - WLKP",
+                    )}
                   </span>
                 </div>
                 <div className="flex">

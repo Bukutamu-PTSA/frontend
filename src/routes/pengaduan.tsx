@@ -119,12 +119,12 @@ function fieldLabel(el: Element): string {
 }
 
 /**
- * Saklar opsi "Lainnya" pada Jenis Pengaduan (opsi di dropdown + field isiannya).
- * Disembunyikan karena backend belum punya kategori "Lainnya": category_id
- * "other" bukan ID kategori yang valid sehingga pengaduan gagal disimpan.
- * Ubah ke true bila backend sudah mendukung.
+ * Kode kategori "Lainnya" dari API (GET /complaint-categories). Opsi "Lainnya"
+ * muncul di dropdown dari API; field isiannya hanya tampil bila kategori
+ * terpilih berkode ini. Dikenali lewat kode, bukan ID, karena ID kategori bisa
+ * berbeda antar lingkungan.
  */
-const SHOW_KATEGORI_LAINNYA = false;
+const KODE_KATEGORI_LAINNYA = "LAINNYA";
 
 function FormulirPengaduanPage() {
   const navigate = useNavigate();
@@ -147,6 +147,13 @@ function FormulirPengaduanPage() {
   const [jenisPengaduan, setJenisPengaduan] = useState("");
   const [categoryId, setCategoryId] = useState<number | string>("");
   const [lainnya, setLainnya] = useState("");
+
+  // Apakah kategori dengan id tersebut adalah "Lainnya" (menurut kode dari API).
+  const isKategoriLainnya = (id: number | string) =>
+    String(kategoriList.find((k) => String(k.id) === String(id))?.code ?? "")
+      .trim()
+      .toUpperCase() === KODE_KATEGORI_LAINNYA;
+  const isLainnya = isKategoriLainnya(categoryId);
   const [tanggalPelaporan, setTanggalPelaporan] = useState("");
 
   const [namaPelapor, setNamaPelapor] = useState("");
@@ -193,11 +200,9 @@ function FormulirPengaduanPage() {
     if (!draft || typeof draft !== "object") return;
 
     const str = (v: unknown) => (v == null ? "" : String(v));
-    // Draft lama yang memilih "Lainnya" tidak dipulihkan selagi opsinya disembunyikan,
-    // supaya "other" tidak terkirim sebagai category_id.
-    setCategoryId(
-      !SHOW_KATEGORI_LAINNYA && String(draft.category_id) === "other" ? "" : (draft.category_id ?? ""),
-    );
+    // Draft dari versi lama bisa berisi category_id "other" (bukan ID kategori
+    // yang valid), jadi tidak dipulihkan.
+    setCategoryId(String(draft.category_id) === "other" ? "" : (draft.category_id ?? ""));
     setJenisPengaduan(str(draft.jenisPengaduan));
     setLainnya(str(draft.lainnya));
     setTanggalPelaporan(str(draft.tanggalPelaporan));
@@ -244,6 +249,7 @@ function FormulirPengaduanPage() {
           setKategoriList(
             items.map((item: any) => ({
               id: item.id,
+              code: item.category_code,
               name: item.category_name || item.name || item.category_code,
             })),
           );
@@ -456,6 +462,8 @@ function FormulirPengaduanPage() {
       category_id: categoryId,
       jenisPengaduan,
       lainnya,
+      // Dikirim sebagai category_other hanya untuk kategori Lainnya.
+      category_other: isLainnya ? lainnya.trim() : "",
       tanggalPelaporan,
       namaPelapor,
       nik,
@@ -564,6 +572,8 @@ function FormulirPengaduanPage() {
                       setCategoryId(selId);
                       const matched = kategoriList.find((k) => String(k.id) === selId);
                       setJenisPengaduan(matched ? matched.name : "");
+                      // Pindah ke kategori lain: buang isian "Lainnya" supaya tidak ikut terkirim.
+                      if (!isKategoriLainnya(selId)) setLainnya("");
                     }}
                     required
                     className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary cursor-pointer"
@@ -574,7 +584,6 @@ function FormulirPengaduanPage() {
                         {kat.name}
                       </option>
                     ))}
-                    {SHOW_KATEGORI_LAINNYA && <option value="other">Lainnya</option>}
                   </select>
                   <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400">
                     ▼
@@ -582,28 +591,23 @@ function FormulirPengaduanPage() {
                 </div>
               </div>
 
-              {SHOW_KATEGORI_LAINNYA && (
-              <div>
-                <label className="mb-1.5 block font-medium text-gray-700">
-                  Lainnya{" "}
-                  {String(categoryId) === "other" && <span className="text-red-500">*</span>}
-                </label>
-                <input
-                  suppressHydrationWarning
-                  type="text"
-                  value={lainnya}
-                  onChange={(e) => setLainnya(e.target.value)}
-                  disabled={String(categoryId) !== "other"}
-                  required={String(categoryId) === "other"}
-                  data-label="Jenis Pengaduan Lainnya"
-                  placeholder={
-                    String(categoryId) === "other"
-                      ? "Masukkan Jenis Pengaduan"
-                      : 'Pilih "Lainnya" pada Jenis Pengaduan dahulu'
-                  }
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
-                />
-              </div>
+              {/* Muncul hanya bila pengadu memilih "Lainnya" di dropdown Jenis Pengaduan. */}
+              {isLainnya && (
+                <div>
+                  <label className="mb-1.5 block font-medium text-gray-700">
+                    Lainnya <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    suppressHydrationWarning
+                    type="text"
+                    value={lainnya}
+                    onChange={(e) => setLainnya(e.target.value)}
+                    required
+                    data-label="Jenis Pengaduan Lainnya"
+                    placeholder="Masukkan Jenis Pengaduan"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-brand-secondary focus:outline-none focus:ring-1 focus:ring-brand-secondary"
+                  />
+                </div>
               )}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

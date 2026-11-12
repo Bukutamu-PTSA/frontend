@@ -4,6 +4,7 @@ import { Search, Download, FileText, Eye, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
+import { jenisPengaduanLabel } from "@/lib/complaint";
 import { isSuperAdmin } from "@/lib/auth";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
 import { confirmDialog } from "@/components/confirm-dialog";
@@ -456,10 +457,7 @@ function DetailKategoriPage() {
                 ) : (
                   displayedRows.map((item, index) => {
                     const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
-                    const jenis =
-                      item.category?.category_name ??
-                      item.category?.category_code ??
-                      categoryLabel;
+                    const jenis = jenisPengaduanLabel(item, categoryLabel);
                     const pelapor = item.complainant?.nama_lengkap ?? "-";
                     const perusahaan = item.company?.nama_perusahaan ?? "-";
                     const tanggal = formatDateIndo(item.complaint_date ?? item.created_at);

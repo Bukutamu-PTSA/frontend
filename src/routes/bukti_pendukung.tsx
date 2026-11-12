@@ -463,6 +463,10 @@ function BuktiPendukungPage() {
       // Pengaduan + lampiran dikirim dalam 1 request ke /complaints.
       const formData = new FormData();
       formData.append("category_id", String(draftData.category_id || 1));
+      // Kategori "Lainnya": teks isian pelapor dikirim sebagai category_other.
+      if (draftData.category_other) {
+        formData.append("category_other", String(draftData.category_other));
+      }
       formData.append("description", deskripsiAduan);
       formData.append(
         "complaint_date",

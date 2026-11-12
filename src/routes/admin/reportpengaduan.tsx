@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { confirmDialog } from "@/components/confirm-dialog";
 import { pageWindow } from "@/lib/pagination";
+import { jenisPengaduanLabel } from "@/lib/complaint";
 import { API_BASE_URL as COMPLAINTS_API_URL, apiUrl } from "@/lib/api";
 import { isSuperAdmin } from "@/lib/auth";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, CONFIRM_MESSAGES, PAGE_TITLES } from "@/config/app";
@@ -461,11 +462,7 @@ function ReportPengaduanPage() {
                 ) : (
                   displayedRows.map((item, index) => {
                     const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
-                    const jenis =
-                      item.category?.category_name ??
-                      item.category?.category_code ??
-                      item.kategori ??
-                      "-";
+                    const jenis = jenisPengaduanLabel(item);
                     const pelapor = item.complainant?.nama_lengkap ?? "-";
                     const perusahaan = item.company?.nama_perusahaan ?? "-";
                     const tanggal = formatDateIndo(item.complaint_date ?? item.created_at);

@@ -4,6 +4,7 @@ import { User, Building2, Loader2, AlertCircle, CheckCircle2 } from "lucide-reac
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { API_BASE_URL as BASE_API_URL } from "@/lib/api";
+import { jenisPengaduanLabel } from "@/lib/complaint";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES, PAGE_TITLES } from "@/config/app";
 import {
   Dialog,
@@ -121,8 +122,7 @@ function DetailBerkasPage() {
 
         setData({
           id: item.id || complaintId,
-          jenisPengaduan:
-            category.category_name || item.category_name || item.jenis_pengaduan || "-",
+          jenisPengaduan: jenisPengaduanLabel(item),
           categoryId: category.id || item.category_id || 1,
           namaLengkap: complainant.nama_lengkap || complainant.nama || item.nama_pelapor || "-",
           nik: complainant.nik || item.nik || "-",
